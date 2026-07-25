@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { audioManager } from '@/utils/audio';
+import { audioManager, type AmbienceTier } from '@/utils/audio';
 import { triggerHaptic } from '@/utils/haptics';
+import { getTierTheme } from '@/utils/tierTheme';
 
 type Verdict = 'win' | 'lose' | 'draw';
 type Phase = 'verdict' | 'settle' | 'out';
@@ -12,6 +13,7 @@ interface Props {
   tableName: string;
   pointsDelta: number;
   isFree: boolean;
+  tableTier?: AmbienceTier;
   reduceAnimations?: boolean;
   onDone: () => void;
 }
@@ -51,11 +53,13 @@ export function ResultRevealSequence({
   tableName,
   pointsDelta,
   isFree,
+  tableTier = 'normal',
   reduceAnimations = false,
   onDone,
 }: Props) {
   const [phase, setPhase] = useState<Phase>('verdict');
   const isWin = verdict === 'win';
+  const theme = getTierTheme(tableTier);
   const settleRun = phase === 'settle';
   const counted = useCountUp(pointsDelta, settleRun);
 
@@ -122,7 +126,7 @@ export function ResultRevealSequence({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35 }}
-                className="text-xs font-black tracking-[0.35em] text-arena-gold/90 mb-3 uppercase"
+                className={`font-display text-xs font-black tracking-[0.35em] mb-3 uppercase ${theme.accentText}`}
               >
                 {tierLabel}
               </motion.p>
@@ -135,10 +139,8 @@ export function ResultRevealSequence({
               onAnimationComplete={() => {
                 audioManager.playSFX(isWin ? 'final_win' : 'final_lose');
               }}
-              className={`text-6xl md:text-7xl font-black tracking-widest ${
-                isWin
-                  ? 'text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-600 drop-shadow-[0_0_30px_rgba(245,158,11,0.7)]'
-                  : 'text-gray-400'
+              className={`font-display text-6xl md:text-7xl font-black tracking-widest ${
+                isWin ? theme.engraved : 'text-gray-400'
               }`}
             >
               {VERDICT_TEXT[verdict]}
@@ -148,8 +150,8 @@ export function ResultRevealSequence({
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ delay: 0.5, duration: 0.5 }}
-              className={`mt-4 h-[2px] w-40 origin-center ${
-                isWin ? 'bg-gradient-to-r from-transparent via-arena-gold to-transparent' : 'bg-white/20'
+              className={`mt-4 h-[2px] w-40 origin-center bg-gradient-to-r ${
+                isWin ? theme.hairline : 'from-transparent via-white/25 to-transparent'
               }`}
             />
 

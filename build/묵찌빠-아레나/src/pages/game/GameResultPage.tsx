@@ -260,6 +260,7 @@ export function GameResultPage() {
           tableName={tableInfo.name}
           pointsDelta={pointsAfter - pointsBefore}
           isFree={tableInfo.isFree}
+          tableTier={getTableTier(tableFromState)}
           reduceAnimations={reduceAnim}
           onDone={() => setRevealDone(true)}
         />
@@ -280,7 +281,7 @@ export function GameResultPage() {
               <HostessAvatar role={isWin ? 'jackpot' : 'comfort'} size="xl" pulse className="mb-3" />
               <WinTierBanner info={winTier} />
               <ChaseLightTitle>
-                <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-600 drop-shadow-[0_0_20px_rgba(245,158,11,0.8)] tracking-widest">
+                <h1 className="font-display text-5xl font-black text-engraved-gold tracking-widest">
                   VICTORY
                 </h1>
               </ChaseLightTitle>
@@ -304,7 +305,7 @@ export function GameResultPage() {
             </>
           ) : (
             <>
-              <h1 className="text-5xl font-black text-gray-500 tracking-widest mb-4">
+              <h1 className="font-display text-5xl font-black text-gray-500 tracking-widest mb-4">
                 RESULT
               </h1>
               <div className="text-gray-400 font-black text-4xl mb-4">
@@ -324,8 +325,8 @@ export function GameResultPage() {
 
         {/* Highlight strip — only when log exists */}
         {primaryHighlight && (
-          <div className="w-full max-w-sm mb-4 rounded-2xl border border-arena-gold/40 bg-arena-gold/10 px-4 py-3">
-            <p className="text-[10px] font-black text-arena-gold uppercase tracking-wider mb-1">하이라이트</p>
+          <div className="w-full max-w-sm mb-4 luxe-panel px-4 py-3">
+            <p className="font-display text-[10px] font-black text-arena-gold uppercase tracking-[0.25em] mb-1">Highlight</p>
             <p className="text-base font-black text-white">{primaryHighlight.title}</p>
             <p className="text-xs text-gray-400 mt-1">{primaryHighlight.description}</p>
             {highlights.length > 1 && (

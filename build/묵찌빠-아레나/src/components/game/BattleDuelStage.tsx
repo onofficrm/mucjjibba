@@ -5,6 +5,8 @@ import { HOSTESS, hostessForHand } from '@/data/hostessAssets';
 import { ConnectionBadge } from '@/components/game/ReconnectOverlay';
 import type { ConnectionStatus } from '@/realtime/types';
 import { gameSettings } from '@/utils/gameSettings';
+import { getTierTheme } from '@/utils/tierTheme';
+import type { AmbienceTier } from '@/utils/audio';
 import {
   EmoteQuickBar,
   FloatingEmotesLayer,
@@ -132,6 +134,7 @@ export function BattleDuelStage({
   habitHint = null,
   myReaction = null,
   opponentReaction = null,
+  tier = 'normal',
 }: {
   myName: string;
   myGrade: string;
@@ -164,6 +167,7 @@ export function BattleDuelStage({
   habitHint?: string | null;
   myReaction?: ReactionType | null;
   opponentReaction?: ReactionType | null;
+  tier?: AmbienceTier;
 }) {
   const [showKeyGuide, setShowKeyGuide] = useState<boolean>(
     () => gameSettings.options.showKeyGuide,
@@ -215,9 +219,16 @@ export function BattleDuelStage({
           : null;
 
   const showLock = phase !== 'REVEAL' && phase !== 'ROUND_RESULT' && phase !== 'GAME_OVER' && !!opponentHand;
+  const theme = getTierTheme(tier);
 
   return (
     <div className="relative z-10 flex-1 flex flex-col min-h-0 overflow-hidden select-none">
+      {/* Tier skin — hairline & inner frame */}
+      <div className={`absolute top-0 inset-x-0 h-px z-40 bg-gradient-to-r ${theme.hairline} pointer-events-none`} />
+      <div
+        className={`absolute inset-1.5 md:inset-2.5 rounded-2xl border z-30 pointer-events-none ${theme.frame}`}
+      />
+
       {/* Night stage background */}
       <div className="absolute inset-0 -z-10 overflow-hidden bg-[#071428]">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a1f3d] via-[#0b1830] to-[#050a12]" />
@@ -286,9 +297,10 @@ export function BattleDuelStage({
 
           <div className="flex flex-col items-center shrink-0 px-1">
             <ConnectionBadge status={connStatus} />
-            <div className="text-[10px] md:text-xs font-black">
-              <span className="text-amber-300">Level</span>{' '}
-              <span className="text-white">{isLastRound ? 'Last' : 'Normal'}</span>
+            <div
+              className={`font-display text-[9px] md:text-[10px] font-bold tracking-[0.2em] px-2 py-0.5 rounded-full border ${theme.badge}`}
+            >
+              {isLastRound ? 'FINAL' : theme.label}
             </div>
             <div className="text-lg md:text-xl font-black text-white tabular-nums drop-shadow">{timeLeft}</div>
           </div>
@@ -376,7 +388,8 @@ export function BattleDuelStage({
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className={`text-4xl md:text-6xl font-black tracking-tight ${
+                transition={{ delay: 0.4, type: 'spring', bounce: 0.45 }}
+                className={`font-display text-4xl md:text-6xl font-black tracking-tight ${
                   resultBanner.includes('WIN')
                     ? 'text-lime-300'
                     : resultBanner.includes('LOSE')
@@ -453,17 +466,29 @@ export function BattleDuelStage({
           </div>
         </div>
 
-        {/* Hand reveal chips under fighters */}
+        {/* Hand reveal chips under fighters — 내 손 먼저, 상대 손은 한 박자 늦게 공개 */}
         <div className="relative z-20 w-full max-w-lg flex justify-between px-10 md:px-16 -mt-2 mb-2">
           <div className="text-3xl drop-shadow">{myHand ? HAND_EMOJI[myHand] : '❔'}</div>
           <div className="text-3xl drop-shadow">
-            {phase === 'REVEAL' || phase === 'ROUND_RESULT'
-              ? opponentHand
-                ? HAND_EMOJI[opponentHand]
-                : '❔'
-              : showLock
-                ? '🔒'
-                : '❔'}
+            {phase === 'REVEAL' || phase === 'ROUND_RESULT' ? (
+              opponentHand ? (
+                <motion.span
+                  key={`opp-${opponentHand}-${phase === 'REVEAL' ? 'r' : 'rr'}`}
+                  initial={phase === 'REVEAL' ? { opacity: 0, scale: 0.4, rotate: -12 } : false}
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  transition={{ delay: 0.22, type: 'spring', bounce: 0.5 }}
+                  className="inline-block"
+                >
+                  {HAND_EMOJI[opponentHand]}
+                </motion.span>
+              ) : (
+                '❔'
+              )
+            ) : showLock ? (
+              '🔒'
+            ) : (
+              '❔'
+            )}
           </div>
         </div>
       </div>

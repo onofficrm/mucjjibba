@@ -38,6 +38,7 @@ import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvata
 import { hostessForHand } from '@/data/hostessAssets';
 import { ActionCue, FirstPlayCoach } from '@/components/game/ActionCue';
 import { BattleDuelStage } from '@/components/game/BattleDuelStage';
+import { HostessCutIn, type CutInEvent } from '@/components/game/HostessCutIn';
 import { analyzeOpponentPatterns, pickLiveHabitHint } from '@/game/patternStats';
 import {
   saveLastPlayPath,
@@ -274,6 +275,17 @@ export function GamePlayPage() {
   const [reactionCooldown, setReactionCooldown] = useState(0);
   const [floatingEmotes, setFloatingEmotes] = useState<FloatingEmote[]>([]);
   const floatingIdRef = useRef(0);
+
+  const [cutIn, setCutIn] = useState<CutInEvent | null>(null);
+  const cutIdRef = useRef(0);
+  const showCutIn = (partial: Omit<CutInEvent, 'id'>) => {
+    if (gameSettings.options.reduceAnimations || gameSettings.options.performanceMode === 'low') return;
+    const cid = ++cutIdRef.current;
+    setCutIn({ ...partial, id: cid });
+    window.setTimeout(() => {
+      setCutIn((cur) => (cur?.id === cid ? null : cur));
+    }, 1050);
+  };
 
   const habitHint = useMemo(() => {
     const hints = analyzeOpponentPatterns(activeOpponent.nickname);
@@ -716,6 +728,12 @@ export function GamePlayPage() {
       if (attacker === 'ME') {
         audioManager.playSFX('round_win');
         appendRoundLog('POINT_ME', attacker, attacker);
+        showCutIn({
+          role: 'victory',
+          title: 'POINT!',
+          subtitle: gameState.myScore + 1 >= 2 ? '결정타!' : '승점 획득',
+          tone: 'gold',
+        });
         updateState({
           myScore: gameState.myScore + 1,
           phase: 'ROUND_RESULT',
@@ -726,6 +744,12 @@ export function GamePlayPage() {
       } else {
         audioManager.playSFX('round_lose');
         appendRoundLog('POINT_OPPONENT', attacker, attacker);
+        showCutIn({
+          role: 'comfort',
+          title: 'HIT',
+          subtitle: '상대 승점 · 다음 라운드에 만회해요',
+          tone: 'red',
+        });
         updateState({
           opponentScore: gameState.opponentScore + 1,
           phase: 'ROUND_RESULT',
@@ -739,6 +763,12 @@ export function GamePlayPage() {
       if (rpsWinner === 'ME') {
         audioManager.playSFX('attack_move', { pan: -1 });
         updateDealer('ask_select', '공격권을 가져왔어요!', true);
+        showCutIn({
+          role: 'arena',
+          title: 'STEAL!',
+          subtitle: '공격권 탈환',
+          tone: 'platinum',
+        });
       } else {
         audioManager.playSFX('attack_move', { pan: 1 });
         updateDealer('ask_select', '공격권이 상대에게 넘어갔어요.', true);
@@ -858,6 +888,7 @@ export function GamePlayPage() {
           habitHint={habitHint}
           myReaction={myReaction}
           opponentReaction={opponentReaction}
+          tier={getTableTier(matchTable)}
         />
       ) : (
       <>
@@ -1470,6 +1501,7 @@ export function GamePlayPage() {
           </div>
         )}
       </AnimatePresence>
+      <HostessCutIn cut={cutIn} />
       <ReactionButton onSendReaction={handleSendReaction} cooldownRemaining={reactionCooldown} />
       {!isDuelLayout && (
         <>

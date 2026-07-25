@@ -23,8 +23,8 @@ export function ShareCard({ data }: { data: ShareCardData }) {
       <div className="relative flex-1 flex flex-col items-center justify-center px-6 text-center">
         {data.resultLabel && (
           <p
-            className={`text-[11px] font-black tracking-[0.2em] mb-3 ${
-              isVictory ? 'text-arena-gold' : 'text-gray-400'
+            className={`font-display text-[13px] font-black tracking-[0.3em] mb-3 ${
+              isVictory ? 'text-engraved-gold' : 'text-gray-400'
             }`}
           >
             {data.resultLabel}
@@ -54,7 +54,7 @@ export function ShareCard({ data }: { data: ShareCardData }) {
         <p className="text-[10px] text-gray-500 mb-5">vs {data.opponentNickname}</p>
 
         <div className="w-full rounded-2xl border border-arena-gold/35 bg-gradient-to-br from-arena-gold/15 to-transparent px-4 py-3.5 mb-4">
-          <p className="text-[10px] text-arena-gold/80 font-bold uppercase tracking-wider mb-1">
+          <p className="font-display text-[10px] text-arena-gold/80 font-bold uppercase tracking-[0.25em] mb-1">
             Highlight
           </p>
           <p className="text-base font-black text-white leading-snug">{data.highlightText}</p>
