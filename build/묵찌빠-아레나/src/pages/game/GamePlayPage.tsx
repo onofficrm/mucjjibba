@@ -48,7 +48,7 @@ import { InGameSettingsModal } from '@/components/game/InGameSettingsModal';
 import { rollJackpotRound } from '@/utils/jackpotRound';
 import { analyzeOpponentPatterns, pickLiveHabitHint } from '@/game/patternStats';
 import { getRevealSchedule, getResultReadMs } from '@/game/combatTiming';
-import { getWinningHand } from '@/game/rpsMatchup';
+import { getMatchupKind, getWinningHand } from '@/game/rpsMatchup';
 import {
   applyPointGain,
   availableHands,
@@ -321,7 +321,11 @@ export function GamePlayPage() {
 
   useEffect(() => {
     audioManager.setAmbienceTier(getTableTier(matchTable));
-    return () => audioManager.setAmbienceTier('normal');
+    audioManager.startAmbience();
+    return () => {
+      audioManager.stopAmbience();
+      audioManager.setAmbienceTier('normal');
+    };
   }, [matchTable?.id]);
   
   const [cutIn, setCutIn] = useState<CutInEvent | null>(null);
@@ -535,6 +539,7 @@ export function GamePlayPage() {
   useEffect(() => {
     if (gameState.phase === 'INIT') {
       audioManager.playSFX('start_sfx');
+      audioManager.callVoice('start');
       updateDealer('start', '묵찌빠 대결을 시작합니다.');
       
       const timer = setTimeout(() => {
@@ -557,7 +562,21 @@ export function GamePlayPage() {
       revealHandsRef.current = { left: leftSnap, right: rightSnap };
 
       const schedule = getRevealSchedule(isBeginnerMode);
-      audioManager.playSFX('tension_before_reveal');
+      const mpNow = isMatchPoint(
+        matchRules,
+        gameState.myScore,
+        gameState.opponentScore,
+        myPointStreak,
+        oppPointStreak,
+      );
+      audioManager.duckBgm(schedule.tensionMs + 200, 0.35);
+      audioManager.playSFX('tension_before_reveal', {
+        intensity: (mpNow ? 1.3 : 1) * audioManager.getIntensityBoost(),
+      });
+      if (mpNow) {
+        audioManager.playSFX('match_point', { intensity: 0.85 });
+        audioManager.callVoice('match_point');
+      }
       setIsSpinning(true);
       setShowImpact(false);
       setTableShake(false);
@@ -568,7 +587,9 @@ export function GamePlayPage() {
 
       timers.push(
         window.setTimeout(() => {
-          audioManager.playSFX('slot_spin');
+          audioManager.playSFX('slot_spin', {
+            intensity: (mpNow ? 1.2 : 1) * audioManager.getIntensityBoost(),
+          });
         }, schedule.tensionMs),
       );
 
@@ -578,14 +599,24 @@ export function GamePlayPage() {
           setIsSpinning(false);
           setRevealSnap(true);
           setShowImpact(true);
-          if (snap?.left === 'ROCK' || snap?.right === 'ROCK') {
-            setTableShake(true);
-            timers.push(window.setTimeout(() => setTableShake(false), 300));
-            audioManager.playSFX('rock_btn');
-          } else if (snap?.left === 'SCISSORS' || snap?.right === 'SCISSORS') {
-            audioManager.playSFX('scissors_btn');
-          } else {
-            audioManager.playSFX('paper_btn');
+          if (snap?.left && snap?.right) {
+            const winHand = getWinningHand(snap.left, snap.right);
+            const loseHand =
+              winHand && winHand === snap.left ? snap.right : winHand ? snap.left : null;
+            const matchup =
+              winHand && loseHand ? getMatchupKind(winHand, loseHand) : null;
+            if (matchup) {
+              audioManager.playClashImpact(matchup, {
+                intensity: (mpNow ? 1.35 : 1.15) * audioManager.getIntensityBoost(),
+              });
+            } else {
+              // 무승부 튕김
+              audioManager.playSFX('game_void', { intensity: 1.1 });
+            }
+            if (snap.left === 'ROCK' || snap.right === 'ROCK') {
+              setTableShake(true);
+              timers.push(window.setTimeout(() => setTableShake(false), 300));
+            }
           }
           triggerHaptic('heavy');
         }, schedule.snapAtMs),
@@ -667,6 +698,8 @@ export function GamePlayPage() {
             round: gameState.round + 1,
           });
           if (matchPoint) {
+            audioManager.playSFX('match_point', { intensity: 0.9 });
+            audioManager.callVoice('match_point');
             updateDealer('surprise', `매치포인트! (${matchRules.shortLabel})`, true);
           } else {
             updateDealer('ask_select', '아래에서 하나를 눌러주세요.');
@@ -730,9 +763,7 @@ export function GamePlayPage() {
     
     if (!auto) {
       triggerHaptic('medium');
-      if (hand === 'ROCK') audioManager.playSFX('rock_btn');
-      else if (hand === 'SCISSORS') audioManager.playSFX('scissors_btn');
-      else if (hand === 'PAPER') audioManager.playSFX('paper_btn');
+      audioManager.playHandSelect(hand);
       setPickBurstKey((k) => k + 1);
 
       if (hand === 'ROCK') void trackMission('ROCK_SELECTED');
@@ -837,10 +868,11 @@ export function GamePlayPage() {
       } else {
         let message = '';
         if (rpsWinner === 'ME') {
-          audioManager.playSFX('attack_get');
+          audioManager.playSFX('attack_get', { intensity: audioManager.getIntensityBoost() });
+          audioManager.callVoice('attack');
           message = '내 공격이에요! 같은 손을 내면 이겨요.';
         } else {
-          audioManager.playSFX('attack_fail');
+          audioManager.playSFX('attack_fail', { intensity: audioManager.getIntensityBoost() });
           message = '상대 공격이에요. 다른 손을 내 막아보세요.';
         }
 
@@ -881,7 +913,6 @@ export function GamePlayPage() {
 
     if (myHand === opponentHand) {
       if (attacker === 'ME') {
-        audioManager.playSFX('round_win');
         appendRoundLog('POINT_ME', attacker, attacker);
         const scored = applyPointGain(matchRules, gameState.myScore, gameState.opponentScore, 'ME');
         const nextCombo = comboHits + 1;
@@ -893,9 +924,26 @@ export function GamePlayPage() {
           setOppRevengeBan(opponentHand);
           setMyRevengeBan(null);
         }
-        if (nextCombo >= 2) audioManager.playSFX('streak_up');
         const wouldWin =
           hasWonMatch(matchRules, scored.myScore, scored.opponentScore, nextMyStreak, 0) === 'ME';
+        const wasBehind = gameState.myScore < gameState.opponentScore;
+        const isComeback = wasBehind && scored.myScore > gameState.opponentScore;
+        const enteringMp = isMatchPoint(
+          matchRules,
+          scored.myScore,
+          scored.opponentScore,
+          nextMyStreak,
+          0,
+        );
+        audioManager.playRoundOutcome({
+          won: true,
+          isFinal: wouldWin,
+          isMatchPoint: enteringMp && !wouldWin,
+          isComeback,
+          streak: nextMyStreak,
+          awarded: scored.awarded,
+          pan: -0.15,
+        });
         if (wouldWin) {
           setScreenCrack(true);
           window.setTimeout(() => setScreenCrack(false), 1200);
@@ -920,7 +968,6 @@ export function GamePlayPage() {
         triggerHaptic('success');
         updateDealer('congrats', '이겼어요!', true);
       } else {
-        audioManager.playSFX('round_lose');
         appendRoundLog('POINT_OPPONENT', attacker, attacker);
         const scored = applyPointGain(matchRules, gameState.myScore, gameState.opponentScore, 'OPPONENT');
         const nextOppStreak = oppPointStreak + 1;
@@ -931,6 +978,21 @@ export function GamePlayPage() {
           setMyRevengeBan(myHand);
           setOppRevengeBan(null);
         }
+        const wouldLose =
+          hasWonMatch(matchRules, scored.myScore, scored.opponentScore, 0, nextOppStreak) ===
+          'OPPONENT';
+        audioManager.playRoundOutcome({
+          won: false,
+          isFinal: wouldLose,
+          isMatchPoint: isMatchPoint(
+            matchRules,
+            scored.myScore,
+            scored.opponentScore,
+            0,
+            nextOppStreak,
+          ),
+          pan: 0.2,
+        });
         showCutIn({
           role: 'comfort',
           title: scored.awarded >= 2 ? 'DOUBLE' : 'HIT',
@@ -962,7 +1024,11 @@ export function GamePlayPage() {
         }
       }
       if (rpsWinner === 'ME') {
-        audioManager.playSFX('attack_move', { pan: -1 });
+        audioManager.playSFX('attack_move', {
+          pan: -1,
+          intensity: audioManager.getIntensityBoost(),
+        });
+        audioManager.callVoice('steal');
         const nextCombo = comboHits + 1;
         setComboHits(nextCombo);
         updateDealer('ask_select', '공격권을 가져왔어요!', true);
@@ -973,7 +1039,10 @@ export function GamePlayPage() {
           tone: 'platinum',
         });
       } else {
-        audioManager.playSFX('attack_move', { pan: 1 });
+        audioManager.playSFX('attack_move', {
+          pan: 1,
+          intensity: audioManager.getIntensityBoost(),
+        });
         setComboHits(0);
         updateDealer('ask_select', '공격권이 상대에게 넘어갔어요.', true);
       }

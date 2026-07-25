@@ -13,6 +13,7 @@ import {
 import { audioManager, AUDIO_SETTINGS_EVENT, type VolumeSettings } from '@/utils/audio';
 import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings, type GameOptions } from '@/utils/gameSettings';
+import { SOUND_PRESET_IDS, SOUND_PRESETS, type SoundPresetId } from '@/utils/soundPresets';
 
 interface Props {
   open: boolean;
@@ -78,6 +79,38 @@ export function InGameSettingsModal({ open, onClose }: Props) {
         </div>
 
         <div className="p-4 space-y-4 pb-8">
+          <section className="bg-arena-card/80 border border-white/10 rounded-2xl p-3 space-y-2">
+            <div className="text-xs font-bold uppercase tracking-wider text-arena-text-muted mb-1">
+              사운드 프리셋
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {SOUND_PRESET_IDS.map((id) => {
+                const p = SOUND_PRESETS[id];
+                const active = (settings.soundPreset ?? 'default') === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      audioManager.applySoundPreset(id as SoundPresetId);
+                      setSettings({ ...audioManager.settings });
+                      audioManager.playSFX('confirm');
+                      triggerHaptic('light');
+                    }}
+                    className={`text-left px-3 py-2.5 rounded-xl border transition-colors ${
+                      active
+                        ? 'border-arena-gold bg-arena-gold/15 text-arena-gold'
+                        : 'border-white/10 bg-white/5 text-gray-300'
+                    }`}
+                  >
+                    <div className="text-xs font-black">{p.label}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">{p.description}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
           <section className="bg-arena-card/80 border border-white/10 rounded-2xl p-3 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-arena-text-muted">사운드</span>

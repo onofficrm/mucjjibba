@@ -140,9 +140,8 @@ export function HandVictoryClash({
     setKind(matchup);
     setOpen(true);
 
-    if (matchup === 'cut') audioManager.playSFX('scissors_btn');
-    else if (matchup === 'wrap') audioManager.playSFX('paper_btn');
-    else audioManager.playSFX('rock_btn');
+    // 공개 스냅에서 이미 충돌음 — 영상 시작 시 관중 레이어만 추가
+    audioManager.playSFX('crowd_swell', { intensity: 0.85 });
     triggerHaptic('heavy');
     window.setTimeout(() => triggerHaptic('medium'), 480);
 

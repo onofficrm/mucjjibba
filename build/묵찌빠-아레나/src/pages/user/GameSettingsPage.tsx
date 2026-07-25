@@ -5,6 +5,7 @@ import { audioManager, AUDIO_SETTINGS_EVENT, VolumeSettings } from '@/utils/audi
 import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings, GameOptions } from '@/utils/gameSettings';
 import { trackMission } from '@/services/mission';
+import { SOUND_PRESET_IDS, SOUND_PRESETS, type SoundPresetId } from '@/utils/soundPresets';
 
 export function GameSettingsPage() {
   const navigate = useNavigate();
@@ -61,6 +62,38 @@ export function GameSettingsPage() {
       </header>
 
       <div className="max-w-xl mx-auto p-4 space-y-6">
+
+        <section className="bg-arena-card border border-white/10 rounded-2xl p-4">
+          <div className="text-arena-text-muted text-xs font-bold uppercase tracking-wider mb-3">
+            사운드 프리셋
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {SOUND_PRESET_IDS.map((id) => {
+              const p = SOUND_PRESETS[id];
+              const active = (settings.soundPreset ?? 'default') === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    audioManager.applySoundPreset(id as SoundPresetId);
+                    setSettings({ ...audioManager.settings });
+                    audioManager.playSFX('confirm');
+                    triggerHaptic('light');
+                  }}
+                  className={`text-left px-3 py-3 rounded-xl border transition-colors ${
+                    active
+                      ? 'border-arena-gold bg-arena-gold/15 text-arena-gold'
+                      : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="text-sm font-black">{p.label}</div>
+                  <div className="text-[11px] text-gray-500 mt-1 leading-snug">{p.description}</div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
         
         {/* Audio Settings */}
         <section className="bg-arena-card border border-white/10 rounded-2xl p-2">
