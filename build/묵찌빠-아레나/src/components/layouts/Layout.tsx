@@ -3,10 +3,10 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Gamepad2, Trophy, User, MoreVertical, Menu, X, Swords, Zap, Users, Play, ChevronDown, Bell, Settings, History, CreditCard, Shield, HelpCircle, FileText, LogOut, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { triggerHaptic } from '@/utils/haptics';
-import { DEMO_USER } from '@/data/demoData';
 import { HostessAvatar } from '@/components/casino/HostessAvatar';
 import { hostessByIndex } from '@/data/hostessAssets';
 import { GameSelectCard } from '@/components/casino/GameSelectCard';
+import { useDemoWallet } from '@/hooks/useDemoWallet';
 
 const navItems = [
   { name: '로비', path: '/lobby', icon: Home },
@@ -18,6 +18,7 @@ const navItems = [
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const wallet = useDemoWallet();
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isGameSelectOpen, setIsGameSelectOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
@@ -174,7 +175,7 @@ export function Layout() {
             <div className="bg-black/30 px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-white/5 flex items-center gap-1.5">
               <HostessAvatar role="icon" size="xs" ring={false} />
               <span className="text-xs font-bold text-arena-gold">P</span>
-              <span className="text-sm md:text-base font-bold text-white">{DEMO_USER.points.toLocaleString()}</span>
+              <span className="text-sm md:text-base font-bold text-white">{wallet.points.toLocaleString()}</span>
             </div>
             <button 
               onClick={() => { triggerHaptic('light'); setIsMoreMenuOpen(true); }}

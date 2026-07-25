@@ -15,6 +15,7 @@ import { HostessAvatar, HostessBackdrop, HostessBanner } from '@/components/casi
 import { DEMO_USER } from '@/data/demoData';
 import { HOSTESS } from '@/data/hostessAssets';
 import { getQuickStartPath, getResumePath } from '@/utils/playEase';
+import { useDemoWallet } from '@/hooks/useDemoWallet';
 
 type GameType = 'LIVE' | 'TOURNAMENT' | 'ARENA' | 'REPLAY' | 'AI DEMO' | 'PRACTICE';
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
@@ -253,6 +254,7 @@ function PlayActions({
 export function LobbyPage() {
   const navigate = useNavigate();
   const { openGameSelect } = useOutletContext<{ openGameSelect: () => void }>();
+  const wallet = useDemoWallet();
 
   const [tickerIndex, setTickerIndex] = useState(0);
   const [randomHandP1, setRandomHandP1] = useState<Hand>('ROCK');
@@ -328,7 +330,7 @@ export function LobbyPage() {
                   {DEMO_USER.grade}
                 </span>
                 <span className="text-[11px] md:text-xs font-black px-2.5 py-1 rounded-full bg-white/5 text-white border border-white/10">
-                  {DEMO_USER.points.toLocaleString()} P
+                  {wallet.points.toLocaleString()} P
                 </span>
                 <DailyRoulette />
               </div>
