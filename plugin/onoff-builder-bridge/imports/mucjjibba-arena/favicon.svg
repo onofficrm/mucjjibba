@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2233"/>
+      <stop offset="1" stop-color="#080b12"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="0.5" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#b45309"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Themed rounded tile -->
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#bg)"/>
+  <rect x="2.75" y="2.75" width="58.5" height="58.5" rx="14.25" fill="none" stroke="#f59e0b" stroke-opacity="0.55" stroke-width="1.5"/>
+
+  <!-- Fist (5) -->
+  <g fill="url(#gold)" stroke="#7c3f06" stroke-width="1.1" stroke-linejoin="round">
+    <!-- Knuckles -->
+    <rect x="15" y="17" width="9" height="17" rx="4.5"/>
+    <rect x="24" y="15" width="9" height="19" rx="4.5"/>
+    <rect x="33" y="15" width="9" height="19" rx="4.5"/>
+    <rect x="42" y="17" width="9" height="17" rx="4.5"/>
+    <!-- Palm / back of hand -->
+    <rect x="14" y="28" width="38" height="22" rx="9"/>
+    <!-- Thumb -->
+    <rect x="10" y="33" width="17" height="11" rx="5.5"/>
+  </g>
+
+  <!-- Soft highlight -->
+  <rect x="16" y="30" width="34" height="6" rx="3" fill="#ffffff" fill-opacity="0.16"/>
+</svg>
