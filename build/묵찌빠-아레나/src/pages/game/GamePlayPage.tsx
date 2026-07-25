@@ -24,6 +24,10 @@ import type { ConnectionStatus, GameSnapshot } from '@/realtime/types';
 import { ConnectionBadge, ReconnectOverlay } from '@/components/game/ReconnectOverlay';
 import { saveMatchLog } from '@/services/history/matchHistoryStore';
 import { getRankingService } from '@/services/ranking';
+import { RevealTension, LastRoundNeon } from '@/components/casino/RevealTension';
+import { StreakScreenFrame } from '@/components/casino/StreakAura';
+import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
+import { hostessByIndex } from '@/data/hostessAssets';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type PlayerId = 'ME' | 'OPPONENT';
@@ -367,10 +371,13 @@ export function GamePlayPage() {
 
     if (gameState.phase === 'REVEAL') {
       audioManager.playSFX('tension_before_reveal');
+      audioManager.playSFX('slot_spin');
       setIsSpinning(true);
       setShowImpact(false);
       setTableShake(false);
-      
+      triggerHaptic('heartbeat');
+
+      const spinMs = isBeginnerMode ? 1400 : 1200;
       const stopSpinTimer = setTimeout(() => {
         setIsSpinning(false);
         setShowImpact(true);
@@ -384,11 +391,11 @@ export function GamePlayPage() {
           audioManager.playSFX('paper_btn');
         }
         triggerHaptic('heavy');
-      }, 1000);
+      }, spinMs);
 
       const timer = setTimeout(() => {
         handleRoundLogic();
-      }, isBeginnerMode ? 3000 : 2500); // Slower reveal for beginners to read help
+      }, isBeginnerMode ? 3200 : 2800);
       return () => {
         clearTimeout(stopSpinTimer);
         clearTimeout(timer);
@@ -698,6 +705,7 @@ export function GamePlayPage() {
           ? 'bg-[radial-gradient(circle_at_center,_rgba(40,0,0,1)_0%,_rgba(0,0,0,1)_100%)]' 
           : 'bg-[radial-gradient(circle_at_center,_rgba(24,24,27,1)_0%,_rgba(0,0,0,1)_100%)]'
       }`} />
+      <HostessBackdrop role="play" opacity={0.16} />
       
       {/* Background Particles (Fancy only) */}
       {gameSettings.options.performanceMode === 'fancy' && (
@@ -713,6 +721,10 @@ export function GamePlayPage() {
            ))}
         </div>
       )}
+
+      <LastRoundNeon active={gameState.myScore === 1 && gameState.opponentScore === 1} />
+      <StreakScreenFrame streak={DEMO_USER.streak + gameState.myScore} />
+      <RevealTension active={isSpinning || gameState.phase === 'REVEAL'} />
       
       <ReconnectOverlay
         status={connStatus}
@@ -764,9 +776,16 @@ export function GamePlayPage() {
                <span className="text-sm font-black truncate max-w-[70px] text-white">{DEMO_USER.nickname}</span>
              </div>
           </div>
-          <div className="flex items-center gap-2">
-             <AnimatedScore score={gameState.myScore} colorClass="text-arena-cyan" />
-             <div className="text-xs font-bold text-gray-500">WINS</div>
+          <div className="flex flex-col items-start gap-1">
+             <div className="flex items-center gap-2">
+               <AnimatedScore score={gameState.myScore} colorClass="text-arena-cyan" />
+               <div className="text-xs font-bold text-gray-500">WINS</div>
+             </div>
+             {DEMO_USER.streak >= 2 && (
+               <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-arena-warning to-arena-error text-white">
+                 🔥 {DEMO_USER.streak}연승
+               </span>
+             )}
           </div>
         </div>
 
@@ -963,7 +982,7 @@ export function GamePlayPage() {
         )}
 
         <div className="flex justify-between gap-3 relative">
-          {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand) => {
+          {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand, hi) => {
             const isSelected = gameState.myHand === hand;
             const canSelect = !gameState.myHand && (gameState.phase === 'ATTACK_DECISION' || gameState.phase === 'SELECTING');
             
@@ -972,17 +991,24 @@ export function GamePlayPage() {
                 key={hand}
                 onClick={() => handleHandSelect(hand)}
                 disabled={!canSelect}
-                className={`flex-1 aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all duration-150 transform active:scale-95 ${
+                className={`flex-1 aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all duration-150 transform active:scale-95 overflow-hidden ${
                   isSelected ? 'bg-gradient-to-b from-gray-700 to-gray-800 border-b-4 border-gray-900 shadow-inner' :
                   !canSelect ? 'bg-gray-800 opacity-50 grayscale border-b-8 border-gray-900' :
                   'bg-gradient-to-b from-gray-600 to-gray-700 border-b-8 border-gray-900 hover:brightness-110 shadow-lg'
                 } ${canSelect && isBeginnerMode ? 'ring-2 ring-arena-gold ring-offset-2 ring-offset-gray-900 animate-pulse' : ''}`}
               >
-                {isSelected && <div className="absolute inset-0 rounded-2xl shadow-[inset_0_0_20px_rgba(34,211,238,0.5)] border-2 border-arena-cyan pointer-events-none" />}
-                <span className={`text-4xl drop-shadow-lg mb-1 ${!canSelect && !isSelected ? 'opacity-50' : ''}`}>
+                <img
+                  src={hostessByIndex(hi)}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover object-top opacity-35 pointer-events-none"
+                  draggable={false}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
+                {isSelected && <div className="absolute inset-0 rounded-2xl shadow-[inset_0_0_20px_rgba(34,211,238,0.5)] border-2 border-arena-cyan pointer-events-none z-10" />}
+                <span className={`relative z-10 text-4xl drop-shadow-lg mb-1 ${!canSelect && !isSelected ? 'opacity-50' : ''}`}>
                   {myHandEmojis[hand]}
                 </span>
-                <span className={`text-xs font-black ${isSelected ? 'text-arena-cyan' : 'text-gray-300'}`}>
+                <span className={`relative z-10 text-xs font-black ${isSelected ? 'text-arena-cyan' : 'text-gray-200'}`}>
                   {hand === 'ROCK' ? '묵' : hand === 'SCISSORS' ? '찌' : '빠'}
                 </span>
               </button>
@@ -1016,7 +1042,7 @@ export function GamePlayPage() {
             >
               {gameState.winner === 'ME' ? (
                 <>
-                  <Sparkles className="w-16 h-16 text-arena-gold mb-4" />
+                  <HostessAvatar role="victory" size="xl" pulse className="mb-4" />
                   <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_20px_rgba(245,158,11,0.8)] mb-2">
                     VICTORY
                   </h1>

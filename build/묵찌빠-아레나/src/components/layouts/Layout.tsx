@@ -4,6 +4,9 @@ import { Home, Gamepad2, Trophy, User, MoreVertical, Menu, X, Swords, Zap, Users
 import { motion, AnimatePresence } from 'motion/react';
 import { triggerHaptic } from '@/utils/haptics';
 import { DEMO_USER } from '@/data/demoData';
+import { HostessAvatar } from '@/components/casino/HostessAvatar';
+import { hostessByIndex } from '@/data/hostessAssets';
+import { GameSelectCard } from '@/components/casino/GameSelectCard';
 
 const navItems = [
   { name: '로비', path: '/lobby', icon: Home },
@@ -119,25 +122,27 @@ export function Layout() {
         <header className="flex items-center justify-between px-4 h-16 bg-arena-card/90 backdrop-blur-md border-b border-white/5 z-20 shrink-0">
           <div className="flex items-center">
              <Link to="/" className="text-xl font-black text-white flex items-center space-x-2 md:hidden">
-                <span className="text-arena-gold">✊</span>
+                <HostessAvatar role="icon" size="sm" />
               </Link>
               <div className="hidden md:block w-8" />
           </div>
           
-          <div className="absolute left-1/2 -translate-x-1/2 font-bold text-white">
+          <div className="absolute left-1/2 -translate-x-1/2 font-bold text-white flex items-center gap-2">
+            <HostessAvatar role="dealer" size="xs" ring={false} className="hidden sm:inline-flex ring-1 ring-arena-gold/40" />
             {getPageTitle()}
           </div>
 
           <div className="flex items-center gap-2">
             <div className="bg-black/30 px-3 py-1.5 rounded-full border border-white/5 flex items-center gap-1.5">
+              <HostessAvatar role="icon" size="xs" ring={false} />
               <span className="text-xs font-bold text-arena-gold">P</span>
               <span className="text-sm font-bold text-white">{DEMO_USER.points.toLocaleString()}</span>
             </div>
             <button 
               onClick={() => { triggerHaptic('light'); setIsMoreMenuOpen(true); }}
-              className="p-2 text-arena-text-muted hover:text-white transition-colors"
+              className="p-1.5 text-arena-text-muted hover:text-white transition-colors"
             >
-              <MoreVertical className="w-6 h-6" />
+              <HostessAvatar index={3} size="sm" />
             </button>
           </div>
         </header>
@@ -162,7 +167,7 @@ export function Layout() {
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-arena-card/95 backdrop-blur-xl border-t border-white/5 pb-safe z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         <div className="flex justify-around items-center h-16 px-2">
-          {navItems.map((item) => {
+          {navItems.map((item, idx) => {
             const isActive = location.pathname.startsWith(item.path) && item.path !== '#game';
             return (
               <Link
@@ -176,7 +181,7 @@ export function Layout() {
                 {isActive && (
                   <motion.div layoutId="bottom-nav-indicator" className="absolute top-0 w-8 h-1 bg-arena-gold rounded-b-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
                 )}
-                <item.icon className={`w-6 h-6 mt-1`} />
+                <HostessAvatar index={idx} size="xs" ring={isActive} className="mt-1" />
                 <span className="text-[10px] font-bold">{item.name}</span>
               </Link>
             );
@@ -200,91 +205,67 @@ export function Layout() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-md bg-arena-card border border-white/10 rounded-3xl p-6 shadow-2xl pb-8"
+              className="relative w-full max-w-md bg-arena-card border border-white/10 rounded-3xl p-6 shadow-2xl pb-8 overflow-hidden"
             >
+              <img src={hostessByIndex(1)} alt="" className="absolute right-0 top-0 h-40 w-28 object-cover object-top opacity-25 pointer-events-none" draggable={false} />
               <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6 sm:hidden" />
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-white">게임 선택</h2>
+              <div className="flex justify-between items-center mb-6 relative z-10">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <HostessAvatar role="play" size="sm" /> 게임 선택
+                </h2>
                 <button onClick={() => setIsGameSelectOpen(false)} className="text-gray-400 hover:text-white p-2">
                   <X className="w-6 h-6" />
                 </button>
               </div>
               
-              <div className="space-y-3">
-                <button 
+              <div className="space-y-3 relative z-10">
+                <GameSelectCard
+                  title="초보자 빠른 시작"
+                  subtitle="안전한 입문 테이블"
+                  tone="mint"
+                  hostessIndex={0}
+                  chips={[{ label: '무료' }, { label: '튜토리얼' }]}
+                  delayIndex={0}
                   onClick={() => { setIsGameSelectOpen(false); navigate('/tutorial'); }}
-                  className="w-full flex items-center justify-between p-4 bg-arena-success/10 border border-arena-success/20 hover:bg-arena-success/20 rounded-2xl transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-arena-success/20 rounded-xl flex items-center justify-center text-arena-success">
-                      <Sparkles className="w-6 h-6" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold text-white text-lg">초보자 빠른 시작</div>
-                      <div className="text-arena-success text-sm">안전한 입문 테이블</div>
-                    </div>
-                  </div>
-                </button>
-
-                <button 
+                />
+                <GameSelectCard
+                  title="일반 빠른 대전"
+                  subtitle="실력에 맞는 상대 찾기"
+                  tone="cyan"
+                  hostessIndex={1}
+                  chips={[{ label: '+WP' }, { label: '랭킹 반영' }]}
+                  delayIndex={1}
                   onClick={() => { setIsGameSelectOpen(false); navigate('/match/tables'); }}
-                  className="w-full flex items-center justify-between p-4 bg-arena-cyan/10 border border-arena-cyan/20 hover:bg-arena-cyan/20 rounded-2xl transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-arena-cyan/20 rounded-xl flex items-center justify-center text-arena-cyan">
-                      <Swords className="w-6 h-6" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold text-white text-lg">일반 빠른 대전</div>
-                      <div className="text-arena-cyan text-sm">실력에 맞는 상대 찾기</div>
-                    </div>
-                  </div>
-                </button>
-
-                <button 
+                />
+                <GameSelectCard
+                  title="연승 아레나"
+                  subtitle="최고 8연승 도전"
+                  tone="gold"
+                  hostessIndex={2}
+                  chips={[{ label: '8연승' }, { label: 'WP x2.0' }]}
+                  hot
+                  featured
+                  delayIndex={2}
                   onClick={() => { setIsGameSelectOpen(false); navigate('/arena'); }}
-                  className="w-full flex items-center justify-between p-4 bg-arena-gold/10 border border-arena-gold/20 hover:bg-arena-gold/20 rounded-2xl transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-arena-gold/20 rounded-xl flex items-center justify-center text-arena-gold">
-                      <Trophy className="w-6 h-6" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold text-white text-lg">연승 아레나</div>
-                      <div className="text-arena-gold text-sm">최고 8연승</div>
-                    </div>
-                  </div>
-                </button>
-
-                <button 
+                />
+                <GameSelectCard
+                  title="친구 대전"
+                  subtitle="비공개 방 만들기"
+                  tone="purple"
+                  hostessIndex={3}
+                  chips={[{ label: '초대 코드' }, { label: '관전' }]}
+                  delayIndex={3}
                   onClick={() => { setIsGameSelectOpen(false); navigate('/match/friend'); }}
-                  className="w-full flex items-center justify-between p-4 bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 rounded-2xl transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center text-purple-400">
-                      <Users className="w-6 h-6" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold text-white text-lg">친구 대전</div>
-                      <div className="text-purple-400 text-sm">비공개 방 만들기</div>
-                    </div>
-                  </div>
-                </button>
-
-                <button 
+                />
+                <GameSelectCard
+                  title="무료 연습"
+                  subtitle="포인트 차감 없음"
+                  tone="silver"
+                  hostessIndex={4}
+                  chips={[{ label: '무료' }]}
+                  delayIndex={4}
                   onClick={() => { setIsGameSelectOpen(false); navigate('/match/tables'); }}
-                  className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 hover:bg-white/10 rounded-2xl transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center text-gray-400">
-                      <Play className="w-6 h-6" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold text-white text-lg">무료 연습</div>
-                      <div className="text-gray-400 text-sm">포인트 차감 없음</div>
-                    </div>
-                  </div>
-                </button>
+                />
               </div>
             </motion.div>
           </div>

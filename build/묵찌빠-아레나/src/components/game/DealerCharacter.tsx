@@ -1,5 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
+import { HOSTESS } from '@/data/hostessAssets';
+import type { HostessRole } from '@/data/hostessAssets';
 
 export type DealerState = 'idle' | 'start' | 'ask_select' | 'surprise' | 'congrats' | 'comfort' | 'error';
 
@@ -9,14 +11,14 @@ interface DealerCharacterProps {
   reducedAnimations?: boolean;
 }
 
-const DEALER_FACES: Record<DealerState, string> = {
-  idle: '😊',
-  start: '😎',
-  ask_select: '🤔',
-  surprise: '😲',
-  congrats: '🥳',
-  comfort: '🥺',
-  error: '😵',
+const STATE_ROLE: Record<DealerState, HostessRole> = {
+  idle: 'dealer',
+  start: 'play',
+  ask_select: 'icon',
+  surprise: 'lobby',
+  congrats: 'victory',
+  comfort: 'dealer',
+  error: 'icon',
 };
 
 export function DealerCharacter({ state, message, reducedAnimations = false }: DealerCharacterProps) {
@@ -27,24 +29,27 @@ export function DealerCharacter({ state, message, reducedAnimations = false }: D
       setShowBubble(true);
       const timer = setTimeout(() => setShowBubble(false), 3000);
       return () => clearTimeout(timer);
-    } else {
-      setShowBubble(false);
     }
+    setShowBubble(false);
   }, [message]);
 
-  const bounceAnimation = reducedAnimations ? {} : {
-    y: [0, -10, 0],
-    transition: {
-      duration: 2,
-      repeat: Infinity,
-      ease: 'easeInOut'
-    }
-  };
+  const bounceAnimation = reducedAnimations
+    ? {}
+    : {
+        y: [0, -10, 0],
+        transition: {
+          duration: 2,
+          repeat: Infinity,
+          ease: 'easeInOut' as const,
+        },
+      };
 
-  const surpriseAnimation = reducedAnimations ? {} : {
-    scale: [1, 1.2, 1],
-    transition: { duration: 0.3 }
-  };
+  const surpriseAnimation = reducedAnimations
+    ? {}
+    : {
+        scale: [1, 1.12, 1],
+        transition: { duration: 0.3 },
+      };
 
   return (
     <div className="fixed bottom-[240px] right-4 z-40 flex flex-col items-end pointer-events-none">
@@ -54,7 +59,7 @@ export function DealerCharacter({ state, message, reducedAnimations = false }: D
             initial={{ opacity: 0, scale: 0.8, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
-            className="mb-3 bg-white text-black px-4 py-2 rounded-2xl rounded-br-sm shadow-lg max-w-[200px] text-sm font-bold border-2 border-gray-200"
+            className="mb-3 bg-white text-black px-4 py-2 rounded-2xl rounded-br-sm shadow-lg max-w-[200px] text-sm font-bold border-2 border-arena-gold/40"
           >
             {message}
           </motion.div>
@@ -63,10 +68,15 @@ export function DealerCharacter({ state, message, reducedAnimations = false }: D
 
       <motion.div
         animate={state === 'surprise' ? surpriseAnimation : bounceAnimation}
-        className="w-16 h-16 bg-gray-800 rounded-full border-4 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.5)] flex items-center justify-center text-3xl relative"
+        className="relative w-20 h-20 rounded-full border-4 border-arena-gold shadow-[0_0_20px_rgba(245,158,11,0.55)] overflow-hidden bg-zinc-900"
       >
-        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-gray-800" />
-        {DEALER_FACES[state]}
+        <img
+          src={HOSTESS[STATE_ROLE[state]]}
+          alt="딜러 호스티스"
+          className="w-full h-full object-cover object-top"
+          draggable={false}
+        />
+        <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-gray-900" />
       </motion.div>
     </div>
   );

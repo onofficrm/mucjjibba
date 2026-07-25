@@ -9,7 +9,11 @@ import { audioManager } from '@/utils/audio';
 import { gameSettings } from '@/utils/gameSettings';
 
 import { DailyMissions } from '@/components/lobby/DailyMissions';
+import { ActivityMarquee } from '@/components/lobby/ActivityMarquee';
+import { DailyRoulette } from '@/components/lobby/DailyRoulette';
+import { HostessAvatar, HostessBackdrop, HostessBanner } from '@/components/casino/HostessAvatar';
 import { DEMO_USER } from '@/data/demoData';
+import { HOSTESS } from '@/data/hostessAssets';
 
 type GameType = 'LIVE' | 'TOURNAMENT' | 'ARENA' | 'REPLAY' | 'AI DEMO' | 'PRACTICE';
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
@@ -151,27 +155,38 @@ export function LobbyPage() {
   const circumference = 2 * Math.PI * 14; // r=14
 
   return (
-    <div className="h-full bg-black text-white flex flex-col font-sans overflow-hidden">
-      <div className="flex-1 overflow-y-auto pb-24">
+    <div className="h-full bg-black text-white flex flex-col font-sans overflow-hidden relative">
+      <HostessBackdrop role="lobby" opacity={0.22} className="opacity-80" />
+      <div className="flex-1 overflow-y-auto pb-24 relative z-10">
         
         {/* Title Area */}
         <div className="px-5 pt-6 pb-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <HostessAvatar role="icon" size="sm" pulse />
               묵찌빠 아레나
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
             </h1>
             <p className="text-xs text-gray-400 mt-1">대표 경기 · 미리보기 · 초보 시작</p>
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2 items-center">
               <span className="text-[10px] font-black px-2 py-1 rounded-full bg-arena-gold/15 text-arena-gold border border-arena-gold/30">
                 {DEMO_USER.grade}
               </span>
               <span className="text-[10px] font-black px-2 py-1 rounded-full bg-white/5 text-white border border-white/10">
                 {DEMO_USER.points.toLocaleString()} P
               </span>
+              <DailyRoulette />
             </div>
           </div>
           <DailyMissions />
+        </div>
+
+        <div className="px-4">
+          <ActivityMarquee />
+        </div>
+
+        <div className="px-4 pb-2">
+          <HostessBanner role="play" heightClass="h-32" className="border border-arena-gold/30 shadow-[0_0_30px_rgba(245,158,11,0.2)]" />
         </div>
 
         {/* 1. Featured Game */}
@@ -180,6 +195,12 @@ export function LobbyPage() {
             onClick={() => handleSpectate(FEATURED_GAME.id, FEATURED_GAME.type)}
             className="w-full bg-gray-900 border border-gray-800 rounded-3xl p-4 relative overflow-hidden shadow-2xl cursor-pointer group hover:border-gray-700 transition-colors"
           >
+            <img
+              src={HOSTESS.dealer}
+              alt=""
+              className="absolute right-0 top-0 h-full w-1/2 object-cover object-top opacity-25 pointer-events-none"
+              draggable={false}
+            />
             {/* Background Glow */}
             {gameSettings.options.performanceMode !== 'low' && (
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.15)_0%,_transparent_70%)] pointer-events-none" />
@@ -319,11 +340,11 @@ export function LobbyPage() {
             className="w-full relative group overflow-hidden rounded-[2rem] p-[3px] bg-gradient-to-r from-arena-gold via-yellow-300 to-arena-gold shadow-[0_0_30px_rgba(245,158,11,0.3)]"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-arena-gold via-yellow-200 to-arena-gold opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative bg-black rounded-[calc(2rem-3px)] px-6 py-5 flex items-center justify-center gap-3 transition-transform duration-200 group-active:scale-[0.98]">
-              <div className="w-10 h-10 rounded-full bg-arena-gold/20 flex items-center justify-center">
-                <Swords className="w-6 h-6 text-arena-gold" />
-              </div>
-              <span className="text-xl font-black text-white tracking-wide">나도 게임하기</span>
+            <div className="relative bg-black rounded-[calc(2rem-3px)] px-6 py-5 flex items-center justify-center gap-3 transition-transform duration-200 group-active:scale-[0.98] overflow-hidden">
+              <img src={HOSTESS.play} alt="" className="absolute left-0 top-0 h-full w-24 object-cover object-top opacity-40" draggable={false} />
+              <HostessAvatar role="play" size="md" pulse />
+              <span className="text-xl font-black text-white tracking-wide relative z-10">나도 게임하기</span>
+              <Swords className="w-5 h-5 text-arena-gold relative z-10" />
             </div>
           </button>
           
@@ -331,14 +352,15 @@ export function LobbyPage() {
             onClick={() => { triggerHaptic('medium'); navigate('/game/beginner-ai'); }}
             className="w-full relative group overflow-hidden rounded-[2rem] p-[2px] bg-gray-800"
           >
-            <div className="relative bg-black rounded-[calc(2rem-2px)] px-6 py-4 flex items-center justify-center gap-2 transition-transform duration-200 group-active:scale-[0.98]">
+            <div className="relative bg-black rounded-[calc(2rem-2px)] px-6 py-4 flex items-center justify-center gap-2 transition-transform duration-200 group-active:scale-[0.98] overflow-hidden">
+              <HostessAvatar role="dealer" size="sm" />
               <span className="text-sm font-bold text-gray-300">초보자 연습 (무료)</span>
             </div>
           </button>
         </div>
 
-        {/* Ticker */}
-        <div className="h-8 bg-gray-900 border-t border-gray-800 flex items-center justify-center overflow-hidden mx-auto max-w-sm rounded-t-xl">
+        {/* Bottom ticker (보조) */}
+        <div className="h-8 bg-gray-900 border-t border-arena-gold/20 flex items-center justify-center overflow-hidden mx-auto max-w-sm rounded-t-xl shadow-[0_-4px_20px_rgba(245,158,11,0.12)]">
           <AnimatePresence mode="wait">
             <motion.div
               key={tickerIndex}
@@ -346,7 +368,7 @@ export function LobbyPage() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="text-xs font-bold text-gray-400 tracking-wide"
+              className="text-xs font-bold text-arena-gold/80 tracking-wide"
             >
               {TICKER_MESSAGES[tickerIndex].text}
             </motion.div>

@@ -16,6 +16,14 @@ import { ShareCardModal } from '@/components/share/ShareCardModal';
 import type { GameLog } from '@/types/gameLog';
 import { getRankingService } from '@/services/ranking';
 import { saveMatchLog } from '@/services/history/matchHistoryStore';
+import { resolveWinTier, isNearMissLoss } from '@/game/winTier';
+import { RollingPoints } from '@/components/casino/RollingPoints';
+import { CoinBurst } from '@/components/casino/CoinBurst';
+import { WinTierBanner } from '@/components/casino/WinTierBanner';
+import { VegasSpotlight, ChaseLightTitle } from '@/components/casino/VegasSpotlight';
+import { StreakAura } from '@/components/casino/StreakAura';
+import { NearMissOverlay } from '@/components/casino/NearMissOverlay';
+import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
 
 type RematchState = 'idle' | 'requesting' | 'accepted' | 'declined' | 'timeout' | 'disconnected';
 
@@ -46,6 +54,12 @@ export function GameResultPage() {
   const isWin = winner === 'ME';
   const highlights = analyzeHighlights(gameLog);
   const primaryHighlight = pickPrimaryHighlight(gameLog);
+  const winTier = useMemo(
+    () => resolveWinTier(gameLog, myScore, opponentScore),
+    [gameLog, myScore, opponentScore],
+  );
+  const streakAfter = gameLog.currentStreakAfter ?? (isWin ? DEMO_USER.streak + 1 : 0);
+  const nearMiss = !isWin && isNearMissLoss(myScore, opponentScore, winner);
 
   const [rematchState, setRematchState] = useState<RematchState>('idle');
   const [rematchTimeLeft, setRematchTimeLeft] = useState(10);
@@ -56,6 +70,7 @@ export function GameResultPage() {
   >(null);
   const [showShare, setShowShare] = useState(false);
   const [rankLabel, setRankLabel] = useState('랭킹 반영 중…');
+  const [showNearMiss, setShowNearMiss] = useState(nearMiss);
   const verification = buildPublicVerification(gameLog);
 
   useEffect(() => {
@@ -79,13 +94,23 @@ export function GameResultPage() {
 
   useEffect(() => {
     if (isWin) {
-      audioManager.playSFX('final_win');
+      if (winTier.tier === 'JACKPOT') {
+        audioManager.playSFX('jackpot');
+        triggerHaptic('jackpot');
+      } else {
+        audioManager.playSFX('final_win');
+        triggerHaptic('success');
+      }
       audioManager.playBGM('win_result');
+    } else if (nearMiss) {
+      audioManager.playSFX('near_miss');
+      triggerHaptic('warning');
+      audioManager.stopBGM();
     } else {
       audioManager.playSFX('final_lose');
       audioManager.stopBGM();
     }
-  }, [isWin]);
+  }, [isWin, winTier.tier, nearMiss]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -125,9 +150,27 @@ export function GameResultPage() {
     <div className="min-h-screen bg-black text-white flex flex-col font-sans select-none overflow-hidden pb-safe relative">
       {/* Background Ambience */}
       <div className={`absolute inset-0 z-0 ${
-        isWin ? 'bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.15)_0%,_rgba(0,0,0,1)_80%)]' 
+        isWin ? 'bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.22)_0%,_rgba(0,0,0,1)_80%)]' 
               : 'bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05)_0%,_rgba(0,0,0,1)_80%)]'
       }`} />
+
+      <HostessBackdrop role={isWin ? 'victory' : 'dealer'} opacity={isWin ? 0.38 : 0.18} />
+      {isWin && <VegasSpotlight active intense={winTier.intensity >= 2} />}
+      {isWin && <CoinBurst intensity={winTier.intensity} active />}
+
+      <AnimatePresence>
+        {showNearMiss && (
+          <NearMissOverlay
+            open
+            scoreLabel={`${myScore} : ${opponentScore}`}
+            onRematch={() => {
+              setShowNearMiss(false);
+              handleRequestRematch();
+            }}
+            onSkip={() => setShowNearMiss(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Main Result Content */}
       <div className="flex-1 overflow-y-auto px-6 py-10 relative z-10 flex flex-col items-center">
@@ -141,16 +184,24 @@ export function GameResultPage() {
         >
           {isWin ? (
             <>
-              <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_20px_rgba(245,158,11,0.8)] tracking-widest mb-4">
-                VICTORY
-              </h1>
-              <div className="text-arena-gold font-black text-4xl mb-4">
-                +{tableInfo.winnerPoint.toLocaleString()} <span className="text-xl">P</span>
-              </div>
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-full flex justify-between items-center mt-2 shadow-lg">
-                <span className="text-gray-400 font-bold">현재 연승</span>
-                <span className="text-white font-black text-2xl tracking-tighter">{DEMO_USER.streak + 1} 연승 🔥</span>
-              </div>
+              <HostessAvatar role="victory" size="xl" pulse className="mb-3" />
+              <WinTierBanner info={winTier} />
+              <ChaseLightTitle>
+                <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-600 drop-shadow-[0_0_20px_rgba(245,158,11,0.8)] tracking-widest">
+                  VICTORY
+                </h1>
+              </ChaseLightTitle>
+              <RollingPoints
+                target={tableInfo.winnerPoint}
+                durationMs={1400 + winTier.intensity * 200}
+                className="text-arena-gold font-black text-4xl mb-4"
+              />
+              <StreakAura streak={streakAfter} className="w-full flex flex-col items-center mb-2">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-full flex justify-between items-center shadow-lg">
+                  <span className="text-gray-400 font-bold">현재 연승</span>
+                  <span className="text-white font-black text-2xl tracking-tighter">{streakAfter} 연승 🔥</span>
+                </div>
+              </StreakAura>
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-full flex justify-between items-center mt-3 shadow-lg gap-3">
                 <span className="text-gray-400 font-bold shrink-0">주간 리그</span>
                 <span className="text-arena-success font-black text-sm text-right flex items-center justify-end">

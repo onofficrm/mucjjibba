@@ -1,4 +1,15 @@
-export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' = 'light') => {
+export type HapticType =
+  | 'light'
+  | 'medium'
+  | 'heavy'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'heartbeat'
+  | 'tick'
+  | 'jackpot';
+
+export const triggerHaptic = (type: HapticType = 'light') => {
   if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
     // Check if animations/haptics are disabled in user settings
     const hapticsEnabled = localStorage.getItem('arena_haptics') !== 'false';
@@ -22,6 +33,15 @@ export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' | 'success' | '
         break;
       case 'error':
         window.navigator.vibrate([30, 40, 30, 40, 30]);
+        break;
+      case 'heartbeat':
+        window.navigator.vibrate([18, 80, 28]);
+        break;
+      case 'tick':
+        window.navigator.vibrate(8);
+        break;
+      case 'jackpot':
+        window.navigator.vibrate([15, 40, 15, 40, 15, 40, 60]);
         break;
     }
   }

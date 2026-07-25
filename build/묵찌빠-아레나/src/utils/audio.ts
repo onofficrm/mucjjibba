@@ -4,7 +4,8 @@ export type SoundEffectType =
   | 'match_start' | 'search_loop' | 'profile_spin' | 'opponent_found' | 'vs_appear' | 'countdown_3' | 'start_sfx'
   | 'rock_btn' | 'scissors_btn' | 'paper_btn' | 'lock_select' | 'opponent_ready' | 'tension_before_reveal'
   | 'attack_get' | 'attack_move' | 'attack_keep' | 'attack_fail'
-  | 'round_win' | 'round_lose' | 'final_win' | 'streak_up' | 'rank_up' | 'point_count' | 'final_lose' | 'game_void';
+  | 'round_win' | 'round_lose' | 'final_win' | 'streak_up' | 'rank_up' | 'point_count' | 'final_lose' | 'game_void'
+  | 'coin_tick' | 'heartbeat' | 'jackpot' | 'near_miss';
 
 export type BgmType = 'lobby' | 'normal_game' | 'attack_game' | 'last_round' | 'tournament_final' | 'win_result';
 
@@ -218,6 +219,66 @@ class AudioManager {
         gain.gain.linearRampToValueAtTime(0, t + 1.0);
         osc.start(t);
         osc.stop(t + 1.0);
+        break;
+      case 'coin_tick':
+      case 'counter_up':
+      case 'point_count': {
+        osc.type = 'triangle';
+        const base = type === 'point_count' ? 880 : 720 + Math.random() * 180;
+        osc.frequency.setValueAtTime(base, t);
+        osc.frequency.exponentialRampToValueAtTime(base * 1.3, t + 0.05);
+        gain.gain.setValueAtTime(vol * 0.22, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+        osc.start(t);
+        osc.stop(t + 0.08);
+        break;
+      }
+      case 'heartbeat':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(90, t);
+        osc.frequency.exponentialRampToValueAtTime(55, t + 0.12);
+        gain.gain.setValueAtTime(vol * 0.45, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+        osc.start(t);
+        osc.stop(t + 0.18);
+        break;
+      case 'slot_spin':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, t);
+        osc.frequency.linearRampToValueAtTime(80, t + 0.35);
+        gain.gain.setValueAtTime(vol * 0.25, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.4);
+        osc.start(t);
+        osc.stop(t + 0.4);
+        break;
+      case 'jackpot':
+        osc.type = 'square';
+        [523.25, 659.25, 783.99, 1046.5, 1318.5, 1046.5].forEach((freq, i) => {
+          osc.frequency.setValueAtTime(freq, t + i * 0.1);
+        });
+        gain.gain.setValueAtTime(vol * 0.55, t);
+        gain.gain.linearRampToValueAtTime(0, t + 1.2);
+        osc.start(t);
+        osc.stop(t + 1.2);
+        break;
+      case 'near_miss':
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(600, t);
+        osc.frequency.exponentialRampToValueAtTime(280, t + 0.5);
+        gain.gain.setValueAtTime(vol * 0.35, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.55);
+        osc.start(t);
+        osc.stop(t + 0.55);
+        break;
+      case 'tension_before_reveal':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, t);
+        osc.frequency.linearRampToValueAtTime(440, t + 0.5);
+        gain.gain.setValueAtTime(vol * 0.2, t);
+        gain.gain.linearRampToValueAtTime(vol * 0.4, t + 0.4);
+        gain.gain.linearRampToValueAtTime(0, t + 0.7);
+        osc.start(t);
+        osc.stop(t + 0.7);
         break;
       default:
         // Generic pop sound
