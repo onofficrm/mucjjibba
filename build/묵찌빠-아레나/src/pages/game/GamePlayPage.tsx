@@ -1,0 +1,1073 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  LogOut, Volume2, VolumeX, Info, Check, 
+  Zap, Crown, Lock, ChevronDown, RefreshCw, Sparkles, X, AlertTriangle
+} from 'lucide-react';
+import { PrimaryButton, SecondaryButton } from '@/components/common/Buttons';
+import { triggerHaptic } from '@/utils/haptics';
+import { audioManager } from '@/utils/audio';
+import { DEMO_USER } from '@/data/demoData';
+import { DealerCharacter, DealerState } from '@/components/game/DealerCharacter';
+import { CharacterAvatar } from '@/components/game/CharacterAvatar';
+import { VsIntro } from '@/components/game/VsIntro';
+import { ReactionButton, ReactionBubble, ReactionType } from '@/components/game/GameReactions';
+import { gameSettings } from '@/utils/gameSettings';
+import { getHandSkinEmojis, getCharacterEmoji } from '@/data/decorations';
+
+type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
+type PlayerId = 'ME' | 'OPPONENT';
+type GamePhase = 
+  | 'VS_INTRO'
+  | 'INIT' 
+  | 'ATTACK_DECISION' 
+  | 'SELECTING' 
+  | 'WAITING_OPPONENT' 
+  | 'REVEAL' 
+  | 'ROUND_RESULT' 
+  | 'GAME_OVER';
+
+interface GameState {
+  phase: GamePhase;
+  round: number;
+  myScore: number;
+  opponentScore: number;
+  attacker: PlayerId | null;
+  myHand: Hand | null;
+  opponentHand: Hand | null;
+  timeLeft: number;
+  winner: PlayerId | null;
+  roundMessage: string;
+}
+
+
+const DEMO_OPPONENT = {
+  nickname: 'GHOST***',
+  grade: '골드',
+  avatar: '👻'
+};
+
+const ALL_HANDS: Hand[] = ['ROCK', 'SCISSORS', 'PAPER'];
+
+const getRpsWinner = (myHand: Hand, opponentHand: Hand): PlayerId | null => {
+  if (myHand === opponentHand) return null;
+  if (
+    (myHand === 'ROCK' && opponentHand === 'SCISSORS') ||
+    (myHand === 'SCISSORS' && opponentHand === 'PAPER') ||
+    (myHand === 'PAPER' && opponentHand === 'ROCK')
+  ) {
+    return 'ME';
+  }
+  return 'OPPONENT';
+};
+
+const ImpactEffect = ({ hand, isOpponent }: { hand: Hand, isOpponent?: boolean }) => {
+  if (hand === 'ROCK') {
+    return (
+      <motion.div
+        initial={{ scale: 3, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ type: 'spring', damping: 10, stiffness: 300 }}
+        className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
+      >
+        <span className="text-8xl drop-shadow-[0_0_30px_rgba(255,255,255,0.8)]">✊</span>
+      </motion.div>
+    );
+  }
+  if (hand === 'SCISSORS') {
+    return (
+      <motion.div
+        initial={{ width: 0, opacity: 1, rotate: isOpponent ? -45 : 45 }}
+        animate={{ width: '150%', opacity: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-3 bg-white shadow-[0_0_20px_white] z-30 origin-center pointer-events-none"
+      />
+    );
+  }
+  if (hand === 'PAPER') {
+    return (
+      <motion.div
+        initial={{ scale: 0, opacity: 1 }}
+        animate={{ scale: 3, opacity: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="absolute inset-0 m-auto w-24 h-24 rounded-full border-8 border-white shadow-[0_0_30px_white] z-30 pointer-events-none"
+      />
+    );
+  }
+  return null;
+}
+
+const AnimatedScore = ({ score, colorClass }: { score: number, colorClass: string }) => (
+  <div className={`relative h-12 w-10 bg-gray-900 rounded-lg border border-gray-700 flex items-center justify-center font-black text-2xl overflow-hidden shadow-inner ${colorClass}`}>
+    <AnimatePresence mode="popLayout">
+      <motion.div
+        key={score}
+        initial={{ y: 30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: -30, opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className="absolute"
+      >
+        {score}
+      </motion.div>
+    </AnimatePresence>
+  </div>
+);
+
+export function GamePlayPage() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const location = useLocation();
+  const isTournament = new URLSearchParams(location.search).get('tournament') === 'true';
+  const isBeginnerMode = id === 'beginner-ai';
+  
+  const myHandEmojis = getHandSkinEmojis(gameSettings.options.handSkinId);
+  const opponentHandEmojis = getHandSkinEmojis('classic');
+  const myCharacterEmoji = getCharacterEmoji(gameSettings.options.characterId);
+  
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const [showBeginnerHelp, setShowBeginnerHelp] = useState(false);
+  
+  const [gameState, setGameState] = useState<GameState>(() => {
+    let initialPhase: GamePhase = 'VS_INTRO';
+    const { introMode } = gameSettings.options;
+    
+    if (introMode === 'skip') {
+      initialPhase = 'INIT';
+    } else if (introMode === 'first_only' && sessionStorage.getItem('arena_intro_played')) {
+      initialPhase = 'INIT';
+    } else if (introMode === 'tournament_only' && !isTournament) {
+      initialPhase = 'INIT';
+    }
+
+    return {
+      phase: initialPhase,
+      round: 1,
+      myScore: 0,
+      opponentScore: 0,
+      attacker: null,
+      myHand: null,
+      opponentHand: null,
+      timeLeft: isBeginnerMode ? 15 : 7,
+      winner: null,
+      roundMessage: '준비',
+    };
+  });
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [showImpact, setShowImpact] = useState(false);
+  const [tableShake, setTableShake] = useState(false);
+  
+  const [myReaction, setMyReaction] = useState<ReactionType | null>(null);
+  const [opponentReaction, setOpponentReaction] = useState<ReactionType | null>(null);
+  const [reactionCooldown, setReactionCooldown] = useState(0);
+
+  // Reel scrolling states
+  const [myReelIcon, setMyReelIcon] = useState<Hand>('ROCK');
+  const [opponentReelIcon, setOpponentReelIcon] = useState<Hand>('SCISSORS');
+
+  useEffect(() => {
+    // Reel scrolling logic
+    let reelTimer: NodeJS.Timeout;
+    if (gameState.phase === 'ATTACK_DECISION' || gameState.phase === 'SELECTING' || gameState.phase === 'INIT' || isSpinning) {
+      reelTimer = setInterval(() => {
+        if (!gameState.myHand || isSpinning) {
+          setMyReelIcon(prev => ALL_HANDS[(ALL_HANDS.indexOf(prev) + 1) % 3]);
+        }
+        if (!gameState.opponentHand || isSpinning) {
+          setOpponentReelIcon(prev => ALL_HANDS[(ALL_HANDS.indexOf(prev) + 2) % 3]);
+        }
+      }, isSpinning ? 50 : 150);
+    }
+    return () => clearInterval(reelTimer);
+  }, [gameState.phase, gameState.myHand, gameState.opponentHand, isSpinning]);
+
+  const [dealerState, setDealerState] = useState<DealerState>('idle');
+  const [dealerMessage, setDealerMessage] = useState<string>('');
+
+  const updateDealer = (state: DealerState, message: string, isResultEvent: boolean = false) => {
+    if (gameSettings.options.voiceEnabled) {
+      if (gameSettings.options.voiceMode === 'all' || isResultEvent) {
+         audioManager.speak(message);
+      }
+    }
+    if (gameSettings.options.dealerVisible) {
+      setDealerState(state);
+      if (message) {
+        setDealerMessage(message);
+      }
+    }
+  };
+
+  const updateState = (updates: Partial<GameState>) => {
+    setGameState(prev => ({ ...prev, ...updates }));
+  };
+
+  useEffect(() => {
+    // Determine BGM
+    if (gameState.phase === 'GAME_OVER') {
+      if (gameState.winner === 'ME') {
+        audioManager.playBGM('win_result');
+      } else {
+        audioManager.stopBGM();
+      }
+    } else if (gameState.myScore === 1 && gameState.opponentScore === 1) {
+      audioManager.playBGM('last_round');
+    } else if (gameState.attacker) {
+      audioManager.playBGM('attack_game');
+    } else {
+      audioManager.playBGM('normal_game');
+    }
+  }, [gameState.phase, gameState.attacker, gameState.myScore, gameState.opponentScore, gameState.winner]);
+
+  useEffect(() => {
+    if (gameState.phase === 'INIT') {
+      audioManager.playSFX('start_sfx');
+      updateDealer('start', '묵찌빠 대결을 시작합니다.');
+      
+      const timer = setTimeout(() => {
+        updateState({ 
+          phase: 'ATTACK_DECISION', 
+          roundMessage: '선택하세요',
+          timeLeft: isBeginnerMode ? 10 : 5
+        });
+        updateDealer('ask_select', '하나를 선택하세요.');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+
+    if (gameState.phase === 'REVEAL') {
+      audioManager.playSFX('tension_before_reveal');
+      setIsSpinning(true);
+      setShowImpact(false);
+      setTableShake(false);
+      
+      const stopSpinTimer = setTimeout(() => {
+        setIsSpinning(false);
+        setShowImpact(true);
+        if (gameState.myHand === 'ROCK' || gameState.opponentHand === 'ROCK') {
+          setTableShake(true);
+          setTimeout(() => setTableShake(false), 300);
+          audioManager.playSFX('rock_btn');
+        } else if (gameState.myHand === 'SCISSORS' || gameState.opponentHand === 'SCISSORS') {
+          audioManager.playSFX('scissors_btn');
+        } else {
+          audioManager.playSFX('paper_btn');
+        }
+        triggerHaptic('heavy');
+      }, 1000);
+
+      const timer = setTimeout(() => {
+        handleRoundLogic();
+      }, isBeginnerMode ? 3000 : 2500); // Slower reveal for beginners to read help
+      return () => {
+        clearTimeout(stopSpinTimer);
+        clearTimeout(timer);
+      };
+    }
+
+    if (gameState.phase === 'ROUND_RESULT') {
+      const timer = setTimeout(() => {
+        if (gameState.myScore >= 2 || gameState.opponentScore >= 2) {
+          const isWin = gameState.myScore >= 2;
+          updateState({ 
+            phase: 'GAME_OVER',
+            winner: isWin ? 'ME' : 'OPPONENT',
+          });
+          if (isWin) {
+            updateDealer('congrats', '최종 승리했습니다!', true);
+          } else {
+            updateDealer('comfort', '최종 패배했습니다.', true);
+          }
+        } else {
+          const isFinalRound = gameState.myScore === 1 && gameState.opponentScore === 1;
+          updateState({ 
+            phase: 'SELECTING', 
+            myHand: null, 
+            opponentHand: null, 
+            timeLeft: isBeginnerMode ? 10 : 5,
+            roundMessage: '선택하세요',
+            round: gameState.round + 1
+          });
+          if (isFinalRound) {
+            updateDealer('surprise', '승부를 결정할 마지막 라운드입니다!');
+          } else {
+            updateDealer('ask_select', '하나를 선택하세요.');
+          }
+        }
+      }, isBeginnerMode ? 2500 : 1000); // 2.5 sec for beginners to read result
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.phase, isBeginnerMode]);
+
+  // Timer Logic
+  useEffect(() => {
+    if ((gameState.phase === 'ATTACK_DECISION' || gameState.phase === 'SELECTING') && !showBeginnerHelp && !showExitModal) {
+      timerRef.current = setInterval(() => {
+        setGameState(prev => {
+          if (prev.timeLeft <= 1) {
+            if (!prev.myHand) {
+              handleHandSelect(getRandomHand(), true);
+            }
+            return { ...prev, timeLeft: 0 };
+          }
+          return { ...prev, timeLeft: prev.timeLeft - 1 };
+        });
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [gameState.phase, gameState.myHand, showBeginnerHelp, showExitModal]);
+
+  const getRandomHand = (): Hand => ALL_HANDS[Math.floor(Math.random() * ALL_HANDS.length)];
+
+  useEffect(() => {
+    let cooldownTimer: NodeJS.Timeout;
+    if (reactionCooldown > 0) {
+      cooldownTimer = setTimeout(() => {
+        setReactionCooldown(prev => Math.max(0, prev - 1000));
+      }, 1000);
+    }
+    return () => clearTimeout(cooldownTimer);
+  }, [reactionCooldown]);
+
+  useEffect(() => {
+    if (myReaction) {
+      const t = setTimeout(() => setMyReaction(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [myReaction]);
+
+  useEffect(() => {
+    if (opponentReaction) {
+      const t = setTimeout(() => setOpponentReaction(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [opponentReaction]);
+
+  const handleSendReaction = (id: ReactionType) => {
+    setMyReaction(id);
+    setReactionCooldown(3000); // 3 seconds cooldown
+    
+    // Simulate opponent sending a reaction back sometimes
+    if (Math.random() > 0.5) {
+      setTimeout(() => {
+        const reactions: ReactionType[] = ['CHALLENGE', 'GOOD', 'CLOSE', 'FAST', 'SURPRISE', 'CLAP', 'LAUGH', 'REMATCH'];
+        const randomOpponentReaction = reactions[Math.floor(Math.random() * reactions.length)];
+        setOpponentReaction(randomOpponentReaction);
+      }, 1000 + Math.random() * 1000);
+    }
+  };
+
+  const toggleMute = () => {
+    triggerHaptic('light');
+    audioManager.updateSetting('mute', !soundEnabled);
+    setSoundEnabled(!soundEnabled);
+  };
+
+  const handleHandSelect = (hand: Hand, auto = false) => {
+    if (gameState.phase !== 'ATTACK_DECISION' && gameState.phase !== 'SELECTING') return;
+    if (gameState.myHand) return;
+    
+    if (!auto) {
+      triggerHaptic('medium');
+      if (hand === 'ROCK') audioManager.playSFX('rock_btn');
+      else if (hand === 'SCISSORS') audioManager.playSFX('scissors_btn');
+      else if (hand === 'PAPER') audioManager.playSFX('paper_btn');
+    }
+    
+    updateState({ myHand: hand });
+
+    if (gameState.opponentHand) {
+      updateState({ phase: 'REVEAL', roundMessage: '결과 공개' });
+    } else {
+      updateState({ phase: 'WAITING_OPPONENT', roundMessage: '상대 대기' });
+      audioManager.playSFX('lock_select');
+      
+      // Simulate opponent selection
+      setTimeout(() => {
+        audioManager.playSFX('opponent_ready');
+        updateState({ opponentHand: getRandomHand() });
+        // Since state updates are async, we handle phase transition here
+        updateState({ phase: 'REVEAL', roundMessage: '결과 공개' });
+        triggerHaptic('light');
+      }, Math.random() * 1000 + 300);
+    }
+  };
+
+  const handleRoundLogic = () => {
+    const { myHand, opponentHand, attacker } = gameState;
+    if (!myHand || !opponentHand) return;
+
+    if (gameState.phase === 'ATTACK_DECISION' || !attacker) {
+      const rpsWinner = getRpsWinner(myHand, opponentHand);
+      if (rpsWinner === null) {
+        audioManager.playSFX('game_void');
+        updateState({ 
+          phase: 'ATTACK_DECISION', 
+          myHand: null, 
+          opponentHand: null, 
+          timeLeft: isBeginnerMode ? 10 : 5,
+          roundMessage: '선택하세요' 
+        });
+        updateDealer('surprise', '비겼습니다. 다시 선택하세요.', true);
+      } else {
+        let message = '';
+        if (rpsWinner === 'ME') {
+          audioManager.playSFX('attack_get');
+          message = '공격권을 가져왔습니다.';
+        } else {
+          audioManager.playSFX('attack_fail');
+          message = '공격권이 상대에게 넘어갑니다.';
+        }
+        
+        if (isBeginnerMode && gameSettings.options.beginnerHelpVoice && gameState.round === 1) {
+          message += ' 공격 중 같은 손이 나오면 승리합니다.';
+        }
+        
+        updateDealer('ask_select', message, true);
+
+        updateState({ 
+          attacker: rpsWinner,
+          phase: 'SELECTING',
+          myHand: null,
+          opponentHand: null,
+          timeLeft: isBeginnerMode ? 10 : 5,
+          roundMessage: '공격권 획득', // Simplified
+        });
+      }
+      return;
+    }
+
+    if (myHand === opponentHand) {
+      if (attacker === 'ME') {
+        audioManager.playSFX('round_win');
+        updateState({
+          myScore: gameState.myScore + 1,
+          phase: 'ROUND_RESULT',
+          roundMessage: 'WIN',
+        });
+        triggerHaptic('success');
+        updateDealer('congrats', '라운드 승리!', true);
+      } else {
+        audioManager.playSFX('round_lose');
+        updateState({
+          opponentScore: gameState.opponentScore + 1,
+          phase: 'ROUND_RESULT',
+          roundMessage: 'LOSE',
+        });
+        triggerHaptic('error');
+        updateDealer('comfort', '라운드 패배!', true);
+      }
+    } else {
+      const rpsWinner = getRpsWinner(myHand, opponentHand);
+      if (rpsWinner === 'ME') {
+        audioManager.playSFX('attack_move', { pan: -1 });
+        updateDealer('ask_select', '공격권을 가져왔습니다.', true);
+      } else {
+        audioManager.playSFX('attack_move', { pan: 1 });
+        updateDealer('ask_select', '공격권이 상대에게 넘어갑니다.', true);
+      }
+      updateState({
+        attacker: rpsWinner,
+        phase: 'ROUND_RESULT',
+        roundMessage: '공격권 이동',
+      });
+      triggerHaptic('light');
+    }
+  };
+
+  const circumference = 2 * Math.PI * 20;
+  const strokeDashoffset = circumference - ((gameState.timeLeft / 5) * circumference);
+
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col font-sans select-none overflow-hidden relative pb-safe">
+      <AnimatePresence>
+        {gameState.phase === 'VS_INTRO' && (
+          <VsIntro
+            myInfo={{
+              nickname: DEMO_USER.nickname,
+              grade: DEMO_USER.grade,
+              winStreak: DEMO_USER.streak,
+              playStyle: '신중형',
+              avatar: DEMO_USER.avatar,
+              characterId: gameSettings.options.characterId,
+              handSkinId: gameSettings.options.handSkinId,
+            }}
+            opponentInfo={{
+              nickname: DEMO_OPPONENT.nickname,
+              grade: DEMO_OPPONENT.grade,
+              winStreak: 3,
+              playStyle: '공격형',
+              avatar: DEMO_OPPONENT.avatar,
+              characterId: 'classic_dealer',
+              handSkinId: 'classic',
+            }}
+            entryPoints={100}
+            winningPoints={190}
+            onComplete={() => {
+              sessionStorage.setItem('arena_intro_played', 'true');
+              updateState({ phase: 'INIT' });
+            }}
+            reduceAnimations={gameSettings.options.performanceMode === 'low'}
+            muteAudio={gameSettings.options.introMute}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Dealer Character */}
+      {gameSettings.options.dealerVisible && gameSettings.options.performanceMode !== 'low' && (
+        <DealerCharacter 
+          state={dealerState} 
+          message={dealerMessage} 
+          reducedAnimations={gameSettings.options.performanceMode !== 'fancy'} 
+        />
+      )}
+
+      {/* Background Ambience */}
+      <div className={`absolute inset-0 z-0 transition-colors duration-1000 ${
+        gameState.myScore === 1 && gameState.opponentScore === 1 
+          ? 'bg-[radial-gradient(circle_at_center,_rgba(40,0,0,1)_0%,_rgba(0,0,0,1)_100%)]' 
+          : 'bg-[radial-gradient(circle_at_center,_rgba(24,24,27,1)_0%,_rgba(0,0,0,1)_100%)]'
+      }`} />
+      
+      {/* Background Particles (Fancy only) */}
+      {gameSettings.options.performanceMode === 'fancy' && (
+        <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none">
+           {[...Array(20)].map((_, i) => (
+             <motion.div
+               key={i}
+               initial={{ y: -10, x: Math.random() * 100 + 'vw', opacity: Math.random() }}
+               animate={{ y: '100vh', opacity: [0, 1, 0] }}
+               transition={{ duration: Math.random() * 5 + 5, repeat: Infinity, ease: 'linear' }}
+               className="absolute w-1 h-1 bg-white rounded-full"
+             />
+           ))}
+        </div>
+      )}
+      
+      {/* Top Bar */}
+      <header className="relative z-20 flex justify-between items-start p-4 w-full">
+        <div className="flex gap-2">
+          <button onClick={() => setShowExitModal(true)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+            <LogOut className="w-5 h-5 -ml-1" />
+          </button>
+          <button onClick={() => setShowBeginnerHelp(true)} className="w-10 h-10 rounded-full bg-arena-gold/20 border border-arena-gold/30 flex items-center justify-center text-arena-gold hover:bg-arena-gold/30 transition-colors shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+            <span className="font-black text-lg">?</span>
+          </button>
+          <button onClick={toggleMute} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+            {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          </button>
+        </div>
+        
+        <div className="flex flex-col items-center">
+          <button 
+            onClick={() => { triggerHaptic('light'); setShowInfo(true); }}
+            className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-full text-xs font-bold text-gray-400 hover:text-white transition-colors"
+          >
+            <Info className="w-3 h-3" /> INFO
+          </button>
+        </div>
+      </header>
+
+      {/* Profiles & Scores */}
+      <div className="relative z-10 px-6 flex justify-between items-center w-full max-w-md mx-auto mb-4">
+        {/* Me */}
+        <div className="flex flex-col items-start gap-3 w-1/3">
+          <div className="flex items-center gap-2">
+             <div className="relative">
+               <CharacterAvatar 
+                 characterId={gameSettings.options.characterId} 
+                 isMe={true} 
+                 phase={gameState.phase} 
+                 attacker={gameState.attacker} 
+                 winner={gameState.winner} 
+                 hand={gameState.myHand} 
+               />
+               <AnimatePresence>
+                 {myReaction && <ReactionBubble reactionId={myReaction} isMe={true} />}
+               </AnimatePresence>
+             </div>
+             <div className="flex flex-col">
+               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{DEMO_USER.grade}</span>
+               <span className="text-sm font-black truncate max-w-[70px] text-white">{DEMO_USER.nickname}</span>
+             </div>
+          </div>
+          <div className="flex items-center gap-2">
+             <AnimatedScore score={gameState.myScore} colorClass="text-arena-cyan" />
+             <div className="text-xs font-bold text-gray-500">WINS</div>
+          </div>
+        </div>
+
+        {/* Timer */}
+        <div className="flex-1 flex justify-center">
+           <div className={`relative w-20 h-20 flex items-center justify-center ${gameState.myScore === 1 && gameState.opponentScore === 1 ? 'scale-110 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]' : ''} transition-all`}>
+              <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 44 44">
+                 <circle cx="22" cy="22" r="20" className="stroke-gray-800" strokeWidth="4" fill="none" />
+                 <motion.circle 
+                   cx="22" cy="22" r="20"
+                   className={`${gameState.timeLeft <= 3 ? 'stroke-arena-error' : 'stroke-arena-gold'}`}
+                   strokeWidth="4" fill="none"
+                   strokeDasharray={circumference}
+                   animate={{ strokeDashoffset }}
+                   transition={{ duration: 1, ease: "linear" }}
+                   style={{ strokeLinecap: 'round' }}
+                 />
+              </svg>
+              <div className={`absolute text-3xl font-black ${gameState.timeLeft <= 3 ? 'text-arena-error animate-pulse' : 'text-white drop-shadow-md'}`}>
+                 {gameState.timeLeft}
+              </div>
+           </div>
+        </div>
+
+        {/* Opponent */}
+        <div className="flex flex-col items-end gap-3 w-1/3">
+          <div className="flex items-center gap-2 flex-row-reverse">
+             <div className="relative">
+               <CharacterAvatar 
+                 characterId="classic_dealer" 
+                 emojiFallback={DEMO_OPPONENT.avatar}
+                 isMe={false} 
+                 phase={gameState.phase} 
+                 attacker={gameState.attacker} 
+                 winner={gameState.winner} 
+                 hand={gameState.opponentHand} 
+               />
+               <AnimatePresence>
+                 {opponentReaction && <ReactionBubble reactionId={opponentReaction} isMe={false} />}
+               </AnimatePresence>
+             </div>
+             <div className="flex flex-col items-end">
+               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{DEMO_OPPONENT.grade}</span>
+               <span className="text-sm font-black truncate max-w-[70px] text-white">{DEMO_OPPONENT.nickname}</span>
+             </div>
+          </div>
+          <div className="flex items-center gap-2 flex-row-reverse">
+             <AnimatedScore score={gameState.opponentScore} colorClass="text-arena-error" />
+             <div className="text-xs font-bold text-gray-500">WINS</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Reels Area */}
+      <div className="flex-1 flex flex-col justify-center items-center relative z-10 w-full max-w-md mx-auto">
+        
+        {/* Status Text (Slot Top Display) */}
+        <div className="mb-8 w-4/5 h-12 bg-black border-[3px] border-gray-800 rounded-xl shadow-[inset_0_0_20px_rgba(0,0,0,1)] flex items-center justify-center overflow-hidden">
+           <AnimatePresence mode="wait">
+             <motion.div
+               key={gameState.roundMessage}
+               initial={{ y: 30, opacity: 0 }}
+               animate={{ y: 0, opacity: 1 }}
+               exit={{ y: -30, opacity: 0 }}
+               className={`font-black text-xl tracking-widest uppercase ${
+                 gameState.roundMessage === 'WIN' ? 'text-arena-cyan drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]' :
+                 gameState.roundMessage === 'LOSE' ? 'text-arena-error drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]' :
+                 gameState.roundMessage.includes('획득') ? 'text-arena-gold drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]' :
+                 'text-white drop-shadow-md'
+               }`}
+             >
+               {gameState.roundMessage}
+             </motion.div>
+           </AnimatePresence>
+        </div>
+
+        {/* The 3 Reels */}
+        <motion.div 
+          animate={tableShake ? { x: [-10, 10, -10, 10, 0], y: [-5, 5, -5, 5, 0] } : { x: 0, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className={`flex items-center gap-3 md:gap-5 p-5 bg-gradient-to-b from-gray-800 to-gray-900 rounded-[2rem] border-[8px] border-gray-800 shadow-[0_15px_40px_rgba(0,0,0,0.9)] relative transition-all duration-1000 ${
+           gameState.myScore === 1 && gameState.opponentScore === 1 ? 'shadow-[0_0_50px_rgba(220,38,38,0.3)] border-red-900/40' : ''
+        }`}>
+          {gameState.myScore === 1 && gameState.opponentScore === 1 && (
+            <div className="absolute -top-10 inset-x-0 text-center font-black text-red-500 tracking-[0.4em] text-sm animate-pulse drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">
+              FINAL ROUND
+            </div>
+          )}
+
+          {/* Me Reel */}
+          <div className={`w-28 h-40 rounded-2xl flex items-center justify-center relative overflow-hidden bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 shadow-[inset_0_0_20px_rgba(0,0,0,1)] transition-all duration-300 ${
+            gameState.attacker === 'ME' ? 'border-[4px] border-arena-gold shadow-[0_0_30px_rgba(245,158,11,0.6)]' : 'border-[4px] border-gray-900'
+          }`}>
+             <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/70 pointer-events-none z-20" />
+             <AnimatePresence mode="popLayout">
+               <motion.div 
+                 key={isSpinning ? myReelIcon : (gameState.myHand || myReelIcon)}
+                 initial={{ y: isSpinning ? -120 : 0, opacity: isSpinning ? 0.3 : 1 }}
+                 animate={{ y: 0, opacity: 1 }}
+                 exit={{ y: isSpinning ? 120 : 0, opacity: isSpinning ? 0.3 : 0 }}
+                 transition={{ duration: isSpinning ? 0.08 : 0.2 }}
+                 className={`text-7xl z-10 relative ${showImpact ? 'scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]' : ''} transition-all`}
+               >
+                 {myHandEmojis[isSpinning ? myReelIcon : (gameState.myHand || myReelIcon)]}
+               </motion.div>
+             </AnimatePresence>
+             {showImpact && gameState.myHand && (
+               <ImpactEffect hand={gameState.myHand} />
+             )}
+          </div>
+
+          {/* Center VS/Attack Reel */}
+          <div className="w-16 h-40 rounded-2xl flex items-center justify-center relative overflow-hidden bg-black border-4 border-gray-900 shadow-inner">
+             <AnimatePresence mode="wait">
+               {gameState.attacker === 'ME' ? (
+                 <motion.div key="crown-me" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="text-arena-gold flex flex-col items-center">
+                   <Crown className="w-10 h-10 drop-shadow-[0_0_15px_rgba(245,158,11,1)]" />
+                 </motion.div>
+               ) : gameState.attacker === 'OPPONENT' ? (
+                 <motion.div key="crown-opp" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="text-arena-error flex flex-col items-center">
+                   <Zap className="w-10 h-10 drop-shadow-[0_0_15px_rgba(220,38,38,1)]" />
+                 </motion.div>
+               ) : (
+                 <motion.div key="vs" className="text-gray-700 font-black italic text-2xl">VS</motion.div>
+               )}
+             </AnimatePresence>
+          </div>
+
+          {/* Opponent Reel */}
+          <div className={`w-28 h-40 rounded-2xl flex items-center justify-center relative overflow-hidden bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 shadow-[inset_0_0_20px_rgba(0,0,0,1)] transition-all duration-300 ${
+            gameState.attacker === 'OPPONENT' ? 'border-[4px] border-arena-error shadow-[0_0_30px_rgba(220,38,38,0.6)]' : 'border-[4px] border-gray-900'
+          }`}>
+             <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/70 pointer-events-none z-20" />
+             <AnimatePresence mode="popLayout">
+               {gameState.phase === 'REVEAL' || gameState.phase === 'ROUND_RESULT' ? (
+                 <motion.div 
+                   key={isSpinning ? opponentReelIcon : gameState.opponentHand}
+                   initial={{ y: isSpinning ? -120 : 0, opacity: isSpinning ? 0.3 : 1 }}
+                   animate={{ y: 0, opacity: 1 }}
+                   exit={{ y: isSpinning ? 120 : 0, opacity: isSpinning ? 0.3 : 0 }}
+                   transition={{ duration: isSpinning ? 0.08 : 0.2 }}
+                   className={`text-7xl z-10 relative ${showImpact ? 'scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]' : ''} transition-all`}
+                 >
+                   {opponentHandEmojis[isSpinning ? opponentReelIcon : (gameState.opponentHand as Hand)]}
+                 </motion.div>
+               ) : gameState.opponentHand ? (
+                  // Locked by opponent but not revealed
+                  <motion.div key="locked" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-5xl text-gray-600 z-10 relative">
+                    <Lock className="w-12 h-12 drop-shadow-md" />
+                  </motion.div>
+               ) : (
+                 <motion.div 
+                   key={opponentReelIcon}
+                   initial={{ y: -120, opacity: 0 }}
+                   animate={{ y: 0, opacity: 1 }}
+                   exit={{ y: 120, opacity: 0 }}
+                   transition={{ duration: 0.1 }}
+                   className="text-7xl opacity-40 z-10 relative blur-[2px]"
+                 >
+                   {opponentHandEmojis[opponentReelIcon]}
+                 </motion.div>
+               )}
+             </AnimatePresence>
+             {showImpact && gameState.opponentHand && (
+               <ImpactEffect hand={gameState.opponentHand} isOpponent />
+             )}
+          </div>
+        </motion.div>
+
+      </div>
+
+      {/* Bottom Area: Points and Action Buttons */}
+      <div className="relative z-20 w-full max-w-md mx-auto bg-gray-900 border-t border-gray-800 rounded-t-[2rem] pt-6 pb-6 px-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        
+        <div className="flex justify-between items-center mb-6 px-4">
+           <div className="flex flex-col">
+              <span className="text-[10px] text-gray-500 font-bold">{isBeginnerMode ? '연습 비용' : '참가 포인트'}</span>
+              <span className="font-bold text-white text-sm">{isBeginnerMode ? '무료' : '1,000 P'}</span>
+           </div>
+           <div className="flex flex-col items-end">
+              <span className="text-[10px] text-gray-500 font-bold">보유 포인트</span>
+              <span className="font-bold text-arena-gold text-sm">{DEMO_USER.points.toLocaleString()} P</span>
+           </div>
+        </div>
+
+        {isBeginnerMode && (
+          <div className="mb-4 bg-arena-gold/10 border border-arena-gold/30 rounded-xl p-3 flex items-center justify-center text-arena-gold text-sm font-bold shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+            <Info className="w-4 h-4 mr-2" />
+            {gameState.phase === 'ATTACK_DECISION' ? '아래에서 하나를 선택하세요.' :
+             gameState.attacker === 'ME' ? '지금은 내가 공격 중입니다.' :
+             gameState.attacker === 'OPPONENT' ? '공격권이 상대에게 넘어갔습니다.' :
+             '같은 손이면 공격권을 가진 사람이 이깁니다.'}
+          </div>
+        )}
+
+        <div className="flex justify-between gap-3 relative">
+          {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand) => {
+            const isSelected = gameState.myHand === hand;
+            const canSelect = !gameState.myHand && (gameState.phase === 'ATTACK_DECISION' || gameState.phase === 'SELECTING');
+            
+            return (
+              <button
+                key={hand}
+                onClick={() => handleHandSelect(hand)}
+                disabled={!canSelect}
+                className={`flex-1 aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all duration-150 transform active:scale-95 ${
+                  isSelected ? 'bg-gradient-to-b from-gray-700 to-gray-800 border-b-4 border-gray-900 shadow-inner' :
+                  !canSelect ? 'bg-gray-800 opacity-50 grayscale border-b-8 border-gray-900' :
+                  'bg-gradient-to-b from-gray-600 to-gray-700 border-b-8 border-gray-900 hover:brightness-110 shadow-lg'
+                } ${canSelect && isBeginnerMode ? 'ring-2 ring-arena-gold ring-offset-2 ring-offset-gray-900 animate-pulse' : ''}`}
+              >
+                {isSelected && <div className="absolute inset-0 rounded-2xl shadow-[inset_0_0_20px_rgba(34,211,238,0.5)] border-2 border-arena-cyan pointer-events-none" />}
+                <span className={`text-4xl drop-shadow-lg mb-1 ${!canSelect && !isSelected ? 'opacity-50' : ''}`}>
+                  {myHandEmojis[hand]}
+                </span>
+                <span className={`text-xs font-black ${isSelected ? 'text-arena-cyan' : 'text-gray-300'}`}>
+                  {hand === 'ROCK' ? '묵' : hand === 'SCISSORS' ? '찌' : '빠'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Final Game Over Overlay */}
+      <AnimatePresence>
+        {gameState.phase === 'GAME_OVER' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-6 ${
+              gameState.winner === 'ME' ? 'bg-black/90 backdrop-blur-md' : 'bg-black/95'
+            }`}
+          >
+            {gameState.winner === 'ME' && (
+              <motion.div 
+                animate={{ rotate: 360 }} 
+                transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
+                className="absolute inset-0 bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(245,158,11,0.3)_360deg)] opacity-50 pointer-events-none"
+              />
+            )}
+            
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              className="relative z-10 flex flex-col items-center w-full max-w-sm text-center"
+            >
+              {gameState.winner === 'ME' ? (
+                <>
+                  <Sparkles className="w-16 h-16 text-arena-gold mb-4" />
+                  <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_20px_rgba(245,158,11,0.8)] mb-2">
+                    VICTORY
+                  </h1>
+                  <p className="text-arena-gold font-bold text-xl mb-8">+1,900 P</p>
+                  
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-8 w-full flex justify-between items-center">
+                    <span className="text-gray-400">현재 연승</span>
+                    <span className="text-white font-black text-2xl">{DEMO_USER.streak + 1}연승 🔥</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 mb-4 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center">
+                    <LogOut className="w-8 h-8 text-gray-500" />
+                  </div>
+                  <h1 className="text-5xl font-black text-gray-500 mb-8">
+                    DEFEAT
+                  </h1>
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-8 w-full flex justify-between items-center text-gray-500">
+                    <span>잃은 포인트</span>
+                    <span className="font-bold">-1,000 P</span>
+                  </div>
+                </>
+              )}
+              
+              <div className="w-full space-y-3">
+                {gameState.winner === 'ME' ? (
+                  <>
+                    <PrimaryButton onClick={() => navigate('/match/tables')} className="w-full py-4 text-lg bg-arena-gold hover:bg-yellow-500 text-black border-none shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                      연승 도전 계속
+                    </PrimaryButton>
+                    <SecondaryButton onClick={() => navigate('/lobby')} className="w-full py-4">
+                      로비로 나가기
+                    </SecondaryButton>
+                  </>
+                ) : (
+                  <>
+                    <PrimaryButton onClick={() => navigate('/match/tables')} className="w-full py-4 text-lg">
+                      다시 하기
+                    </PrimaryButton>
+                    <button onClick={() => navigate('/lobby')} className="w-full py-4 text-gray-500 font-bold hover:text-white transition-colors">
+                      로비로 이동
+                    </button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Info Dropdown Overlay */}
+      <AnimatePresence>
+        {showInfo && (
+          <div className="absolute inset-0 z-50 flex items-start justify-center pt-20 px-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowInfo(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+              className="relative w-full max-w-sm bg-gray-900 border border-gray-700 rounded-2xl p-5 shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-white">게임 정보</h3>
+                <button onClick={() => setShowInfo(false)} className="text-gray-500 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-3 text-sm text-gray-400">
+                <div className="flex justify-between">
+                  <span>게임 ID</span>
+                  <span className="font-mono text-gray-300">{id || 'demo-1234'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>네트워크</span>
+                  <span className="text-arena-success">Ping 24ms (안정)</span>
+                </div>
+                <div className="h-px bg-gray-800 my-2" />
+                <div className="flex justify-between">
+                  <span>참가 포인트</span>
+                  <span className="text-white">1,000 P</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>운영 수수료</span>
+                  <span className="text-arena-error">-100 P</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>승리 지급</span>
+                  <span className="text-arena-gold font-bold">+1,900 P</span>
+                </div>
+                <div className="h-px bg-gray-800 my-2" />
+                <p className="text-xs">
+                  • {isBeginnerMode ? '10' : '5'}초 이내 미선택 시 자동 선택됩니다.<br/>
+                  • 게임 중 강제 종료 시 패배 처리됩니다.
+                </p>
+              </div>
+              {isBeginnerMode && (
+                <div className="mt-4 pt-4 border-t border-gray-800">
+                  <button 
+                    onClick={() => { setShowInfo(false); setShowExitModal(true); }}
+                    className="w-full py-2 bg-red-500/10 text-red-500 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-500/20 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" /> 게임에서 나가기
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Beginner Help Modal */}
+      <AnimatePresence>
+        {showBeginnerHelp && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowBeginnerHelp(false)}
+            />
+            <motion.div
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-sm bg-gray-900 border border-gray-700 rounded-3xl p-6 shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                  <span className="text-arena-gold text-2xl">?</span> 게임 도움말
+                </h3>
+                <button onClick={() => setShowBeginnerHelp(false)} className="text-gray-500 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                  <h4 className="text-arena-cyan font-bold text-sm mb-2 flex items-center gap-1">
+                    <Sparkles className="w-4 h-4" /> 가위바위보 관계
+                  </h4>
+                  <p className="text-sm text-gray-300">
+                    주먹(✊) {'>'} 가위(✌️) {'>'} 보(🖐️) {'>'} 주먹(✊)
+                  </p>
+                </div>
+
+                <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                  <h4 className="text-arena-success font-bold text-sm mb-2 flex items-center gap-1">
+                    <Zap className="w-4 h-4" /> 공격권이란?
+                  </h4>
+                  <p className="text-sm text-gray-300">
+                    가위바위보에서 이기면 공격권을 가집니다.<br />
+                    공격권이 있을 때 같은 손이 나오면 승리합니다.
+                  </p>
+                </div>
+
+                <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                  <h4 className="text-arena-gold font-bold text-sm mb-2 flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4" /> 현재 상황
+                  </h4>
+                  <p className="text-sm text-gray-300 font-bold">
+                    {gameState.attacker === 'ME' ? '내가 공격 중! 같은 손을 내면 이깁니다.' : 
+                     gameState.attacker === 'OPPONENT' ? '상대가 공격 중! 다른 손을 내서 방어하세요.' : 
+                     '아직 공격권이 없습니다. 이겨서 공격권을 가져오세요!'}
+                  </p>
+                </div>
+              </div>
+
+              <SecondaryButton onClick={() => setShowBeginnerHelp(false)} className="w-full py-4 mt-6">
+                이해했습니다
+              </SecondaryButton>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Exit Modal */}
+      <AnimatePresence>
+        {showExitModal && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setShowExitModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm bg-gray-900 border border-gray-700 rounded-3xl overflow-hidden shadow-2xl p-6 text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-arena-error/10 border border-arena-error/30 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8 text-arena-error" />
+              </div>
+              <h3 className="text-lg font-black text-white mb-2">중도 이탈 경고</h3>
+              <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+                지금 나가시면 <span className="text-arena-error font-bold">기권패</span> 처리됩니다.<br/>
+                정말 나가시겠습니까?
+              </p>
+              
+              <div className="flex space-x-3">
+                <SecondaryButton onClick={() => setShowExitModal(false)} className="flex-1">
+                  계속하기
+                </SecondaryButton>
+                <PrimaryButton onClick={() => navigate('/lobby')} className="flex-1 bg-arena-error text-white hover:bg-red-600 border-none">
+                  나가기
+                </PrimaryButton>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      <ReactionButton onSendReaction={handleSendReaction} cooldownRemaining={reactionCooldown} />
+    </div>
+  );
+}

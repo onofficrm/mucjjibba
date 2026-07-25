@@ -1,0 +1,6 @@
+{
+  "name": "묵찌빠 아레나",
+  "description": "실시간 P2P 묵찌빠 대결 플랫폼",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -17,6 +17,11 @@ data/tmp/
 # 빌더 임시 입력
 _BUILDER_INPUT/
 
+# 빌더 소스 로컬 산출물
+build/**/node_modules/
+build/**/dist/
+build/**/*.zip
+
 # Node·환경
 node_modules/
 .env
@@ -27,3 +32,5 @@ node_modules/
 .vscode/
 *.swp
 *.swo
+
+build/*.zip
