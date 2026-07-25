@@ -83,7 +83,7 @@ export function DuelHud({
     attacker === 'ME' ? '내 공격' : attacker === 'OPPONENT' ? '상대 공격' : null;
 
   return (
-    <div className="relative z-20 px-3 pt-3 md:px-6 space-y-1.5">
+    <div className="relative z-20 px-3 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.85rem))] md:px-6 md:pt-[max(1.5rem,calc(env(safe-area-inset-top,0px)+1rem))] space-y-2">
       <div className="flex items-start gap-2">
         <div className="flex gap-1.5">
           <button
