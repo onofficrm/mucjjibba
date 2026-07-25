@@ -9,6 +9,7 @@ import { GameSelectCard } from '@/components/casino/GameSelectCard';
 import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { DEMO_USER } from '@/data/demoData';
 import { SidebarAnchor } from '@/components/layouts/SidebarAnchor';
+import { MissionFanfareToast, useMissionFanfare } from '@/components/casino/DopamineFX';
 
 const navItems = [
   { name: '로비', path: '/lobby', icon: Home },
@@ -24,6 +25,7 @@ export function Layout() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isGameSelectOpen, setIsGameSelectOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const { fanfare, clear: clearFanfare } = useMissionFanfare();
 
   // 게임 플레이 화면에서 하단 내비 자동 숨김 (위로 스와이프하면 다시 표시)
   const isGamePlayScreen = /^\/game\/[^/]+$/.test(location.pathname);
@@ -106,6 +108,11 @@ export function Layout() {
 
   return (
     <div className="flex h-screen bg-arena-bg text-arena-text overflow-hidden font-sans">
+      <MissionFanfareToast
+        open={!!fanfare}
+        title={fanfare?.title ?? ''}
+        onDone={clearFanfare}
+      />
       {/* Desktop sidebar — 무대 사이드윙 + 하단 앵커 */}
       <aside
         className={`hidden md:flex flex-col relative z-30 overflow-hidden transition-all duration-300 ${

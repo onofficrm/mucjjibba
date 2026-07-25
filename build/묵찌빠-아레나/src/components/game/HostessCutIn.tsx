@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HOSTESS, type HostessRole } from '@/data/hostessAssets';
+import { audioManager } from '@/utils/audio';
 
 export type CutInTone = 'gold' | 'red' | 'platinum';
+export type CutInRarity = 'normal' | 'rare' | 'ultra';
 
 export interface CutInEvent {
   id: number;
@@ -10,6 +12,7 @@ export interface CutInEvent {
   title: string;
   subtitle?: string;
   tone: CutInTone;
+  rarity?: CutInRarity;
 }
 
 const TONE = {
@@ -33,8 +36,26 @@ const TONE = {
   },
 } as const;
 
-/** 격투게임식 호스티스 리액션 컷인 — 승점·공수탈환·결정타 순간에 짧게 지나감 */
+/** 80% normal / 15% rare / 5% ultra */
+export function rollCutInRarity(): CutInRarity {
+  const r = Math.random();
+  if (r < 0.05) return 'ultra';
+  if (r < 0.2) return 'rare';
+  return 'normal';
+}
+
+/** 격투게임식 호스티스 리액션 컷인 — 레어/울트라 가변 보상 */
 export function HostessCutIn({ cut }: { cut: CutInEvent | null }) {
+  const rarity = cut?.rarity ?? 'normal';
+  const isUltra = rarity === 'ultra';
+  const isRare = rarity === 'rare' || isUltra;
+
+  useEffect(() => {
+    if (!cut) return;
+    if (cut.rarity === 'ultra') audioManager.playSFX('jackpot');
+    else if (cut.rarity === 'rare') audioManager.playSFX('streak_up');
+  }, [cut?.id]);
+
   return (
     <AnimatePresence>
       {cut && (
@@ -44,28 +65,49 @@ export function HostessCutIn({ cut }: { cut: CutInEvent | null }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="pointer-events-none fixed inset-0 z-[65] flex items-center overflow-hidden"
+          className={`pointer-events-none fixed inset-0 z-[65] flex items-center overflow-hidden ${
+            isUltra ? 'bg-black/50' : ''
+          }`}
         >
-          {/* Diagonal band */}
+          {isUltra && (
+            <motion.div
+              className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.35)_0%,transparent_70%)]"
+              animate={{ opacity: [0.4, 0.9, 0.4] }}
+              transition={{ duration: 0.6, repeat: 2 }}
+            />
+          )}
+
           <motion.div
             initial={{ x: '-110%', skewY: -4 }}
             animate={{ x: 0, skewY: -4 }}
             exit={{ x: '110%', skewY: -4 }}
             transition={{ type: 'spring', damping: 22, stiffness: 260 }}
-            className={`relative w-full h-36 md:h-48 bg-gradient-to-r ${TONE[cut.tone].band} backdrop-blur-[2px]`}
+            className={`relative w-full ${isUltra ? 'h-52 md:h-64' : 'h-36 md:h-48'} bg-gradient-to-r ${TONE[cut.tone].band} backdrop-blur-[2px] ${
+              isRare ? 'ring-2 ring-arena-gold/70 shadow-[0_0_40px_rgba(245,158,11,0.45)]' : ''
+            }`}
           >
-            {/* Hairline edges */}
             <div className={`absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent ${TONE[cut.tone].edge} to-transparent`} />
             <div className={`absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent ${TONE[cut.tone].edge} to-transparent`} />
 
-            {/* Hostess portrait — full-bleed right */}
+            {isRare && (
+              <motion.span
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute top-2 right-4 text-[10px] font-black px-2 py-0.5 rounded-full bg-arena-gold text-black tracking-wider"
+              >
+                {isUltra ? '★ ULTRA' : 'RARE'}
+              </motion.span>
+            )}
+
             <motion.img
               src={HOSTESS[cut.role]}
               alt=""
-              initial={{ x: 60, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
+              initial={{ x: 60, opacity: 0, scale: isUltra ? 1.1 : 1 }}
+              animate={{ x: 0, opacity: 1, scale: 1 }}
               transition={{ delay: 0.08, duration: 0.35 }}
-              className="absolute right-0 top-1/2 -translate-y-1/2 h-[190%] object-cover object-top opacity-90"
+              className={`absolute right-0 top-1/2 -translate-y-1/2 object-cover object-top opacity-90 ${
+                isUltra ? 'h-[220%]' : 'h-[190%]'
+              }`}
               style={{
                 maskImage: 'linear-gradient(to left, black 55%, transparent 100%)',
                 WebkitMaskImage: 'linear-gradient(to left, black 55%, transparent 100%)',
@@ -73,13 +115,14 @@ export function HostessCutIn({ cut }: { cut: CutInEvent | null }) {
               draggable={false}
             />
 
-            {/* Copy */}
             <div className="absolute inset-y-0 left-6 md:left-16 flex flex-col justify-center">
               <motion.p
                 initial={{ x: -30, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.12 }}
-                className={`font-display text-3xl md:text-5xl font-black tracking-wider ${TONE[cut.tone].text}`}
+                className={`font-display font-black tracking-wider ${TONE[cut.tone].text} ${
+                  isUltra ? 'text-4xl md:text-6xl' : 'text-3xl md:text-5xl'
+                }`}
               >
                 {cut.title}
               </motion.p>
@@ -95,11 +138,10 @@ export function HostessCutIn({ cut }: { cut: CutInEvent | null }) {
               )}
             </div>
 
-            {/* Light sweep */}
             <motion.div
               initial={{ x: '-120%' }}
               animate={{ x: '120%' }}
-              transition={{ delay: 0.15, duration: 0.55, ease: 'easeInOut' }}
+              transition={{ delay: 0.15, duration: isUltra ? 0.75 : 0.55, ease: 'easeInOut' }}
               className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent"
             />
           </motion.div>

@@ -52,7 +52,8 @@ export function DailyMissions() {
     const mission = missions.find((m) => m.id === id);
     if (!mission?.completed || mission.claimed) return;
 
-    triggerHaptic('medium');
+    triggerHaptic('heavy');
+    audioManager.playSFX('final_win');
     audioManager.playSFX('point_count');
     setParticleMissionId(id);
 

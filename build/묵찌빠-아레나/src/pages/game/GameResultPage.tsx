@@ -25,12 +25,14 @@ import { StreakAura } from '@/components/casino/StreakAura';
 import { NearMissOverlay } from '@/components/casino/NearMissOverlay';
 import { ResultRevealSequence } from '@/components/casino/ResultRevealSequence';
 import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
+import { BonusCardFlip } from '@/components/casino/BonusCardFlip';
 import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { settleMatchPoints, getDemoPoints } from '@/utils/demoWallet';
 import { loadMatchSession, updateMatchSession, clearMatchSession, hasSettledGame, markSettledGame } from '@/services/match/matchSession';
 import type { MatchTable } from '@/types/match';
 import { getTableTier } from '@/types/match';
 import { gameSettings } from '@/utils/gameSettings';
+import { isJackpotRoundActive, clearJackpotRound, jackpotPointMultiplier } from '@/utils/jackpotRound';
 
 type RematchState = 'idle' | 'requesting' | 'accepted' | 'declined' | 'timeout' | 'disconnected';
 
@@ -124,24 +126,33 @@ export function GameResultPage() {
           isFree,
         };
 
+    const jackpot = isJackpotRoundActive();
+    const mult = jackpotPointMultiplier();
+    const winnerPoint = tableInfo.winnerPoint * (won && jackpot ? mult : 1);
+    const tableWithJackpot = { ...tableInfo, winnerPoint };
+
     if (hasSettledGame(gameId) || session?.settled) {
+      clearJackpotRound();
       return {
         pointsBefore: session?.pointsBeforeDeposit ?? pointsBefore,
         pointsAfter: pointsNow,
-        table: tableInfo,
+        table: tableWithJackpot,
+        jackpot,
       };
     }
 
     const after = settleMatchPoints({
       isFree: tableInfo.isFree,
-      winnerPoint: tableInfo.winnerPoint,
+      winnerPoint,
       won,
       alreadyDeposited: !!session?.deposited,
       entryPoint: tableInfo.entryPoint,
     });
 
+    // settle already credits winnerPoint; if jackpot was applied via winnerPoint we're done
     markSettledGame(gameId);
     if (session) updateMatchSession({ settled: true });
+    clearJackpotRound();
     window.setTimeout(() => {
       const cur = loadMatchSession();
       if (cur?.settled) clearMatchSession();
@@ -150,13 +161,15 @@ export function GameResultPage() {
     return {
       pointsBefore,
       pointsAfter: after.points,
-      table: tableInfo,
+      table: tableWithJackpot,
+      jackpot,
     };
   });
 
   const tableInfo = settledOnce.table;
   const pointsBefore = settledOnce.pointsBefore;
   const pointsAfter = settledOnce.pointsAfter;
+  const wasJackpot = settledOnce.jackpot;
   const verification = buildPublicVerification(gameLog);
 
   useEffect(() => {
@@ -290,12 +303,20 @@ export function GameResultPage() {
                 durationMs={1400 + winTier.intensity * 200}
                 className="text-arena-gold font-black text-4xl mb-4"
               />
+              {wasJackpot && (
+                <p className="text-xs font-black text-fuchsia-300 mb-2 tracking-wider">
+                  JACKPOT ROUND ×2 적용
+                </p>
+              )}
               <StreakAura streak={streakAfter} className="w-full flex flex-col items-center mb-2">
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-full flex justify-between items-center shadow-lg">
                   <span className="text-gray-400 font-bold">현재 연승</span>
                   <span className="text-white font-black text-2xl tracking-tighter">{streakAfter} 연승 🔥</span>
                 </div>
               </StreakAura>
+              {revealDone && !showNearMiss && (
+                <BonusCardFlip enabled={isWin || wasJackpot} />
+              )}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-full flex justify-between items-center mt-3 shadow-lg gap-3">
                 <span className="text-gray-400 font-bold shrink-0">주간 리그</span>
                 <span className="text-arena-success font-black text-sm text-right flex items-center justify-end">

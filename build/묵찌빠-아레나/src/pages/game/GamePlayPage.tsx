@@ -38,7 +38,19 @@ import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvata
 import { hostessForHand } from '@/data/hostessAssets';
 import { ActionCue, FirstPlayCoach } from '@/components/game/ActionCue';
 import { BattleDuelStage } from '@/components/game/BattleDuelStage';
-import { HostessCutIn, type CutInEvent } from '@/components/game/HostessCutIn';
+import { HostessCutIn, rollCutInRarity, type CutInEvent } from '@/components/game/HostessCutIn';
+import {
+  SlowMoReveal,
+  NearMissFlash,
+  ComboHitCounter,
+  ScreenCrack,
+  OnFireBadge,
+  StreakFlameGrowth,
+  CountdownUrgency,
+  PickBurst,
+  JackpotRoundBanner,
+} from '@/components/casino/DopamineFX';
+import { rollJackpotRound } from '@/utils/jackpotRound';
 import { analyzeOpponentPatterns, pickLiveHabitHint } from '@/game/patternStats';
 import {
   saveLastPlayPath,
@@ -289,13 +301,31 @@ export function GamePlayPage() {
 
   const [cutIn, setCutIn] = useState<CutInEvent | null>(null);
   const cutIdRef = useRef(0);
+  const [comboHits, setComboHits] = useState(0);
+  const [nearMissFlash, setNearMissFlash] = useState(false);
+  const [revealSnap, setRevealSnap] = useState(false);
+  const [screenCrack, setScreenCrack] = useState(false);
+  const [pickBurstKey, setPickBurstKey] = useState(0);
+  const [jackpotActive, setJackpotActive] = useState(false);
+
+  useEffect(() => {
+    setJackpotActive(rollJackpotRound());
+  }, []);
+
   const showCutIn = (partial: Omit<CutInEvent, 'id'>) => {
     if (gameSettings.options.reduceAnimations || gameSettings.options.performanceMode === 'low') return;
     const cid = ++cutIdRef.current;
-    setCutIn({ ...partial, id: cid });
+    const rarity = rollCutInRarity();
+    const hold = rarity === 'ultra' ? 1600 : rarity === 'rare' ? 1300 : 1050;
+    setCutIn({ ...partial, id: cid, rarity });
     window.setTimeout(() => {
       setCutIn((cur) => (cur?.id === cid ? null : cur));
-    }, 1050);
+    }, hold);
+  };
+
+  const flashNearMiss = (ms = 700) => {
+    setNearMissFlash(true);
+    window.setTimeout(() => setNearMissFlash(false), ms);
   };
 
   const habitHint = useMemo(() => {
@@ -468,12 +498,15 @@ export function GamePlayPage() {
       setIsSpinning(true);
       setShowImpact(false);
       setTableShake(false);
+      setRevealSnap(false);
       triggerHaptic('heartbeat');
 
       const spinMs = isBeginnerMode ? 1400 : 1200;
       const stopSpinTimer = setTimeout(() => {
         setIsSpinning(false);
+        setRevealSnap(true);
         setShowImpact(true);
+        window.setTimeout(() => setRevealSnap(false), 200);
         if (gameState.myHand === 'ROCK' || gameState.opponentHand === 'ROCK') {
           setTableShake(true);
           setTimeout(() => setTableShake(false), 300);
@@ -621,6 +654,7 @@ export function GamePlayPage() {
       if (hand === 'ROCK') audioManager.playSFX('rock_btn');
       else if (hand === 'SCISSORS') audioManager.playSFX('scissors_btn');
       else if (hand === 'PAPER') audioManager.playSFX('paper_btn');
+      setPickBurstKey((k) => k + 1);
 
       if (hand === 'ROCK') void trackMission('ROCK_SELECTED');
       else if (hand === 'SCISSORS') void trackMission('SCISSORS_SELECTED');
@@ -695,6 +729,7 @@ export function GamePlayPage() {
       const rpsWinner = getRpsWinner(myHand, opponentHand);
       if (rpsWinner === null) {
         audioManager.playSFX('game_void');
+        flashNearMiss();
         appendRoundLog('DRAW_RPS', null, null);
         setRecommendHand(ALL_HANDS[Math.floor(Math.random() * 3)]);
         updateState({ 
@@ -739,14 +774,22 @@ export function GamePlayPage() {
       if (attacker === 'ME') {
         audioManager.playSFX('round_win');
         appendRoundLog('POINT_ME', attacker, attacker);
+        const nextScore = gameState.myScore + 1;
+        const nextCombo = comboHits + 1;
+        setComboHits(nextCombo);
+        if (nextCombo >= 2) audioManager.playSFX('streak_up');
+        if (nextScore >= 2) {
+          setScreenCrack(true);
+          window.setTimeout(() => setScreenCrack(false), 1200);
+        }
         showCutIn({
           role: 'victory',
-          title: 'POINT!',
-          subtitle: gameState.myScore + 1 >= 2 ? '결정타!' : '승점 획득',
+          title: nextScore >= 2 ? 'FINISH!' : 'POINT!',
+          subtitle: nextScore >= 2 ? '결정타!' : nextCombo >= 2 ? `${nextCombo} HIT COMBO` : '승점 획득',
           tone: 'gold',
         });
         updateState({
-          myScore: gameState.myScore + 1,
+          myScore: nextScore,
           phase: 'ROUND_RESULT',
           roundMessage: '이겼어요!',
         });
@@ -755,6 +798,7 @@ export function GamePlayPage() {
       } else {
         audioManager.playSFX('round_lose');
         appendRoundLog('POINT_OPPONENT', attacker, attacker);
+        setComboHits(0);
         showCutIn({
           role: 'comfort',
           title: 'HIT',
@@ -771,17 +815,21 @@ export function GamePlayPage() {
       }
     } else {
       const rpsWinner = getRpsWinner(myHand, opponentHand);
+      flashNearMiss();
       if (rpsWinner === 'ME') {
         audioManager.playSFX('attack_move', { pan: -1 });
+        const nextCombo = comboHits + 1;
+        setComboHits(nextCombo);
         updateDealer('ask_select', '공격권을 가져왔어요!', true);
         showCutIn({
           role: 'arena',
           title: 'STEAL!',
-          subtitle: '공격권 탈환',
+          subtitle: nextCombo >= 2 ? `${nextCombo} HIT · 공격권 탈환` : '공격권 탈환',
           tone: 'platinum',
         });
       } else {
         audioManager.playSFX('attack_move', { pan: 1 });
+        setComboHits(0);
         updateDealer('ask_select', '공격권이 상대에게 넘어갔어요.', true);
       }
       appendRoundLog('ATTACK_CHANGE', attacker, rpsWinner);
@@ -928,7 +976,16 @@ export function GamePlayPage() {
 
       <LastRoundNeon active={gameState.myScore === 1 && gameState.opponentScore === 1} />
       <StreakScreenFrame streak={DEMO_USER.streak + gameState.myScore} />
+      <StreakFlameGrowth streak={DEMO_USER.streak + gameState.myScore} />
       <RevealTension active={isSpinning || gameState.phase === 'REVEAL'} />
+      <SlowMoReveal active={isSpinning || gameState.phase === 'REVEAL'} snap={revealSnap} />
+      <NearMissFlash open={nearMissFlash} />
+      <ComboHitCounter hits={comboHits} />
+      <ScreenCrack active={screenCrack} />
+      <OnFireBadge streak={DEMO_USER.streak + gameState.myScore} show={DEMO_USER.streak + gameState.myScore >= 3} />
+      <JackpotRoundBanner active={jackpotActive && gameState.phase !== 'GAME_OVER' && gameState.phase !== 'VS_INTRO'} />
+      <CountdownUrgency timeLeft={gameState.timeLeft} active={canPickNow} />
+      <PickBurst burstKey={pickBurstKey} />
       
       {/* Top Bar */}
       <header className="relative z-20 flex justify-between items-start p-4 w-full">
@@ -1559,6 +1616,20 @@ export function GamePlayPage() {
         )}
       </AnimatePresence>
       <HostessCutIn cut={cutIn} />
+      {/* Duel layout also needs global dopamine overlays (mounted above for both) */}
+      {isDuelLayout && (
+        <>
+          <SlowMoReveal active={isSpinning || gameState.phase === 'REVEAL'} snap={revealSnap} />
+          <NearMissFlash open={nearMissFlash} />
+          <ComboHitCounter hits={comboHits} />
+          <ScreenCrack active={screenCrack} />
+          <OnFireBadge streak={DEMO_USER.streak + gameState.myScore} show={DEMO_USER.streak + gameState.myScore >= 3} />
+          <StreakFlameGrowth streak={DEMO_USER.streak + gameState.myScore} />
+          <JackpotRoundBanner active={jackpotActive && gameState.phase !== 'GAME_OVER' && gameState.phase !== 'VS_INTRO'} />
+          <CountdownUrgency timeLeft={gameState.timeLeft} active={canPickNow} />
+          <PickBurst burstKey={pickBurstKey} />
+        </>
+      )}
       <ReactionButton onSendReaction={handleSendReaction} cooldownRemaining={reactionCooldown} />
       {!isDuelLayout && (
         <>
