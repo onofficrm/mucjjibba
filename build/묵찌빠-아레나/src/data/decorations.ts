@@ -9,13 +9,13 @@ export const CHARACTERS = [
 
 export const HAND_SKINS = [
   { id: 'classic', name: '클래식 손', emojis: { ROCK: '✊', SCISSORS: '✌️', PAPER: '🖐️' }, description: '가장 기본적인 가위바위보 스킨.', owned: true },
-  { id: 'gold', name: '황금 손', emojis: { ROCK: '🪙', SCISSORS: '✂️', PAPER: '📜' }, description: '모든 것을 황금으로 바꾸는 미다스의 손.', owned: false },
-  { id: 'fire', name: '불꽃 손', emojis: { ROCK: '🔥', SCISSORS: '☄️', PAPER: '💥' }, description: '뜨겁게 타오르는 열정의 불꽃.', owned: true },
-  { id: 'neon', name: '네온 손', emojis: { ROCK: '🟣', SCISSORS: '⚡', PAPER: '🟦' }, description: '사이버펑크 스타일의 네온 이펙트.', owned: true },
+  { id: 'gold', name: '황금 손', emojis: { ROCK: '✊', SCISSORS: '✌️', PAPER: '🖐️' }, description: '골드 그라데이션 SVG 손 — 고급 카지노 톤.', owned: true },
+  { id: 'fire', name: '불꽃 손', emojis: { ROCK: '✊', SCISSORS: '✌️', PAPER: '🖐️' }, description: '뜨겁게 타오르는 열정의 불꽃 SVG.', owned: true },
+  { id: 'neon', name: '네온 손', emojis: { ROCK: '✊', SCISSORS: '✌️', PAPER: '🖐️' }, description: '사이버펑크 네온 글로우 SVG.', owned: true },
   { id: 'robot', name: '로봇 손', emojis: { ROCK: '🦾', SCISSORS: '🔧', PAPER: '⚙️' }, description: '강철로 만들어진 기계 팔.', owned: false },
-  { id: 'dokkaebi', name: '도깨비 손', emojis: { ROCK: '🌑', SCISSORS: '⚔️', PAPER: '💨' }, description: '도깨비불이 감도는 신비로운 손.', owned: true },
-  { id: 'ice', name: '얼음 손', emojis: { ROCK: '🧊', SCISSORS: '❄️', PAPER: '🌨️' }, description: '상대를 얼려버리는 차가운 손.', owned: false },
-  { id: 'comic', name: '코믹 장갑', emojis: { ROCK: '🥊', SCISSORS: '✂️', PAPER: '🧤' }, description: '만화에서 튀어나온 듯한 코믹한 장갑.', owned: true },
+  { id: 'dokkaebi', name: '도깨비 손', emojis: { ROCK: '✊', SCISSORS: '⚔️', PAPER: '🖐️' }, description: '도깨비불이 감도는 신비로운 손.', owned: true },
+  { id: 'ice', name: '얼음 손', emojis: { ROCK: '✊', SCISSORS: '✌️', PAPER: '🖐️' }, description: '상대를 얼려버리는 차가운 SVG 손.', owned: true },
+  { id: 'comic', name: '코믹 장갑', emojis: { ROCK: '🥊', SCISSORS: '✌️', PAPER: '🖐️' }, description: '만화풍 외곽선 SVG 손.', owned: true },
 ];
 
 export const getHandSkinEmojis = (id: string) => {

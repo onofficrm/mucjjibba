@@ -244,7 +244,7 @@ export function GameResultPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col font-sans select-none overflow-hidden pb-safe relative">
+    <div className="h-full min-h-0 bg-black text-white flex flex-col font-sans select-none overflow-hidden relative">
       {/* Background Ambience */}
       <div className={`absolute inset-0 z-0 ${
         isWin ? 'bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.22)_0%,_rgba(0,0,0,1)_80%)]' 
@@ -283,7 +283,7 @@ export function GameResultPage() {
       )}
 
       {/* Main Result Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-10 relative z-10 flex flex-col items-center">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 relative z-10 flex flex-col items-center">
         
         {/* Result Header */}
         <motion.div 
@@ -370,7 +370,7 @@ export function GameResultPage() {
         </div>
 
         {/* More menu (정산/분석/검증/신고/공유설정/기술정보) */}
-        <div className="w-full max-w-sm mb-28">
+        <div className="w-full max-w-sm pb-4">
           <button
             type="button"
             onClick={() => {
@@ -581,9 +581,9 @@ export function GameResultPage() {
         </div>
       </div>
 
-      {/* Fixed Bottom Action Area */}
-      <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-black via-black/95 to-transparent z-20 pb-safe pt-10">
-        <div className="max-w-sm mx-auto flex flex-col gap-3">
+      {/* Bottom Action Area — 스크롤 영역과 분리된 고정 푸터 (겹침 방지) */}
+      <div className="relative shrink-0 z-20 border-t border-white/10 bg-black/95 backdrop-blur-md px-4 pt-3 pb-[max(0.85rem,env(safe-area-inset-bottom,0px))]">
+        <div className="max-w-sm mx-auto flex flex-col gap-2.5">
           
           {/* Status Alert for Rematch */}
           <AnimatePresence mode="wait">
@@ -635,50 +635,50 @@ export function GameResultPage() {
                     navigate(`/game/${id || 'quick-start'}`, { replace: true });
                   }
                 }}
-                className={`flex-1 py-5 text-base tracking-wide ${
+                className={`flex-1 py-4 text-base tracking-wide min-w-0 ${
                   isWin
                     ? 'bg-gradient-to-r from-amber-300 via-arena-gold to-amber-500 text-black border border-amber-200/40 shadow-[0_0_28px_rgba(245,158,11,0.35)]'
                     : 'shadow-[0_0_20px_rgba(245,158,11,0.2)]'
                 }`}
               >
-                <RotateCcw className="w-5 h-5" /> 한 판 더
+                <RotateCcw className="w-5 h-5 shrink-0" /> 한 판 더
               </PrimaryButton>
               <SecondaryButton
                 hostessIndex={4}
                 onClick={() => navigate('/lobby')}
-                className="flex-1 py-5 text-base bg-gradient-to-b from-zinc-800 to-zinc-950 border border-white/15 hover:border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                className="flex-1 py-4 text-base min-w-0 bg-gradient-to-b from-zinc-800 to-zinc-950 border border-white/15 hover:border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
               >
-                <Home className="w-5 h-5" /> 로비로
+                <Home className="w-5 h-5 shrink-0" /> 로비로
               </SecondaryButton>
             </div>
           )}
 
-          {/* Secondary — 더보기 안에 리플레이·공유·새 상대 */}
-          <div className="flex justify-center gap-8 mt-1 pt-3 border-t border-white/5">
+          {/* Secondary shortcuts */}
+          <div className="flex justify-center gap-8 pt-1">
             <button
               type="button"
-              className="flex flex-col items-center gap-1.5 text-gray-400 hover:text-arena-gold transition-colors"
+              className="flex flex-col items-center gap-1 text-gray-400 hover:text-arena-gold transition-colors"
               onClick={() => {
                 triggerHaptic('light');
-                setShowMore(true);
+                setShowMore((v) => !v);
               }}
             >
-              <div className="w-11 h-11 rounded-full bg-gradient-to-b from-zinc-800 to-zinc-950 flex items-center justify-center border border-arena-gold/30 shadow-[0_0_12px_rgba(245,158,11,0.12)]">
-                <ChevronDown className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-full bg-gradient-to-b from-zinc-800 to-zinc-950 flex items-center justify-center border border-arena-gold/30">
+                {showMore ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </div>
-              <span className="text-[10px] font-bold">더보기</span>
+              <span className="text-[10px] font-bold">상세 정보</span>
             </button>
             {!isBeginnerMode && (
               <button
                 type="button"
-                className="flex flex-col items-center gap-1.5 text-gray-400 hover:text-arena-cyan transition-colors"
+                className="flex flex-col items-center gap-1 text-gray-400 hover:text-arena-cyan transition-colors"
                 onClick={() => {
                   triggerHaptic('light');
                   handleRequestRematch();
                 }}
               >
-                <div className="w-11 h-11 rounded-full bg-gradient-to-b from-zinc-800 to-zinc-950 flex items-center justify-center border border-arena-cyan/30">
-                  <Search className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-full bg-gradient-to-b from-zinc-800 to-zinc-950 flex items-center justify-center border border-arena-cyan/30">
+                  <Search className="w-4 h-4" />
                 </div>
                 <span className="text-[10px] font-bold">상대에게 재대결</span>
               </button>

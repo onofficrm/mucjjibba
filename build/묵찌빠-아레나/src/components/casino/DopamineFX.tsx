@@ -4,6 +4,7 @@ import { audioManager } from '@/utils/audio';
 import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings } from '@/utils/gameSettings';
 import { missionEventHandler } from '@/services/mission';
+import { HandGlyph } from '@/components/game/HandGlyph';
 
 const reduce = () =>
   gameSettings.options.reduceAnimations || gameSettings.options.performanceMode === 'low';
@@ -110,14 +111,14 @@ export function ComboHitCounter({ hits }: { hits: number }) {
     <AnimatePresence mode="wait">
       <motion.div
         key={hits}
-        className="pointer-events-none absolute top-[28%] inset-x-0 z-[46] flex justify-center"
-        initial={{ scale: 0.3, y: 30, opacity: 0 }}
-        animate={{ scale: [0.3, 1.25, 1], y: 0, opacity: 1 }}
-        exit={{ scale: 1.4, opacity: 0, y: -20 }}
-        transition={{ type: 'spring', bounce: 0.5, duration: 0.55 }}
+        className="pointer-events-none absolute top-[13%] inset-x-0 z-[46] flex justify-center px-4"
+        initial={{ scale: 0.4, y: -14, opacity: 0 }}
+        animate={{ scale: [0.4, 1.15, 1], y: 0, opacity: 1 }}
+        exit={{ scale: 1.25, opacity: 0, y: -12 }}
+        transition={{ type: 'spring', bounce: 0.45, duration: 0.5 }}
       >
         <span
-          className={`font-display text-4xl md:text-6xl font-black tracking-tight ${
+          className={`inline-flex items-center rounded-full border-2 border-black bg-black/65 backdrop-blur-sm px-4 py-1 font-display text-2xl md:text-4xl font-black tracking-tight shadow-[3px_4px_0_#000] ${
             rainbow
               ? 'bg-gradient-to-r from-fuchsia-400 via-amber-300 to-cyan-300 bg-clip-text text-transparent'
               : hits >= 3
@@ -126,11 +127,8 @@ export function ComboHitCounter({ hits }: { hits: number }) {
           }`}
           style={
             rainbow
-              ? { filter: 'drop-shadow(0 3px 0 #000)' }
-              : {
-                  WebkitTextStroke: '2px #000',
-                  textShadow: '0 4px 0 #000, 0 0 24px rgba(163,230,53,0.55)',
-                }
+              ? { filter: 'drop-shadow(0 2px 0 #000)' }
+              : { textShadow: '0 0 18px rgba(163,230,53,0.5)' }
           }
         >
           {hits} HIT!
@@ -182,11 +180,23 @@ export function ScreenCrack({ active }: { active: boolean }) {
 }
 
 /** Step3 — ON FIRE 뱃지 */
-export function OnFireBadge({ streak, show }: { streak: number; show: boolean }) {
+export function OnFireBadge({
+  streak,
+  show,
+  inline = false,
+}: {
+  streak: number;
+  show: boolean;
+  inline?: boolean;
+}) {
   if (!show || streak < 3 || reduce()) return null;
   return (
     <motion.div
-      className="pointer-events-none absolute top-16 left-1/2 -translate-x-1/2 z-[40]"
+      className={
+        inline
+          ? 'pointer-events-none flex justify-center'
+          : 'pointer-events-none absolute top-[4.75rem] sm:top-16 left-1/2 -translate-x-1/2 z-[40]'
+      }
       initial={{ y: -20, opacity: 0, scale: 0.8 }}
       animate={{ y: 0, opacity: 1, scale: [1, 1.06, 1] }}
       transition={{ scale: { duration: 1.2, repeat: Infinity } }}
@@ -239,6 +249,7 @@ export function CountdownUrgency({ timeLeft, active }: { timeLeft: number; activ
 
   if (!visible) return null;
 
+  // 화면 테두리 비네트만 — 숫자는 기존 타이머가 담당(중복 표시 방지)
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 z-[22]"
@@ -248,22 +259,7 @@ export function CountdownUrgency({ timeLeft, active }: { timeLeft: number; activ
         boxShadow: `inset 0 0 0 4px rgba(239,68,68,${0.35 + (3 - timeLeft) * 0.2}), inset 0 0 ${40 + (3 - timeLeft) * 30}px rgba(220,38,38,0.4)`,
       }}
       aria-hidden
-    >
-      <motion.span
-        key={timeLeft}
-        className="absolute top-[18%] left-1/2 -translate-x-1/2 font-display font-black text-red-400"
-        style={{
-          fontSize: timeLeft === 1 ? '4.5rem' : '3rem',
-          WebkitTextStroke: '3px #000',
-          textShadow: '0 0 30px rgba(239,68,68,0.8)',
-        }}
-        initial={{ scale: 1.6, opacity: 0 }}
-        animate={{ scale: 1, opacity: 0.95 }}
-        transition={{ type: 'spring', bounce: 0.4 }}
-      >
-        {timeLeft}
-      </motion.span>
-    </motion.div>
+    />
   );
 }
 
@@ -292,8 +288,95 @@ export function PickBurst({ burstKey, x = 50 }: { burstKey: number; x?: number }
   );
 }
 
+/** 결과 직전 — 손을 한 번 더 슬로우로 재생하는 미니 리플레이 */
+export function MiniClashReplay({
+  playKey,
+  myHand,
+  opponentHand,
+  skinId = 'classic',
+  comboBoost = 0,
+}: {
+  playKey: number;
+  myHand: 'ROCK' | 'SCISSORS' | 'PAPER' | null;
+  opponentHand: 'ROCK' | 'SCISSORS' | 'PAPER' | null;
+  skinId?: string;
+  comboBoost?: number;
+}) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!playKey || !myHand || !opponentHand || reduce()) return;
+    setOpen(true);
+    audioManager.playSFX('tension_before_reveal');
+    triggerHaptic('medium');
+    const t = window.setTimeout(() => setOpen(false), 980);
+    return () => clearTimeout(t);
+  }, [playKey, myHand, opponentHand]);
+
+  return (
+    <AnimatePresence>
+      {open && myHand && opponentHand && (
+        <motion.div
+          key={playKey}
+          className="pointer-events-none absolute inset-x-0 top-[28%] z-[45] flex justify-center px-4"
+          initial={{ opacity: 0, y: 12, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -8, scale: 1.05 }}
+          transition={{ duration: 0.25 }}
+          aria-hidden
+        >
+          <div className="relative rounded-2xl border-2 border-black bg-black/75 backdrop-blur-md px-5 py-3 shadow-[4px_6px_0_#000] min-w-[220px]">
+            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-arena-gold text-black text-[9px] font-black tracking-[0.18em] border border-black">
+              REPLAY
+            </div>
+            <div className="flex items-center justify-center gap-3 mt-1">
+              <motion.div
+                initial={{ x: -40, rotate: -25, scale: 0.6, opacity: 0.4 }}
+                animate={{ x: 0, rotate: 0, scale: 1.15, opacity: 1 }}
+                transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <HandGlyph hand={myHand} theme={skinId} size={56} comboBoost={comboBoost} />
+              </motion.div>
+              <motion.span
+                className="font-display text-lg font-black text-white/50"
+                animate={{ scale: [1, 1.35, 1], opacity: [0.4, 1, 0.6] }}
+                transition={{ duration: 0.75 }}
+              >
+                VS
+              </motion.span>
+              <motion.div
+                initial={{ x: 40, rotate: 25, scale: 0.6, opacity: 0.4 }}
+                animate={{ x: 0, rotate: 0, scale: 1.15, opacity: 1 }}
+                transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1], delay: 0.06 }}
+              >
+                <span className="inline-block" style={{ transform: 'scaleX(-1)' }}>
+                  <HandGlyph hand={opponentHand} theme={skinId} size={56} comboBoost={0} />
+                </span>
+              </motion.div>
+            </div>
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              initial={{ opacity: 0, scale: 0.4 }}
+              animate={{ opacity: [0, 1, 0], scale: [0.4, 1.3, 1.6] }}
+              transition={{ duration: 0.55, delay: 0.45 }}
+            >
+              <span className="text-3xl">💥</span>
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 /** Step5 — 잭팟 라운드 배너 */
-export function JackpotRoundBanner({ active }: { active: boolean }) {
+export function JackpotRoundBanner({
+  active,
+  inline = false,
+}: {
+  active: boolean;
+  inline?: boolean;
+}) {
   useEffect(() => {
     if (!active || reduce()) return;
     audioManager.playSFX('jackpot');
@@ -304,7 +387,11 @@ export function JackpotRoundBanner({ active }: { active: boolean }) {
     <AnimatePresence>
       {active && (
         <motion.div
-          className="pointer-events-none absolute top-20 inset-x-0 z-[41] flex justify-center px-4"
+          className={
+            inline
+              ? 'pointer-events-none flex justify-center px-4'
+              : 'pointer-events-none absolute top-[5.75rem] sm:top-20 inset-x-0 z-[41] flex justify-center px-4'
+          }
           initial={{ y: -40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ opacity: 0, y: -20 }}

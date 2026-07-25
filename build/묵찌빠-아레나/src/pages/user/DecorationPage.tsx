@@ -7,6 +7,7 @@ import { audioManager } from '@/utils/audio';
 import { triggerHaptic } from '@/utils/haptics';
 
 import { CHARACTERS, HAND_SKINS } from '@/data/decorations';
+import { HandGlyph } from '@/components/game/HandGlyph';
 
 const TABS = [
   { id: 'character', label: '캐릭터' },
@@ -180,15 +181,15 @@ export function DecorationPage() {
 
                   <div className="flex gap-2 mb-4 bg-black p-3 rounded-2xl justify-around border border-gray-800">
                     <div className="flex flex-col items-center">
-                      <span className="text-2xl drop-shadow-lg">{skin.emojis.ROCK}</span>
+                      <HandGlyph hand="ROCK" theme={skin.id} size={40} />
                       <span className="text-[10px] text-gray-500 mt-1">묵</span>
                     </div>
                     <div className="flex flex-col items-center">
-                      <span className="text-2xl drop-shadow-lg">{skin.emojis.SCISSORS}</span>
+                      <HandGlyph hand="SCISSORS" theme={skin.id} size={40} />
                       <span className="text-[10px] text-gray-500 mt-1">찌</span>
                     </div>
                     <div className="flex flex-col items-center">
-                      <span className="text-2xl drop-shadow-lg">{skin.emojis.PAPER}</span>
+                      <HandGlyph hand="PAPER" theme={skin.id} size={40} />
                       <span className="text-[10px] text-gray-500 mt-1">빠</span>
                     </div>
                   </div>

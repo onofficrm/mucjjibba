@@ -14,6 +14,7 @@ import {
   type FloatingEmote,
   type ReactionType,
 } from '@/components/game/GameReactions';
+import { HandGlyph } from '@/components/game/HandGlyph';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type PlayerId = 'ME' | 'OPPONENT';
@@ -31,12 +32,6 @@ const HAND_KO: Record<Hand, string> = {
   ROCK: '묵',
   SCISSORS: '찌',
   PAPER: '빠',
-};
-
-const HAND_EMOJI: Record<Hand, string> = {
-  ROCK: '✊',
-  SCISSORS: '✌️',
-  PAPER: '🖐️',
 };
 
 const KEY_HINT: Record<Hand, string> = {
@@ -100,7 +95,7 @@ function Fighter({
       }
       className={`relative ${
         compact
-          ? 'w-[22%] max-w-[88px] md:max-w-[110px] aspect-[3/4] opacity-80'
+          ? 'w-[18%] max-w-[72px] sm:max-w-[88px] md:max-w-[110px] aspect-[3/4] opacity-80'
           : 'w-[38%] max-w-[160px] md:max-w-[200px] aspect-[3/4]'
       } ${
         highlight === 'gold'
@@ -151,6 +146,8 @@ function StageHandDuel({
   canPickNow,
   timeLeft,
   flyHand,
+  skinId = 'classic',
+  comboHits = 0,
 }: {
   myHand: Hand | null;
   opponentHand: Hand | null;
@@ -159,6 +156,8 @@ function StageHandDuel({
   canPickNow: boolean;
   timeLeft: number;
   flyHand: Hand | null;
+  skinId?: string;
+  comboHits?: number;
 }) {
   const reduceMotion = gameSettings.options.performanceMode === 'low';
   const reveal = phase === 'REVEAL' || phase === 'ROUND_RESULT';
@@ -201,10 +200,10 @@ function StageHandDuel({
   };
 
   return (
-    <div className="relative w-full max-w-xl mx-auto flex items-center justify-center gap-2 md:gap-6 px-2 min-h-[140px] md:min-h-[180px]">
+    <div className="relative w-full max-w-xl mx-auto flex items-center justify-center gap-1.5 sm:gap-3 md:gap-6 px-1 sm:px-2 min-h-[168px] sm:min-h-[160px] md:min-h-[200px]">
       {/* Countdown ring behind hands when picking */}
       {canPickNow && (
-        <svg className="absolute w-36 h-36 md:w-44 md:h-44 -z-0 opacity-90" viewBox="0 0 100 100">
+        <svg className="absolute w-40 h-40 sm:w-40 sm:h-40 md:w-48 md:h-48 -z-0 opacity-90" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
           <motion.circle
             cx="50"
@@ -259,7 +258,7 @@ function StageHandDuel({
         }
       >
         <span
-          className="text-[5.5rem] md:text-[7.5rem] leading-none select-none drop-shadow-[0_8px_0_rgba(0,0,0,0.85)]"
+          className="leading-none select-none"
           style={{
             filter:
               myHand
@@ -267,7 +266,19 @@ function StageHandDuel({
                 : 'drop-shadow(0 0 12px rgba(255,255,255,0.15))',
           }}
         >
-          {myDisplay === '?' ? '❔' : myDisplay === 'lock' ? '🔒' : HAND_EMOJI[myDisplay]}
+          {myDisplay === '?' ? (
+            <span className="text-[6.75rem] sm:text-[6rem] md:text-[8rem]">❔</span>
+          ) : myDisplay === 'lock' ? (
+            <span className="text-[6.75rem] sm:text-[6rem] md:text-[8rem]">🔒</span>
+          ) : (
+            <HandGlyph
+              hand={myDisplay}
+              theme={skinId}
+              size={120}
+              comboBoost={comboHits}
+              className="w-[6.75rem] h-[6.75rem] sm:w-[6.5rem] sm:h-[6.5rem] md:w-[8.25rem] md:h-[8.25rem]"
+            />
+          )}
         </span>
         {myHand && (
           <span className="mt-1 text-xs md:text-sm font-black text-sky-300 drop-shadow-[0_1px_0_#000]">
@@ -305,14 +316,27 @@ function StageHandDuel({
         }
       >
         <span
-          className="text-[5.5rem] md:text-[7.5rem] leading-none select-none drop-shadow-[0_8px_0_rgba(0,0,0,0.85)]"
+          className="leading-none select-none"
           style={{
             filter: showOpp
               ? 'drop-shadow(0 0 24px rgba(244,63,94,0.5))'
               : 'drop-shadow(0 0 12px rgba(255,255,255,0.15))',
           }}
         >
-          {oppDisplay === '?' ? '❔' : oppDisplay === 'lock' ? '🔒' : HAND_EMOJI[oppDisplay]}
+          {oppDisplay === '?' ? (
+            <span className="text-[6.75rem] sm:text-[6rem] md:text-[8rem]">❔</span>
+          ) : oppDisplay === 'lock' ? (
+            <span className="text-[6.75rem] sm:text-[6rem] md:text-[8rem]">🔒</span>
+          ) : (
+            <HandGlyph
+              hand={oppDisplay}
+              theme={skinId}
+              size={120}
+              comboBoost={0}
+              className="w-[6.75rem] h-[6.75rem] sm:w-[6.5rem] sm:h-[6.5rem] md:w-[8.25rem] md:h-[8.25rem]"
+              style={{ transform: 'scaleX(-1)' }}
+            />
+          )}
         </span>
         {showOpp && opponentHand && (
           <span className="mt-1 text-xs md:text-sm font-black text-rose-300 drop-shadow-[0_1px_0_#000]">
@@ -357,6 +381,8 @@ export function BattleDuelStage({
   myReaction = null,
   opponentReaction = null,
   tier = 'normal',
+  comboHits = 0,
+  handSkinId,
 }: {
   myName: string;
   myGrade: string;
@@ -390,7 +416,10 @@ export function BattleDuelStage({
   myReaction?: ReactionType | null;
   opponentReaction?: ReactionType | null;
   tier?: AmbienceTier;
+  comboHits?: number;
+  handSkinId?: string;
 }) {
+  const skinId = handSkinId || gameSettings.options.handSkinId || 'classic';
   const [showKeyGuide, setShowKeyGuide] = useState<boolean>(
     () => gameSettings.options.showKeyGuide,
   );
@@ -646,7 +675,7 @@ export function BattleDuelStage({
         </AnimatePresence>
 
         {/* Side fighters (compact) + center giant hands */}
-        <div className="relative w-full max-w-2xl flex items-center justify-between gap-1 md:gap-2 mt-6 md:mt-8">
+        <div className="relative w-full max-w-2xl flex items-center justify-between gap-0.5 sm:gap-1 md:gap-2 mt-3 sm:mt-6 md:mt-8">
           <div className="relative shrink-0">
             <Fighter
               compact
@@ -668,6 +697,8 @@ export function BattleDuelStage({
               canPickNow={canPickNow}
               timeLeft={timeLeft}
               flyHand={flyHand}
+              skinId={skinId}
+              comboHits={comboHits}
             />
           </div>
 
@@ -694,14 +725,18 @@ export function BattleDuelStage({
         </div>
       </motion.div>
 
-      {/* Controls — arcade style */}
-      <div className="relative z-30 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
+      {/* Controls — arcade style · 모바일 터치 우선 */}
+      <div className="relative z-30 shrink-0 px-2.5 sm:px-3 pt-2 pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.85rem))] bg-gradient-to-t from-black via-black/95 to-black/70 border-t border-white/10 shadow-[0_-12px_40px_rgba(0,0,0,0.65)]">
         {onSendEmote && (
-          <div className="max-w-lg mx-auto mb-2.5">
-            <EmoteQuickBar onSend={onSendEmote} cooldownRemaining={emoteCooldownMs} />
+          <div className="max-w-lg mx-auto mb-2">
+            <EmoteQuickBar
+              onSend={onSendEmote}
+              cooldownRemaining={emoteCooldownMs}
+              className="gap-1 sm:gap-1.5 [&_button]:w-9 [&_button]:h-9 sm:[&_button]:w-10 sm:[&_button]:h-10 md:[&_button]:w-11 md:[&_button]:h-11"
+            />
           </div>
         )}
-        <div className="max-w-lg mx-auto grid grid-cols-3 gap-2 md:gap-3">
+        <div className="max-w-lg mx-auto grid grid-cols-3 gap-2 sm:gap-2.5 md:gap-3">
           {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand) => {
             const selected = myHand === hand;
             const recommend = canPickNow && hand === recommendHand;
@@ -730,28 +765,28 @@ export function BattleDuelStage({
                     ? { duration: 0.85, repeat: Infinity, ease: 'easeInOut' }
                     : { duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: hand === 'SCISSORS' ? 0.15 : hand === 'PAPER' ? 0.3 : 0 }
                 }
-                className={`relative rounded-2xl border-[3px] border-black min-h-[7.5rem] md:min-h-[8.5rem] px-1.5 pt-2 pb-2 flex flex-col items-center justify-end shadow-[3px_4px_0_#000] transition-colors overflow-hidden ${
+                className={`relative rounded-2xl border-[3px] border-black min-h-[9.25rem] sm:min-h-[8.25rem] md:min-h-[9rem] px-1.5 pt-2.5 pb-2.5 flex flex-col items-center justify-end shadow-[3px_4px_0_#000] transition-colors overflow-hidden touch-manipulation ${
                   !canPickNow && !selected
                     ? 'bg-slate-700/80 opacity-45'
                     : selected
                       ? 'bg-sky-400 ring-2 ring-white'
                       : recommend
                         ? 'bg-amber-400 ring-2 ring-white'
-                        : 'bg-red-500 hover:bg-red-400'
+                        : 'bg-red-500 hover:bg-red-400 active:bg-red-400'
                 }`}
               >
                 {/* Hostess — bottom silhouette only */}
                 <img
                   src={hostessForHand(hand)}
                   alt=""
-                  className="absolute inset-x-0 bottom-0 h-[42%] w-full object-cover object-top pointer-events-none opacity-40"
+                  className="absolute inset-x-0 bottom-0 h-[38%] w-full object-cover object-top pointer-events-none opacity-35"
                   style={{
                     maskImage: 'linear-gradient(to top, black 20%, transparent 100%)',
                     WebkitMaskImage: 'linear-gradient(to top, black 20%, transparent 100%)',
                   }}
                   draggable={false}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent pointer-events-none" />
                 {recommend && !reduceMotion && (
                   <motion.span
                     className="absolute inset-0 rounded-[0.9rem] ring-2 ring-white/80 pointer-events-none"
@@ -759,9 +794,12 @@ export function BattleDuelStage({
                     transition={{ duration: 1.1, repeat: Infinity }}
                   />
                 )}
-                <span className="absolute top-1.5 left-1.5 z-10 text-[10px] font-black bg-black/55 text-white px-1.5 py-0.5 rounded">
-                  {KEY_HINT[hand]}
-                </span>
+                {/* QWE는 키보드가 있을 때만 */}
+                {hasKeyboard && (
+                  <span className="absolute top-1.5 left-1.5 z-10 text-[10px] font-black bg-black/55 text-white px-1.5 py-0.5 rounded">
+                    {KEY_HINT[hand]}
+                  </span>
+                )}
                 {selected && (
                   <motion.span
                     initial={{ scale: 1.6, opacity: 0 }}
@@ -789,11 +827,17 @@ export function BattleDuelStage({
                       ? { duration: 0.8, repeat: Infinity, ease: 'easeInOut' }
                       : { type: 'spring', bounce: 0.55, duration: 0.4 }
                   }
-                  className="relative z-10 text-5xl md:text-6xl leading-none drop-shadow-[0_4px_0_rgba(0,0,0,0.75)]"
+                  className="relative z-10 leading-none"
                 >
-                  {HAND_EMOJI[hand]}
+                  <HandGlyph
+                    hand={hand}
+                    theme={skinId}
+                    size={64}
+                    comboBoost={selected ? Math.max(comboHits, 1) : 0}
+                    className="w-[3.75rem] h-[3.75rem] sm:w-14 sm:h-14 md:w-16 md:h-16"
+                  />
                 </motion.span>
-                <span className="relative z-10 text-sm md:text-base font-black text-white drop-shadow-[0_1px_0_#000] mt-0.5">
+                <span className="relative z-10 text-base sm:text-sm md:text-base font-black text-white drop-shadow-[0_1px_0_#000] mt-1 tracking-wide">
                   {HAND_KO[hand]}
                 </span>
               </motion.button>

@@ -272,15 +272,18 @@ export function SpectatePage() {
             </div>
 
             {phase === 'SELECTING' && (
-              <div className="w-12 h-12 rounded-full border-4 border-gray-800 flex items-center justify-center relative">
-                <svg className="absolute inset-0 w-full h-full -rotate-90">
-                  <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-gray-800" />
-                  <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" 
+              <div className="relative w-14 h-14">
+                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 48 48">
+                  <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="none" className="text-gray-800" />
+                  <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="none"
+                    strokeLinecap="round"
                     className="text-arena-gold transition-all duration-1000 ease-linear"
-                    strokeDasharray="125.6" strokeDashoffset={125.6 * (1 - timeLeft/7)}
+                    strokeDasharray="125.6" strokeDashoffset={125.6 * (1 - timeLeft / 7)}
                   />
                 </svg>
-                <span className="font-black text-xl text-white relative z-10">{timeLeft}</span>
+                <span className="absolute inset-0 flex items-center justify-center font-black text-xl tabular-nums leading-none text-white">
+                  {timeLeft}
+                </span>
               </div>
             )}
           </div>

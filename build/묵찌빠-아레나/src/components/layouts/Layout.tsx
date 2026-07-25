@@ -397,12 +397,15 @@ export function Layout() {
                 />
                 <GameSelectCard
                   title="무료 연습"
-                  subtitle="포인트 차감 없음"
+                  subtitle="포인트 차감 없음 · AI 상대"
                   tone="silver"
                   hostessIndex={5}
-                  chips={[{ label: '무료' }]}
+                  chips={[{ label: '무료' }, { label: 'AI' }]}
                   delayIndex={4}
-                  onClick={() => { setIsGameSelectOpen(false); navigate('/match/tables'); }}
+                  onClick={() => {
+                    setIsGameSelectOpen(false);
+                    navigate('/match/tables', { state: { preferFree: true } });
+                  }}
                 />
               </div>
             </motion.div>

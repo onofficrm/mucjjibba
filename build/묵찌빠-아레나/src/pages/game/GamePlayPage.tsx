@@ -13,7 +13,6 @@ import { DealerCharacter, DealerState } from '@/components/game/DealerCharacter'
 import { CharacterAvatar } from '@/components/game/CharacterAvatar';
 import { VsIntro } from '@/components/game/VsIntro';
 import {
-  ReactionButton,
   ReactionBubble,
   EmoteQuickBar,
   FloatingEmotesLayer,
@@ -49,7 +48,9 @@ import {
   CountdownUrgency,
   PickBurst,
   JackpotRoundBanner,
+  MiniClashReplay,
 } from '@/components/casino/DopamineFX';
+import { HandGlyph } from '@/components/game/HandGlyph';
 import { rollJackpotRound } from '@/utils/jackpotRound';
 import { analyzeOpponentPatterns, pickLiveHabitHint } from '@/game/patternStats';
 import {
@@ -306,6 +307,7 @@ export function GamePlayPage() {
   const [revealSnap, setRevealSnap] = useState(false);
   const [screenCrack, setScreenCrack] = useState(false);
   const [pickBurstKey, setPickBurstKey] = useState(0);
+  const [miniReplayKey, setMiniReplayKey] = useState(0);
   const [jackpotActive, setJackpotActive] = useState(false);
 
   useEffect(() => {
@@ -506,6 +508,7 @@ export function GamePlayPage() {
         setIsSpinning(false);
         setRevealSnap(true);
         setShowImpact(true);
+        setMiniReplayKey((k) => k + 1);
         window.setTimeout(() => setRevealSnap(false), 200);
         if (gameState.myHand === 'ROCK' || gameState.opponentHand === 'ROCK') {
           setTableShake(true);
@@ -948,6 +951,8 @@ export function GamePlayPage() {
           myReaction={myReaction}
           opponentReaction={opponentReaction}
           tier={getTableTier(matchTable)}
+          comboHits={comboHits}
+          handSkinId={gameSettings.options.handSkinId}
         />
       ) : (
       <>
@@ -982,10 +987,15 @@ export function GamePlayPage() {
       <NearMissFlash open={nearMissFlash} />
       <ComboHitCounter hits={comboHits} />
       <ScreenCrack active={screenCrack} />
-      <OnFireBadge streak={DEMO_USER.streak + gameState.myScore} show={DEMO_USER.streak + gameState.myScore >= 3} />
-      <JackpotRoundBanner active={jackpotActive && gameState.phase !== 'GAME_OVER' && gameState.phase !== 'VS_INTRO'} />
       <CountdownUrgency timeLeft={gameState.timeLeft} active={canPickNow} />
       <PickBurst burstKey={pickBurstKey} />
+      <MiniClashReplay
+        playKey={miniReplayKey}
+        myHand={gameState.myHand}
+        opponentHand={gameState.opponentHand}
+        skinId={gameSettings.options.handSkinId}
+        comboBoost={comboHits}
+      />
       
       {/* Top Bar */}
       <header className="relative z-20 flex justify-between items-start p-4 w-full">
@@ -1069,9 +1079,28 @@ export function GamePlayPage() {
                    style={{ strokeLinecap: 'round' }}
                  />
               </svg>
-              <div className={`absolute text-3xl font-black ${gameState.timeLeft <= 3 ? 'text-arena-error animate-pulse' : 'text-white drop-shadow-md'}`}>
+              <motion.div
+                key={gameState.timeLeft}
+                initial={
+                  gameState.timeLeft <= 3 && !gameSettings.options.reduceAnimations
+                    ? { scale: 1.5, opacity: 0.5 }
+                    : false
+                }
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', bounce: 0.45, duration: 0.35 }}
+                className={`absolute inset-0 flex items-center justify-center font-black tabular-nums leading-none ${
+                  gameState.timeLeft <= 3
+                    ? 'text-4xl text-arena-error'
+                    : 'text-3xl text-white drop-shadow-md'
+                }`}
+                style={
+                  gameState.timeLeft <= 3
+                    ? { textShadow: '0 0 18px rgba(239,68,68,0.75), 0 1px 0 #000' }
+                    : undefined
+                }
+              >
                  {gameState.timeLeft}
-              </div>
+              </motion.div>
            </div>
         </div>
 
@@ -1102,6 +1131,19 @@ export function GamePlayPage() {
              <div className="text-xs font-bold text-gray-500">승</div>
           </div>
         </div>
+      </div>
+
+      {/* 상태 배지 — HUD와 겹치지 않게 흐름 안에 배치 */}
+      <div className="relative z-20 w-full flex flex-col items-center gap-1.5 px-4">
+        <OnFireBadge
+          inline
+          streak={DEMO_USER.streak + gameState.myScore}
+          show={DEMO_USER.streak + gameState.myScore >= 3}
+        />
+        <JackpotRoundBanner
+          inline
+          active={jackpotActive && gameState.phase !== 'GAME_OVER' && gameState.phase !== 'VS_INTRO'}
+        />
       </div>
 
       <ActionCue text={actionText} highlight={canPickNow} tip={actionTip} />
@@ -1226,9 +1268,9 @@ export function GamePlayPage() {
       </div>
 
       {/* Bottom Area: Points and Action Buttons */}
-      <div className="relative z-20 w-full max-w-md mx-auto bg-gray-900 border-t border-gray-800 rounded-t-[2rem] pt-5 pb-6 px-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      <div className="relative z-20 w-full max-w-md mx-auto bg-gray-900 border-t border-gray-800 rounded-t-[2rem] pt-4 px-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))] shrink-0">
         
-        <div className="flex justify-between items-center mb-3 px-4">
+        <div className="flex justify-between items-center mb-2.5 px-2">
            <div className="flex flex-col">
               <span className="text-[10px] text-gray-500 font-bold">{isBeginnerMode ? '연습 비용' : '이번 판 참가'}</span>
               <span className="font-bold text-white text-sm">
@@ -1246,13 +1288,17 @@ export function GamePlayPage() {
         </div>
 
         {/* 이모트 퀵바 — 손 선택 카드와 겹치지 않도록 패널 안 상단에 배치 */}
-        <div className="flex justify-center mb-3">
-          <div className="px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10">
-            <EmoteQuickBar onSend={handleSendReaction} cooldownRemaining={reactionCooldown} />
+        <div className="flex justify-center mb-2.5">
+          <div className="px-2 py-1 rounded-xl bg-black/40 border border-white/10">
+            <EmoteQuickBar
+              onSend={handleSendReaction}
+              cooldownRemaining={reactionCooldown}
+              className="gap-1 [&_button]:w-9 [&_button]:h-9"
+            />
           </div>
         </div>
 
-        <div className="flex justify-between gap-3 relative">
+        <div className="flex justify-between gap-2.5 sm:gap-3 relative">
           <FirstPlayCoach
             visible={showCoach && canPickNow}
             onDismiss={() => {
@@ -1290,7 +1336,7 @@ export function GamePlayPage() {
                   repeat: Infinity,
                   ease: 'easeInOut',
                 }}
-                className={`flex-1 aspect-square rounded-2xl flex flex-col items-center justify-center relative overflow-hidden ${
+                className={`flex-1 min-h-[7.5rem] sm:min-h-0 aspect-auto sm:aspect-square rounded-2xl flex flex-col items-center justify-center relative overflow-hidden touch-manipulation ${
                   isSelected ? 'bg-gradient-to-b from-gray-700 to-gray-800 border-b-4 border-gray-900 shadow-inner' :
                   !canSelect ? 'bg-gray-800 opacity-35 grayscale border-b-8 border-gray-900' :
                   'bg-gradient-to-b from-gray-600 to-gray-700 border-b-8 border-gray-900 hover:brightness-110 shadow-lg'
@@ -1338,11 +1384,17 @@ export function GamePlayPage() {
                       ? { duration: 0.85, repeat: Infinity, ease: 'easeInOut' }
                       : { type: 'spring', bounce: 0.55, duration: 0.45 }
                   }
-                  className={`relative z-10 text-5xl md:text-6xl drop-shadow-lg mb-1 leading-none ${!canSelect && !isSelected ? 'opacity-40' : ''}`}
+                  className={`relative z-10 leading-none mb-1 ${!canSelect && !isSelected ? 'opacity-40' : ''}`}
                 >
-                  {myHandEmojis[hand]}
+                  <HandGlyph
+                    hand={hand}
+                    theme={gameSettings.options.handSkinId}
+                    size={64}
+                    comboBoost={isSelected ? Math.max(comboHits, 1) : 0}
+                    className="w-14 h-14 sm:w-16 sm:h-16"
+                  />
                 </motion.span>
-                <span className={`relative z-10 text-xs font-black ${isSelected ? 'text-arena-cyan' : 'text-gray-200'}`}>
+                <span className={`relative z-10 text-sm font-black ${isSelected ? 'text-arena-cyan' : 'text-gray-200'}`}>
                   {hand === 'ROCK' ? '묵' : hand === 'SCISSORS' ? '찌' : '빠'}
                 </span>
               </motion.button>
@@ -1629,9 +1681,16 @@ export function GamePlayPage() {
           <JackpotRoundBanner active={jackpotActive && gameState.phase !== 'GAME_OVER' && gameState.phase !== 'VS_INTRO'} />
           <CountdownUrgency timeLeft={gameState.timeLeft} active={canPickNow} />
           <PickBurst burstKey={pickBurstKey} />
+          <MiniClashReplay
+            playKey={miniReplayKey}
+            myHand={gameState.myHand}
+            opponentHand={gameState.opponentHand}
+            skinId={gameSettings.options.handSkinId}
+            comboBoost={comboHits}
+          />
         </>
       )}
-      <ReactionButton onSendReaction={handleSendReaction} cooldownRemaining={reactionCooldown} />
+      {/* 이모트 퀵바가 양 레이아웃에 있어 플로팅 반응 버튼은 미사용 */}
       {!isDuelLayout && (
         <>
           <FloatingEmotesLayer emotes={floatingEmotes} />
