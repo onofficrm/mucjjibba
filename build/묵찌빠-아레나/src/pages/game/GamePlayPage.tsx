@@ -29,6 +29,7 @@ import { StreakScreenFrame } from '@/components/casino/StreakAura';
 import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
 import { hostessForHand } from '@/data/hostessAssets';
 import { ActionCue, FirstPlayCoach } from '@/components/game/ActionCue';
+import { BattleDuelStage } from '@/components/game/BattleDuelStage';
 import {
   saveLastPlayPath,
   bumpGamesPlayed,
@@ -235,6 +236,18 @@ export function GamePlayPage() {
   const [tableShake, setTableShake] = useState(false);
   const [showCoach, setShowCoach] = useState(() => !isFirstGuideDone());
   const [recommendHand, setRecommendHand] = useState<Hand>('ROCK');
+  const [battleLayout, setBattleLayout] = useState<'duel' | 'simple'>(
+    () => gameSettings.options.battleLayout ?? 'duel',
+  );
+  const isDuelLayout = battleLayout === 'duel';
+
+  const toggleBattleLayout = () => {
+    const next = battleLayout === 'duel' ? 'simple' : 'duel';
+    setBattleLayout(next);
+    gameSettings.updateOption('battleLayout', next);
+    triggerHaptic('light');
+    audioManager.playSFX('btn_touch');
+  };
 
   useEffect(() => {
     const path = `/game/${id || 'quick-start'}`;
@@ -578,6 +591,19 @@ export function GamePlayPage() {
     }
   };
 
+  useEffect(() => {
+    if (!isDuelLayout) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      const key = e.key.toLowerCase();
+      if (key === 'q') handleHandSelect('ROCK');
+      else if (key === 'w') handleHandSelect('SCISSORS');
+      else if (key === 'e') handleHandSelect('PAPER');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isDuelLayout, gameState.phase, gameState.myHand, gameState.opponentHand]);
+
   const appendRoundLog = (
     result: 'POINT_ME' | 'POINT_OPPONENT' | 'ATTACK_CHANGE' | 'DRAW_RPS' | 'ATTACK_GAIN',
     attackerBefore: PlayerSide | null,
@@ -749,8 +775,8 @@ export function GamePlayPage() {
         )}
       </AnimatePresence>
       
-      {/* Dealer Character */}
-      {gameSettings.options.dealerVisible && gameSettings.options.performanceMode !== 'low' && (
+      {/* Dealer Character — 심플 모드에서만 */}
+      {!isDuelLayout && gameSettings.options.dealerVisible && gameSettings.options.performanceMode !== 'low' && (
         <DealerCharacter 
           state={dealerState} 
           message={dealerMessage} 
@@ -758,6 +784,41 @@ export function GamePlayPage() {
         />
       )}
 
+      <ReconnectOverlay
+        status={connStatus}
+        onRetry={() => void socketRef.current.connect(id || 'demo-session')}
+      />
+
+      {isDuelLayout ? (
+        <BattleDuelStage
+          myName={DEMO_USER.nickname}
+          myGrade={DEMO_USER.grade}
+          oppName={activeOpponent.nickname}
+          oppGrade={activeOpponent.grade}
+          myScore={gameState.myScore}
+          opponentScore={gameState.opponentScore}
+          phase={gameState.phase}
+          attacker={gameState.attacker}
+          myHand={gameState.myHand}
+          opponentHand={gameState.opponentHand}
+          timeLeft={gameState.timeLeft}
+          roundMessage={gameState.roundMessage}
+          actionText={actionText}
+          canPickNow={canPickNow}
+          recommendHand={recommendHand}
+          soundEnabled={soundEnabled}
+          connStatus={connStatus}
+          tableShake={tableShake}
+          isSpinning={isSpinning}
+          isLastRound={!!isLastRound}
+          onExit={() => setShowExitModal(true)}
+          onToggleMute={toggleMute}
+          onInfo={() => { triggerHaptic('light'); setShowInfo(true); }}
+          onSelectHand={(hand) => handleHandSelect(hand)}
+          onToggleLayout={toggleBattleLayout}
+        />
+      ) : (
+      <>
       {/* Background Ambience */}
       <div className={`absolute inset-0 z-0 transition-colors duration-1000 ${
         gameState.myScore === 1 && gameState.opponentScore === 1 
@@ -785,11 +846,6 @@ export function GamePlayPage() {
       <StreakScreenFrame streak={DEMO_USER.streak + gameState.myScore} />
       <RevealTension active={isSpinning || gameState.phase === 'REVEAL'} />
       
-      <ReconnectOverlay
-        status={connStatus}
-        onRetry={() => void socketRef.current.connect(id || 'demo-session')}
-      />
-
       {/* Top Bar */}
       <header className="relative z-20 flex justify-between items-start p-4 w-full">
         <div className="flex gap-2">
@@ -803,12 +859,21 @@ export function GamePlayPage() {
         
         <div className="flex flex-col items-center gap-1">
           <ConnectionBadge status={connStatus} />
-          <button 
-            onClick={() => { triggerHaptic('light'); setShowInfo(true); }}
-            className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-full text-xs font-bold text-gray-400 hover:text-white transition-colors"
-          >
-            <Info className="w-3 h-3" /> INFO
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => { triggerHaptic('light'); setShowInfo(true); }}
+              className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-full text-xs font-bold text-gray-400 hover:text-white transition-colors"
+            >
+              <Info className="w-3 h-3" /> INFO
+            </button>
+            <button
+              type="button"
+              onClick={toggleBattleLayout}
+              className="px-3 py-1.5 rounded-full text-xs font-black bg-arena-gold/20 text-arena-gold border border-arena-gold/40"
+            >
+              대결 모드
+            </button>
+          </div>
         </div>
       </header>
 
@@ -1102,6 +1167,8 @@ export function GamePlayPage() {
           </p>
         )}
       </div>
+      </>
+      )}
 
       {/* Final Game Over Overlay */}
       <AnimatePresence>

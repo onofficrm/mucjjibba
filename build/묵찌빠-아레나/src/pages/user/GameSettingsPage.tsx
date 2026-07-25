@@ -195,6 +195,41 @@ export function GameSettingsPage() {
 
             <div className="flex flex-col p-3 hover:bg-white/5 rounded-xl transition-colors">
               <div className="flex items-center text-sm font-medium mb-3">
+                <MonitorPlay className="w-5 h-5 mr-3 text-arena-text-muted" /> 게임 화면 모드
+              </div>
+              <div className="flex gap-2 w-full">
+                {([
+                  ['duel', '대결 스테이지'],
+                  ['simple', '심플 모드'],
+                ] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => {
+                      gameSettings.updateOption('battleLayout', mode);
+                      setOptions({ ...gameSettings.options });
+                      audioManager.playSFX('btn_touch');
+                      triggerHaptic('light');
+                    }}
+                    className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors border ${
+                      options.battleLayout === mode
+                        ? 'bg-arena-gold/20 border-arena-gold text-arena-gold'
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 text-[10px] text-gray-500 text-center">
+                {options.battleLayout === 'duel'
+                  ? '야간 무대에서 캐릭터가 마주 보고 대결하는 화면입니다.'
+                  : '기존 카지노 슬롯형 심플 화면입니다. 게임 중에도 전환할 수 있습니다.'}
+              </div>
+            </div>
+
+            <div className="flex flex-col p-3 hover:bg-white/5 rounded-xl transition-colors">
+              <div className="flex items-center text-sm font-medium mb-3">
                 <Zap className="w-5 h-5 mr-3 text-arena-text-muted" /> 성능 모드
               </div>
               <div className="flex gap-2 w-full">

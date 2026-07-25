@@ -5,6 +5,8 @@ export interface GameOptions {
   voiceMode: 'all' | 'result_only';
   reduceAnimations: boolean;
   performanceMode: 'fancy' | 'basic' | 'low';
+  /** duel = 야간 대결 스테이지 / simple = 기존 카지노 슬롯형 */
+  battleLayout: 'duel' | 'simple';
   characterId: string;
   handSkinId: string;
   introMode: 'always' | 'first_only' | 'tournament_only' | 'skip';
@@ -19,6 +21,7 @@ const defaultOptions: GameOptions = {
   voiceMode: 'all',
   reduceAnimations: false,
   performanceMode: 'fancy',
+  battleLayout: 'duel',
   characterId: 'classic_dealer',
   handSkinId: 'classic',
   introMode: 'always',
