@@ -147,38 +147,38 @@ function LiveMatchCard({
     <button
       type="button"
       onClick={onSpectate}
-      className={`w-full text-left bg-gray-900 border border-gray-800 hover:border-arena-gold/40 rounded-2xl transition-colors ${
-        comfortable ? 'p-4 md:p-5' : 'p-4 min-w-[280px]'
+      className={`w-full text-left bg-zinc-950/80 border border-white/8 hover:border-arena-gold/35 rounded-2xl transition-colors ${
+        comfortable ? 'px-4 py-3.5' : 'p-4 min-w-[280px]'
       }`}
     >
-      <div className="flex justify-between items-center mb-3 gap-2">
+      <div className="flex justify-between items-center mb-2.5 gap-2">
         <GameTypeBadge type={game.type} />
-        <div className="flex items-center text-[11px] md:text-xs text-gray-400 font-bold shrink-0">
+        <div className="flex items-center text-[11px] text-gray-500 font-bold shrink-0">
           <Eye className="w-3.5 h-3.5 mr-1" />
           {game.spectators.toLocaleString()}
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 bg-black/40 rounded-xl p-2.5 md:p-3 border border-white/5">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-gray-800 flex items-center justify-center text-lg shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/8 flex items-center justify-center text-base shrink-0">
             {game.player1.avatar}
           </div>
-          <span className="font-bold text-xs md:text-sm truncate">{game.player1.name}</span>
+          <span className="font-bold text-xs truncate text-gray-200">{game.player1.name}</span>
         </div>
 
-        <div className="flex flex-col items-center px-2 shrink-0">
-          <div className="text-[10px] md:text-xs text-gray-500 font-bold mb-0.5">R{game.round}</div>
-          <div className="font-black text-sm md:text-base tracking-widest tabular-nums">
+        <div className="flex flex-col items-center px-1.5 shrink-0">
+          <div className="text-[9px] text-gray-600 font-bold leading-none">R{game.round}</div>
+          <div className="font-black text-sm tracking-wider tabular-nums text-white mt-0.5">
             {game.player1.score}:{game.player2.score}
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-row-reverse min-w-0 flex-1">
-          <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-gray-800 flex items-center justify-center text-lg shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/8 flex items-center justify-center text-base shrink-0">
             {game.player2.avatar}
           </div>
-          <span className="font-bold text-xs md:text-sm truncate text-right">{game.player2.name}</span>
+          <span className="font-bold text-xs truncate text-right text-gray-200">{game.player2.name}</span>
         </div>
       </div>
     </button>
@@ -313,41 +313,54 @@ export function LobbyPage() {
 
       <div className="flex-1 overflow-y-auto relative z-10 pb-40 md:pb-10">
         <div className="w-full max-w-6xl mx-auto px-4 sm:px-5 md:px-8 pt-5 md:pt-8">
-          {/* Title */}
-          <div className="flex items-start justify-between gap-4 mb-4 md:mb-6">
+          {/* Title — 한 줄 헤더, 보조 액션만 우측 */}
+          <div className="flex items-center justify-between gap-4 mb-4 md:mb-5">
             <div className="min-w-0">
-              <h1 className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-2.5">
-                <HostessAvatar role="icon" size="sm" pulse />
+              <p className="font-display text-[10px] font-black text-arena-gold/80 tracking-[0.3em] uppercase">
+                Arena Lobby
+              </p>
+              <h1 className="text-xl md:text-2xl font-black tracking-tight text-white mt-1 flex items-center gap-2">
                 묵찌빠 아레나
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-              </h1>
-              <p className="text-xs md:text-sm text-gray-400 mt-1.5">대표 경기 · 미리보기 · 초보 시작</p>
-              <div className="flex flex-wrap gap-2 mt-3 items-center">
-                <span className="text-[11px] md:text-xs font-black px-2.5 py-1 rounded-full bg-arena-gold/15 text-arena-gold border border-arena-gold/30">
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-arena-gold/12 text-arena-gold border border-arena-gold/25">
                   {DEMO_USER.grade}
                 </span>
-                <span className="text-[11px] md:text-xs font-black px-2.5 py-1 rounded-full bg-white/5 text-white border border-white/10">
-                  {wallet.points.toLocaleString()} P
-                </span>
-                <DailyRoulette />
-              </div>
+              </h1>
             </div>
-            <DailyMissions />
+            <div className="flex items-center gap-2 shrink-0">
+              <DailyRoulette />
+              <DailyMissions />
+            </div>
           </div>
 
-          <SeasonPassStrip />
-
-          <ActivityMarquee />
-
           {/* Desktop: 2-column / Mobile: stack */}
-          <div className="mt-4 md:mt-6 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start">
-            {/* Left: banner + featured */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start">
+            {/* Left: hero + featured */}
             <div className="lg:col-span-7 xl:col-span-8 space-y-4">
-              <HostessBanner
-                role="arena"
-                heightClass="h-28 md:h-44"
-                className="border border-arena-gold/30 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
-              />
+              {/* Hero — 와이드 시네마틱, 얼굴 클로즈업 대신 무대 컷 */}
+              <div className="relative overflow-hidden rounded-3xl h-32 md:h-40 border border-arena-gold/25 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+                <img
+                  src={HOSTESS.arena}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover object-[65%_22%] scale-[1.05]"
+                  draggable={false}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20" />
+                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-arena-gold/50 to-transparent" />
+                <div className="relative z-10 h-full flex flex-col justify-center px-5 md:px-7 max-w-[70%]">
+                  <p className="font-display text-[10px] md:text-[11px] font-black text-arena-gold tracking-[0.28em] uppercase">
+                    Live Tonight
+                  </p>
+                  <p className="text-lg md:text-2xl font-black text-white mt-1 leading-tight">
+                    오늘의 아레나
+                  </p>
+                  <p className="text-[11px] md:text-xs text-gray-400 font-bold mt-1">
+                    대표 경기 관전 · 원탭 자동 매칭
+                  </p>
+                </div>
+              </div>
+
+              <ActivityMarquee />
 
               <div
                 role="button"
@@ -359,32 +372,16 @@ export function LobbyPage() {
                     handleSpectate(FEATURED_GAME.id, FEATURED_GAME.type);
                   }
                 }}
-                className="w-full bg-gray-900 border border-gray-800 rounded-3xl p-4 md:p-6 relative overflow-hidden shadow-2xl cursor-pointer group hover:border-arena-gold/35 transition-colors"
+                className="w-full bg-gradient-to-b from-zinc-900 to-zinc-950 border border-white/8 rounded-3xl p-4 md:p-6 relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] cursor-pointer group hover:border-arena-gold/35 transition-colors"
               >
-                {/* Hostess wing — face shifted off avatar zone, soft left fade (no hard seam) */}
-                <img
-                  src={HOSTESS.dealer}
-                  alt=""
-                  className="absolute -right-2 top-0 h-[78%] w-[46%] md:w-[38%] object-cover object-[72%_8%] opacity-30 md:opacity-40 pointer-events-none select-none"
-                  style={{
-                    WebkitMaskImage:
-                      'linear-gradient(to right, transparent 0%, black 42%), linear-gradient(to bottom, black 70%, transparent 100%)',
-                    maskImage:
-                      'linear-gradient(to right, transparent 0%, black 42%), linear-gradient(to bottom, black 70%, transparent 100%)',
-                    WebkitMaskComposite: 'source-in',
-                    maskComposite: 'intersect',
-                  }}
-                  draggable={false}
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/90 to-transparent pointer-events-none" />
-                <div className="absolute inset-y-0 right-0 w-[42%] bg-gradient-to-l from-black/55 via-black/20 to-transparent pointer-events-none" />
+                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-arena-gold/35 to-transparent pointer-events-none" />
                 {gameSettings.options.performanceMode !== 'low' && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.15)_0%,_transparent_70%)] pointer-events-none" />
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-1/2 bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.1)_0%,_transparent_70%)] pointer-events-none" />
                 )}
 
                 <div className="flex justify-between items-center mb-4 md:mb-6 relative z-10">
                   <GameTypeBadge type={FEATURED_GAME.type} />
-                  <div className="flex items-center text-xs md:text-sm text-gray-300 font-bold bg-black/60 px-2.5 py-1 rounded-full border border-white/10 backdrop-blur-sm">
+                  <div className="flex items-center text-[11px] md:text-xs text-gray-400 font-bold">
                     <Eye className="w-3.5 h-3.5 mr-1.5" />
                     {FEATURED_GAME.spectators.toLocaleString()}명 관전
                   </div>
@@ -447,7 +444,7 @@ export function LobbyPage() {
                   </div>
 
                   <div className="flex flex-col items-center gap-2 w-[30%] min-w-0">
-                    <div className="relative rounded-2xl bg-black/45 p-1 backdrop-blur-[2px]">
+                    <div className="relative">
                       <div
                         className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gray-800 border-2 flex items-center justify-center text-2xl md:text-3xl shadow-lg ${
                           FEATURED_GAME.attacker === 'P2'
@@ -463,7 +460,7 @@ export function LobbyPage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-col items-center min-w-0 w-full rounded-lg bg-black/40 px-1.5 py-0.5 backdrop-blur-[2px]">
+                    <div className="flex flex-col items-center min-w-0 w-full">
                       <span className="text-[10px] md:text-xs text-gray-400 font-bold">
                         {FEATURED_GAME.player2.grade}
                       </span>
@@ -474,18 +471,21 @@ export function LobbyPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center pt-3 md:pt-4 border-t border-gray-800/80 relative z-10 bg-gray-900/80 -mx-4 md:-mx-6 px-4 md:px-6 -mb-4 md:-mb-6 pb-3 md:pb-4">
-                  <span className="text-sm md:text-base font-bold text-arena-gold group-hover:text-yellow-400 transition-colors flex items-center">
-                    관전하기 <PlayCircle className="w-4 h-4 md:w-5 md:h-5 ml-1.5" />
+                <div className="flex items-center justify-center pt-3 md:pt-4 border-t border-white/8 relative z-10">
+                  <span className="text-sm font-bold text-arena-gold group-hover:text-yellow-400 transition-colors flex items-center">
+                    관전하기 <PlayCircle className="w-4 h-4 ml-1.5" />
                   </span>
                 </div>
               </div>
 
-              {/* Mobile-only live matches under featured */}
-              <div className="lg:hidden pt-2">
+              {/* Mobile-only: season + live matches under featured */}
+              <div className="lg:hidden">
+                <SeasonPassStrip />
+              </div>
+              <div className="lg:hidden pt-1">
                 <h2 className="text-sm font-bold text-gray-300 mb-3 flex items-center">
                   실시간 매치
-                  <span className="ml-2 text-[10px] bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full">
+                  <span className="ml-2 text-[10px] bg-white/8 text-gray-400 px-2 py-0.5 rounded-full">
                     {OTHER_GAMES.length}
                   </span>
                 </h2>
@@ -503,22 +503,31 @@ export function LobbyPage() {
               </div>
             </div>
 
-            {/* Right: desktop CTA + live matches (no overlay) */}
+            {/* Right: desktop CTA + season + live matches */}
             <aside className="hidden lg:block lg:col-span-5 xl:col-span-4">
-              <div className="sticky top-4 space-y-5">
-                <div className="rounded-3xl border border-white/10 bg-gray-950/80 backdrop-blur-md p-5 shadow-xl">
-                  <p className="text-xs font-bold text-gray-400 mb-3 tracking-wide">빠른 시작</p>
+              <div className="sticky top-4 space-y-4">
+                <div className="rounded-3xl border border-white/10 bg-zinc-950/85 backdrop-blur-md p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="font-display text-[10px] font-black text-arena-gold/80 tracking-[0.25em] uppercase">
+                      Quick Start
+                    </p>
+                    <span className="text-xs font-black text-white tabular-nums">
+                      {wallet.points.toLocaleString()} P
+                    </span>
+                  </div>
                   <PlayActions {...playProps} />
                 </div>
 
+                <SeasonPassStrip />
+
                 <div>
-                  <h2 className="text-base font-bold text-white mb-3 flex items-center">
+                  <h2 className="text-sm font-bold text-gray-300 mb-3 flex items-center">
                     실시간 매치
-                    <span className="ml-2 text-xs bg-gray-800 text-gray-300 px-2.5 py-0.5 rounded-full">
+                    <span className="ml-2 text-[10px] bg-white/8 text-gray-400 px-2 py-0.5 rounded-full">
                       {OTHER_GAMES.length}
                     </span>
                   </h2>
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {OTHER_GAMES.map((game) => (
                       <LiveMatchCard
                         key={game.id}
@@ -528,21 +537,6 @@ export function LobbyPage() {
                       />
                     ))}
                   </div>
-                </div>
-
-                <div className="h-10 bg-gray-900/90 border border-arena-gold/20 flex items-center justify-center overflow-hidden rounded-xl">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={tickerIndex}
-                      initial={{ y: 16, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: -16, opacity: 0 }}
-                      transition={{ duration: 0.28 }}
-                      className="text-sm font-bold text-arena-gold/90 tracking-wide px-3 text-center"
-                    >
-                      {TICKER_MESSAGES[tickerIndex].text}
-                    </motion.div>
-                  </AnimatePresence>
                 </div>
               </div>
             </aside>
