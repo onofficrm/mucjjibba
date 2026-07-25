@@ -343,8 +343,8 @@ export function GameResultPage() {
               <HostessAvatar role={isWin ? 'jackpot' : 'comfort'} size="xl" pulse className="mb-3" />
               <WinTierBanner info={winTier} />
               <ChaseLightTitle>
-                <h1 className="font-display text-5xl font-black text-engraved-gold tracking-widest">
-                  VICTORY
+                <h1 className="text-5xl font-black text-engraved-gold tracking-tight">
+                  승리
                 </h1>
               </ChaseLightTitle>
               <RollingPoints
@@ -375,9 +375,12 @@ export function GameResultPage() {
             </>
           ) : (
             <>
-              <h1 className="font-display text-5xl font-black text-gray-500 tracking-widest mb-4">
-                RESULT
+              <h1 className="text-4xl font-black text-gray-300 tracking-tight mb-1">
+                아쉬운 한 판
               </h1>
+              <p className="text-xs font-bold text-gray-500 tracking-[0.3em] uppercase mb-4">
+                Next round awaits
+              </p>
               <div className="text-gray-400 font-black text-4xl mb-4">
                 -{tableInfo.entryPoint.toLocaleString()} <span className="text-xl">P</span>
               </div>

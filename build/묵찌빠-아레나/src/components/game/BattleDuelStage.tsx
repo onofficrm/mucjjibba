@@ -508,11 +508,11 @@ export function BattleDuelStage({
 
   const resultBanner =
     roundMessage.includes('이겼') || roundMessage === 'WIN'
-      ? 'YOU WIN!'
+      ? { text: '따냈다!', kind: 'win' as const }
       : roundMessage.includes('아쉬') || roundMessage === 'LOSE'
-        ? 'YOU LOSE!'
+        ? { text: '놓쳤다!', kind: 'lose' as const }
         : roundMessage.includes('비겼') || roundMessage.toLowerCase().includes('draw')
-          ? 'DRAW'
+          ? { text: '비겼다!', kind: 'draw' as const }
           : null;
 
   const theme = getTierTheme(tier);
@@ -636,24 +636,36 @@ export function BattleDuelStage({
         <AnimatePresence>
           {resultBanner && (
             <motion.div
-              key={resultBanner}
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ delay: 0.35, type: 'spring', bounce: 0.45 }}
-              className={`absolute top-[12%] z-40 font-display text-4xl md:text-6xl font-black tracking-tight pointer-events-none ${
-                resultBanner.includes('WIN')
-                  ? 'text-lime-300'
-                  : resultBanner.includes('LOSE')
-                    ? 'text-red-400'
-                    : 'text-amber-300'
-              }`}
-              style={{
-                WebkitTextStroke: '3px #000',
-                textShadow: '0 4px 0 #000, 0 0 20px rgba(0,0,0,0.5)',
-              }}
+              key={resultBanner.text}
+              initial={{ scale: 0.6, opacity: 0, y: 14 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ delay: 0.35, type: 'spring', bounce: 0.4 }}
+              className="absolute top-[12%] z-40 pointer-events-none flex flex-col items-center"
             >
-              {resultBanner}
+              <span
+                className={`text-3xl md:text-5xl font-black tracking-tight ${
+                  resultBanner.kind === 'win'
+                    ? 'text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-arena-gold to-amber-500 drop-shadow-[0_0_24px_rgba(245,158,11,0.55)]'
+                    : resultBanner.kind === 'lose'
+                      ? 'text-rose-300/90 drop-shadow-[0_0_18px_rgba(244,63,94,0.4)]'
+                      : 'text-sky-200/95 drop-shadow-[0_0_18px_rgba(56,189,248,0.4)]'
+                }`}
+              >
+                {resultBanner.text}
+              </span>
+              <motion.span
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ delay: 0.55, duration: 0.4 }}
+                className={`mt-2 h-[2px] w-24 md:w-36 origin-center rounded-full ${
+                  resultBanner.kind === 'win'
+                    ? 'bg-gradient-to-r from-transparent via-arena-gold to-transparent'
+                    : resultBanner.kind === 'lose'
+                      ? 'bg-gradient-to-r from-transparent via-rose-400/70 to-transparent'
+                      : 'bg-gradient-to-r from-transparent via-sky-300/70 to-transparent'
+                }`}
+              />
             </motion.div>
           )}
         </AnimatePresence>

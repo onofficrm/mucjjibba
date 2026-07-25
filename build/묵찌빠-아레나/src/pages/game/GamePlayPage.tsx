@@ -1718,9 +1718,12 @@ export function GamePlayPage() {
               {gameState.winner === 'ME' ? (
                 <>
                   <HostessAvatar role="jackpot" size="xl" pulse className="mb-4" />
-                  <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_20px_rgba(245,158,11,0.8)] mb-2">
-                    VICTORY
+                  <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_20px_rgba(245,158,11,0.8)] mb-1">
+                    승리
                   </h1>
+                  <p className="text-[11px] font-black text-arena-gold/70 tracking-[0.4em] uppercase mb-3">
+                    Winner takes all
+                  </p>
                   <p className="text-arena-gold font-bold text-xl mb-8">+1,900 P</p>
                   
                   <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-8 w-full flex justify-between items-center">
@@ -1733,9 +1736,12 @@ export function GamePlayPage() {
                   <div className="w-16 h-16 mb-4 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center">
                     <LogOut className="w-8 h-8 text-gray-500" />
                   </div>
-                  <h1 className="text-5xl font-black text-gray-500 mb-8">
-                    DEFEAT
+                  <h1 className="text-4xl font-black text-gray-300 mb-1">
+                    아쉬운 한 판
                   </h1>
+                  <p className="text-[11px] font-black text-gray-600 tracking-[0.35em] uppercase mb-6">
+                    Next round awaits
+                  </p>
                   <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-8 w-full flex justify-between items-center text-gray-500">
                     <span>잃은 포인트</span>
                     <span className="font-bold">-1,000 P</span>

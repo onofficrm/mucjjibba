@@ -58,7 +58,7 @@ export function buildShareCardData(
     pointsDeltaLabel,
     tableName: settlement?.tableName,
     modeLabel: MODE_LABEL[log.mode] ?? log.mode,
-    resultLabel: isWin ? 'VICTORY' : log.winner === 'OPPONENT' ? 'DEFEAT' : 'DRAW',
+    resultLabel: isWin ? 'VICTORY' : log.winner === 'OPPONENT' ? 'GOOD GAME' : 'DRAW',
     showPoints: !privacy.hidePoints,
     showProfileImage: !privacy.hideProfileImage,
   };

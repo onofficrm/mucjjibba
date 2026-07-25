@@ -94,7 +94,7 @@ const SLIDES = [
           </div>
         </div>
         <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mt-2">
-          VICTORY!
+          승리!
         </div>
       </div>
     ),

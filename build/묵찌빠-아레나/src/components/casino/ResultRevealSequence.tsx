@@ -18,10 +18,10 @@ interface Props {
   onDone: () => void;
 }
 
-const VERDICT_TEXT: Record<Verdict, string> = {
-  win: 'VICTORY',
-  lose: 'DEFEAT',
-  draw: 'DRAW',
+const VERDICT_TEXT: Record<Verdict, { main: string; sub: string }> = {
+  win: { main: '승리', sub: 'WINNER TAKES ALL' },
+  lose: { main: '아쉬운 패배', sub: 'NEXT ROUND AWAITS' },
+  draw: { main: '무승부', sub: 'EVEN MATCH' },
 };
 
 function useCountUp(target: number, run: boolean, durationMs = 1100) {
@@ -139,12 +139,23 @@ export function ResultRevealSequence({
               onAnimationComplete={() => {
                 audioManager.playSFX(isWin ? 'final_win' : 'final_lose');
               }}
-              className={`font-display text-6xl md:text-7xl font-black tracking-widest ${
-                isWin ? theme.engraved : 'text-gray-400'
+              className={`text-6xl md:text-7xl font-black tracking-tight ${
+                isWin ? theme.engraved : 'text-gray-300'
               }`}
             >
-              {VERDICT_TEXT[verdict]}
+              {VERDICT_TEXT[verdict].main}
             </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 0.75, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className={`font-display mt-3 text-[10px] md:text-xs font-black tracking-[0.4em] uppercase ${
+                isWin ? theme.accentText : 'text-gray-500'
+              }`}
+            >
+              {VERDICT_TEXT[verdict].sub}
+            </motion.p>
 
             <motion.div
               initial={{ scaleX: 0 }}
