@@ -1216,7 +1216,6 @@ export function GamePlayPage() {
             ...(usesHandSeal(matchRules) && sealedHand ? [sealedHand] : []),
             ...(usesRevenge(matchRules) && myRevengeBan ? [myRevengeBan] : []),
           ]}
-          onExit={() => setShowExitModal(true)}
           onToggleMute={toggleMute}
           onInfo={() => { triggerHaptic('light'); setShowInfo(true); }}
           onSettings={() => { triggerHaptic('light'); setShowSettings(true); }}
@@ -1276,9 +1275,6 @@ export function GamePlayPage() {
       {/* Top Bar */}
       <header className="relative z-20 flex justify-between items-start px-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-3 w-full">
         <div className="flex gap-2">
-          <button onClick={() => setShowExitModal(true)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
-            <LogOut className="w-5 h-5 -ml-1" />
-          </button>
           <button onClick={toggleMute} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
             {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </button>

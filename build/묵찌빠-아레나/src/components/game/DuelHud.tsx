@@ -1,4 +1,4 @@
-import { LogOut, Volume2, VolumeX, Info, Keyboard, Settings } from 'lucide-react';
+import { Volume2, VolumeX, Info, Keyboard, Settings } from 'lucide-react';
 import { ConnectionBadge } from '@/components/game/ReconnectOverlay';
 import type { ConnectionStatus } from '@/realtime/types';
 import { getTierTheme } from '@/utils/tierTheme';
@@ -46,7 +46,6 @@ export function DuelHud({
   jackpot,
   ruleShortLabel = '3판2승',
   lifeBarMax = 2,
-  onExit,
   onToggleMute,
   onInfo,
   onSettings,
@@ -70,7 +69,6 @@ export function DuelHud({
   jackpot: boolean;
   ruleShortLabel?: string;
   lifeBarMax?: number;
-  onExit: () => void;
   onToggleMute: () => void;
   onInfo: () => void;
   onSettings?: () => void;
@@ -86,13 +84,6 @@ export function DuelHud({
     <div className="relative z-20 px-3 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.85rem))] md:px-6 md:pt-[max(1.5rem,calc(env(safe-area-inset-top,0px)+1rem))] space-y-2">
       <div className="flex items-start gap-2">
         <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={onExit}
-            className="w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 flex items-center justify-center text-white/80"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
           <button
             type="button"
             onClick={onToggleMute}

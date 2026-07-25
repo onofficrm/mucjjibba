@@ -406,7 +406,6 @@ export function BattleDuelStage({
   tableShake,
   isSpinning,
   isLastRound,
-  onExit,
   onToggleMute,
   onInfo,
   onSettings,
@@ -444,7 +443,6 @@ export function BattleDuelStage({
   tableShake: boolean;
   isSpinning: boolean;
   isLastRound: boolean;
-  onExit: () => void;
   onToggleMute: () => void;
   onInfo: () => void;
   onSettings?: () => void;
@@ -596,7 +594,6 @@ export function BattleDuelStage({
         jackpot={jackpot}
         ruleShortLabel={ruleShortLabel}
         lifeBarMax={lifeBarMax}
-        onExit={onExit}
         onToggleMute={onToggleMute}
         onInfo={onInfo}
         onSettings={onSettings}
