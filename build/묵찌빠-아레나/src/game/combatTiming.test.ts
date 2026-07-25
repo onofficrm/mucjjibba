@@ -35,7 +35,7 @@ assert.ok(getResultReadMs(false, false, 'calm', 'default') > getResultReadMs(fal
 
 const thinkCalm = getOpponentThinkMs('calm', 'default');
 const thinkUrgent = getOpponentThinkMs('urgent', 'default');
-assert.ok(thinkCalm >= 750);
-assert.ok(thinkUrgent < 700);
+assert.ok(thinkCalm >= 850);
+assert.ok(thinkUrgent < 750);
 
 console.log('combatTiming.test.ts OK');

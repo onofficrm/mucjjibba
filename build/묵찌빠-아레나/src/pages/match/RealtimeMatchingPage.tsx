@@ -111,7 +111,7 @@ export function RealtimeMatchingPage() {
 
   useEffect(() => {
     if (matchState === 'found') {
-      const t = window.setTimeout(() => setMatchState('countdown'), 2000);
+      const t = window.setTimeout(() => setMatchState('countdown'), 2400);
       return () => window.clearTimeout(t);
     }
   }, [matchState]);

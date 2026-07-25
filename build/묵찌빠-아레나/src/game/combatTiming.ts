@@ -29,32 +29,35 @@ export const TEMPO_PRESET_META: Record<
 
 export const TEMPO_PRESET_IDS: TempoPreset[] = ['comfortable', 'default', 'fast'];
 
+/** 전체 화면·페이즈 전환을 살짝 느리게 (선택 제한 시간은 별도) */
+const GLOBAL_TEMPO = 1.12;
+
 const CALM = {
-  lockHoldMs: 320,
-  tensionMs: 700,
-  revealSpinMs: 1250,
-  snapMs: 200,
-  clashHoldMs: VICTORY_CLASH_MS + 220,
-  replayDelayMs: 260,
-  resultReadMs: 2100,
-  beginnerResultReadMs: 2900,
-  cameraPunchMs: 480,
-  roundStartMs: 2000,
-  toResultMs: 2000,
+  lockHoldMs: 360,
+  tensionMs: 800,
+  revealSpinMs: 1400,
+  snapMs: 220,
+  clashHoldMs: VICTORY_CLASH_MS + 280,
+  replayDelayMs: 300,
+  resultReadMs: 2400,
+  beginnerResultReadMs: 3200,
+  cameraPunchMs: 540,
+  roundStartMs: 2300,
+  toResultMs: 2400,
 } as const;
 
 const URGENT = {
-  lockHoldMs: 180,
-  tensionMs: 320,
-  revealSpinMs: 720,
-  snapMs: 140,
-  clashHoldMs: VICTORY_CLASH_MS + 80,
-  replayDelayMs: 140,
-  resultReadMs: 1100,
-  beginnerResultReadMs: 1600,
-  cameraPunchMs: 320,
-  roundStartMs: 900,
-  toResultMs: 1200,
+  lockHoldMs: 200,
+  tensionMs: 360,
+  revealSpinMs: 800,
+  snapMs: 160,
+  clashHoldMs: VICTORY_CLASH_MS + 120,
+  replayDelayMs: 160,
+  resultReadMs: 1300,
+  beginnerResultReadMs: 1800,
+  cameraPunchMs: 360,
+  roundStartMs: 1050,
+  toResultMs: 1400,
 } as const;
 
 export const COMBAT_TIMING = {
@@ -101,7 +104,8 @@ export function resolveCombatPace(opts: {
 function pack(pace: CombatPace, tempo: TempoPreset = 'default') {
   const base = pace === 'urgent' ? URGENT : CALM;
   // urgent는 템포 영향을 약하게 (결정적 순간 리듬 유지)
-  const scale = pace === 'urgent' ? 0.5 + tempoScale(tempo) * 0.5 : tempoScale(tempo);
+  const preset = pace === 'urgent' ? 0.5 + tempoScale(tempo) * 0.5 : tempoScale(tempo);
+  const scale = preset * GLOBAL_TEMPO;
   return {
     lockHoldMs: scaleMs(base.lockHoldMs, scale),
     tensionMs: scaleMs(base.tensionMs, scale),
@@ -190,7 +194,7 @@ export function getOpponentThinkMs(
   pace: CombatPace = 'calm',
   tempo: TempoPreset = 'default',
 ): number {
-  const scale = tempoScale(tempo);
-  if (pace === 'urgent') return scaleMs(180, scale) + Math.random() * scaleMs(420, scale);
-  return scaleMs(750, scale) + Math.random() * scaleMs(1200, scale);
+  const scale = tempoScale(tempo) * GLOBAL_TEMPO;
+  if (pace === 'urgent') return scaleMs(180, scale) + Math.random() * scaleMs(400, scale);
+  return scaleMs(850, scale) + Math.random() * scaleMs(1350, scale);
 }

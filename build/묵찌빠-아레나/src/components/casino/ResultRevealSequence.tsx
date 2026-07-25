@@ -69,9 +69,9 @@ export function ResultRevealSequence({
       return;
     }
     triggerHaptic(isWin ? 'success' : 'warning');
-    const toSettle = window.setTimeout(() => setPhase('settle'), 1250);
-    const toOut = window.setTimeout(() => setPhase('out'), isFree ? 2200 : 2750);
-    const finish = window.setTimeout(() => onDone(), isFree ? 2600 : 3150);
+    const toSettle = window.setTimeout(() => setPhase('settle'), 1450);
+    const toOut = window.setTimeout(() => setPhase('out'), isFree ? 2600 : 3200);
+    const finish = window.setTimeout(() => onDone(), isFree ? 3000 : 3650);
     return () => {
       window.clearTimeout(toSettle);
       window.clearTimeout(toOut);

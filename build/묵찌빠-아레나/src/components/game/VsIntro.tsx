@@ -44,40 +44,40 @@ export function VsIntro({
 
     const timers = reduceAnimations
       ? [
-          setTimeout(() => setStep(1), 200),
+          setTimeout(() => setStep(1), 240),
           setTimeout(() => {
             setStep(5);
             playSound('start_sfx');
             triggerHaptic('heavy');
             onComplete();
-          }, 700),
+          }, 850),
         ]
       : [
-          setTimeout(() => setStep(1), 650),
+          setTimeout(() => setStep(1), 750),
           setTimeout(() => {
             setStep(2);
             playSound('menu_open');
-          }, 1300),
+          }, 1500),
           setTimeout(() => {
             setStep(3);
             playSound('countdown_3');
             triggerHaptic('light');
-          }, 2000),
+          }, 2300),
           setTimeout(() => {
             setStep(4);
             playSound('countdown_3');
             triggerHaptic('light');
-          }, 2600),
+          }, 3000),
           setTimeout(() => {
             setStep(5);
             playSound('countdown_3');
             triggerHaptic('light');
-          }, 3200),
+          }, 3700),
           setTimeout(() => {
             playSound('start_sfx');
             triggerHaptic('heavy');
             onComplete();
-          }, 3800),
+          }, 4400),
         ];
 
     return () => timers.forEach(clearTimeout);
