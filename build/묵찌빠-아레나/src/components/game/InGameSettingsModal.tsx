@@ -15,6 +15,7 @@ import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings, type GameOptions } from '@/utils/gameSettings';
 import { SOUND_PRESET_IDS, SOUND_PRESETS, type SoundPresetId } from '@/utils/soundPresets';
 import { TEMPO_PRESET_IDS, TEMPO_PRESET_META, type TempoPreset } from '@/game/combatTiming';
+import { VOICE_STYLE_IDS, VOICE_STYLE_META } from '@/game/narration';
 
 interface Props {
   open: boolean;
@@ -80,6 +81,33 @@ export function InGameSettingsModal({ open, onClose }: Props) {
         </div>
 
         <div className="p-4 space-y-4 pb-8">
+          <section className="bg-arena-card/80 border border-white/10 rounded-2xl p-3 space-y-2">
+            <div className="text-xs font-bold uppercase tracking-wider text-arena-text-muted mb-1">
+              나레이션 말투
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {VOICE_STYLE_IDS.map((id) => {
+                const p = VOICE_STYLE_META[id];
+                const active = (options.voiceStyle ?? 'hype') === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => updateOption('voiceStyle', id)}
+                    className={`text-left px-3 py-2.5 rounded-xl border transition-colors ${
+                      active
+                        ? 'border-fuchsia-400/50 bg-fuchsia-500/15 text-fuchsia-200'
+                        : 'border-white/10 bg-white/5 text-gray-300'
+                    }`}
+                  >
+                    <div className="text-xs font-black">{p.label}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">{p.description}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
           <section className="bg-arena-card/80 border border-white/10 rounded-2xl p-3 space-y-2">
             <div className="text-xs font-bold uppercase tracking-wider text-arena-text-muted mb-1">
               게임 템포

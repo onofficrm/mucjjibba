@@ -18,6 +18,8 @@ export interface GameOptions {
   combatTempo: 'comfortable' | 'default' | 'fast';
   /** 경기 시작 전 룰 카드 표시 */
   showRuleCard: boolean;
+  /** 나레이션 말투 */
+  voiceStyle: 'calm' | 'hype' | 'fun' | 'minimal';
 }
 
 const defaultOptions: GameOptions = {
@@ -36,6 +38,7 @@ const defaultOptions: GameOptions = {
   showKeyGuide: true,
   combatTempo: 'default',
   showRuleCard: true,
+  voiceStyle: 'hype',
 };
 
 class GameSettingsManager {

@@ -9,7 +9,8 @@ import {
   SOUND_PRESETS,
   type SoundPresetId,
 } from '@/utils/soundPresets';
-
+import { pickNarration, type NarrationCue } from '@/game/narration';
+import { gameSettings } from '@/utils/gameSettings';
 export type SoundEffectType =
   | 'btn_touch' | 'btn_select' | 'menu_open' | 'menu_close' | 'popup_open' | 'alert' | 'error' | 'confirm'
   | 'lobby_bgm' | 'live_switch' | 'card_select' | 'game_start' | 'slot_spin' | 'counter_up' | 'tournament_alert'
@@ -84,20 +85,19 @@ const defaultSettings: VolumeSettings = {
 
 export const AUDIO_SETTINGS_EVENT = 'arena:audio-settings';
 
-const VOICE_LINES: Record<VoiceCue, string[]> = {
-  attack: ['공격권!', '공격이에요!', '자, 공격!'],
-  rock: ['묵!', '묵!'],
-  scissors: ['찌!', '찌!'],
-  paper: ['빠!', '빠!'],
-  match_point: ['매치 포인트!', '결정구!', '마지막!'],
-  comeback: ['역전!', '뒤집어!', '역전 찬스!'],
-  streak: ['연승!', '연속!', '불꽃 연승!'],
-  win: ['승리!', '이겼어요!', '굿 게임!'],
-  lose: ['아쉬워요', '다음 판!', '분발해요'],
-  steal: ['탈환!', '공격권 가져왔어요!', '스틸!'],
-  start: ['시작!', '레디!', '대결 시작!'],
+const VOICE_CUE_MAP: Record<VoiceCue, NarrationCue> = {
+  attack: 'attack_get',
+  rock: 'rock',
+  scissors: 'scissors',
+  paper: 'paper',
+  match_point: 'match_point',
+  comeback: 'comeback',
+  streak: 'streak_3',
+  win: 'final_win',
+  lose: 'final_lose',
+  steal: 'steal',
+  start: 'start',
 };
-
 class AudioManager {
   private ctx: AudioContext | null = null;
   private currentBgm: BgmType | null = null;
@@ -340,20 +340,20 @@ class AudioManager {
     this.speechSynthesis.speak(this.voiceInstance);
   }
 
-  /** 짧은 보이스 콜 — 변형·쿨다운 */
+  /** 짧은 보이스 콜 — 나레이션 엔진(변형·반복 방지) */
   public callVoice(cue: VoiceCue, force = false) {
     if (!this.voiceCallsEnabled() && !force) return;
     const now = Date.now();
-    if (!force && now - this.lastVoiceAt < 900 && this.lastVoiceCue === cue) return;
-    const lines = VOICE_LINES[cue];
-    if (!lines?.length) return;
-    let idx = Math.floor(Math.random() * lines.length);
-    if (lines.length > 1 && cue === this.lastVoiceCue) {
-      idx = (idx + 1) % lines.length;
-    }
+    if (!force && now - this.lastVoiceAt < 500 && this.lastVoiceCue === cue) return;
+    const narrCue = VOICE_CUE_MAP[cue];
+    const pick = pickNarration(narrCue, {
+      style: gameSettings.options.voiceStyle ?? 'hype',
+      force: force || ['rock', 'scissors', 'paper'].includes(cue),
+    });
+    if (!pick) return;
     this.lastVoiceCue = cue;
     this.lastVoiceAt = now;
-    this.speak(lines[idx]);
+    this.speak(pick.text);
   }
 
   // --- High-level gameplay helpers ---
@@ -377,7 +377,7 @@ class AudioManager {
       this.duckBgm(900, 0.12);
       this.playSFX(opts.won ? 'final_win' : 'final_lose', { intensity, pan: opts.pan });
       if (opts.won) this.playSFX('crowd_swell', { intensity: intensity * 0.9 });
-      this.callVoice(opts.won ? 'win' : 'lose');
+      // 나레이션은 GamePlay dealer 경로에서 재생 (중복 TTS 방지)
       return;
     }
 
@@ -387,13 +387,11 @@ class AudioManager {
       if ((opts.awarded ?? 1) >= 2) this.playSFX('jackpot', { intensity: intensity * 0.7 });
       if (opts.isComeback) {
         this.playSFX('comeback', { intensity });
-        this.callVoice('comeback');
       } else if (opts.isMatchPoint) {
         this.playSFX('match_point', { intensity: intensity * 0.85 });
       }
       if ((opts.streak ?? 0) >= 2) {
         this.playSFX('streak_up', { intensity: 0.9 + Math.min(0.5, (opts.streak ?? 0) * 0.08) });
-        if ((opts.streak ?? 0) >= 3) this.callVoice('streak');
       }
     } else {
       this.playSFX('round_lose', { intensity, pan: opts.pan });

@@ -47,6 +47,13 @@ import { HandVictoryClash } from '@/components/game/HandVictoryClash';
 import { MatchRuleCard } from '@/components/game/MatchRuleCard';
 import { InGameSettingsModal } from '@/components/game/InGameSettingsModal';
 import {
+  narrationEngine,
+  pickNarration,
+  pickNarrationText,
+  type NarrationContext,
+  type NarrationCue,
+} from '@/game/narration';
+import {
   loadRematchSeries,
   seriesMatchesContext,
 } from '@/services/match/rematchSeries';
@@ -245,6 +252,10 @@ export function GamePlayPage() {
   const [showBeginnerHelp, setShowBeginnerHelp] = useState(false);
   const practiceTrackedRef = useRef(false);
   const resultNavigatedRef = useRef(false);
+  const recentHandsRef = useRef<Array<'ROCK' | 'SCISSORS' | 'PAPER'>>([]);
+  const stealCountRef = useRef(0);
+  const narrationReadyRef = useRef(false);
+
   const pendingSelectMeta = useRef<{
     selectedAt: string;
     selectDurationMs: number;
@@ -427,7 +438,65 @@ export function GamePlayPage() {
   const [dealerState, setDealerState] = useState<DealerState>('idle');
   const [dealerMessage, setDealerMessage] = useState<string>('');
 
+  const buildNarrationCtx = (extra: NarrationContext = {}): NarrationContext => {
+    const recent = recentHandsRef.current;
+    let dominantHand: 'ROCK' | 'SCISSORS' | 'PAPER' | null = null;
+    let dominantPct = 0;
+    if (recent.length >= 3) {
+      const counts = { ROCK: 0, SCISSORS: 0, PAPER: 0 };
+      recent.forEach((h) => {
+        counts[h] += 1;
+      });
+      const total = recent.length;
+      (['ROCK', 'SCISSORS', 'PAPER'] as const).forEach((h) => {
+        const pct = Math.round((counts[h] / total) * 100);
+        if (pct > dominantPct) {
+          dominantPct = pct;
+          dominantHand = h;
+        }
+      });
+    }
+    return {
+      style: gameSettings.options.voiceStyle ?? 'hype',
+      myScore: gameState.myScore,
+      opponentScore: gameState.opponentScore,
+      recentHands: recent,
+      steals: stealCountRef.current,
+      dominantHand,
+      dominantPct,
+      ...extra,
+    };
+  };
+
+  const say = (
+    state: DealerState,
+    cue: NarrationCue,
+    isResultEvent = false,
+    extra: NarrationContext = {},
+  ) => {
+    const ctx = buildNarrationCtx({ ...extra, force: isResultEvent || extra.force });
+    const canSpeak =
+      gameSettings.options.voiceEnabled &&
+      (gameSettings.options.voiceMode === 'all' || isResultEvent);
+
+    let text = '';
+    if (canSpeak) {
+      const pick = pickNarration(cue, ctx);
+      text = pick?.text ?? pickNarrationText(cue, ctx);
+      if (pick?.text) audioManager.speak(pick.text);
+      else if (text) audioManager.speak(text);
+    } else {
+      text = pickNarrationText(cue, ctx);
+    }
+
+    if (gameSettings.options.dealerVisible) {
+      setDealerState(state);
+      if (text) setDealerMessage(text);
+    }
+  };
+
   const updateDealer = (state: DealerState, message: string, isResultEvent: boolean = false) => {
+    // 레거시 경로 — 고정 문구. 가능하면 say() 사용.
     if (gameSettings.options.voiceEnabled) {
       if (gameSettings.options.voiceMode === 'all' || isResultEvent) {
          audioManager.speak(message);
@@ -574,8 +643,13 @@ export function GamePlayPage() {
   useEffect(() => {
     if (gameState.phase === 'INIT') {
       audioManager.playSFX('start_sfx');
-      audioManager.callVoice('start');
-      updateDealer('start', '묵찌빠 대결을 시작합니다.');
+      if (!narrationReadyRef.current) {
+        narrationEngine.resetMatch(id || 'demo-session');
+        recentHandsRef.current = [];
+        stealCountRef.current = 0;
+        narrationReadyRef.current = true;
+      }
+      say('start', 'start', true);
       
       const timer = setTimeout(() => {
         setRecommendHand('ROCK');
@@ -584,7 +658,7 @@ export function GamePlayPage() {
           roundMessage: '아래에서 선택',
           timeLeft: getPickTimeLimit(isBeginnerMode, 'calm', combatTempo),
         });
-        updateDealer('ask_select', '아래에서 하나를 눌러주세요.');
+        say('ask_select', 'ask_select');
       }, getRoundStartDelayMs('calm', combatTempo));
       return () => clearTimeout(timer);
     }
@@ -615,7 +689,11 @@ export function GamePlayPage() {
       });
       if (mpNow) {
         audioManager.playSFX('match_point', { intensity: 0.85 });
-        audioManager.callVoice('match_point');
+        say('surprise', 'match_point', true, {
+          isMatchPoint: true,
+          myScore: gameState.myScore,
+          opponentScore: gameState.opponentScore,
+        });
       }
       setIsSpinning(true);
       setShowImpact(false);
@@ -710,9 +788,9 @@ export function GamePlayPage() {
             winner,
           });
           if (winner === 'ME') {
-            updateDealer('congrats', '최종 승리했습니다!', true);
+            say('congrats', 'final_win', true);
           } else {
-            updateDealer('comfort', '최종 패배했습니다.', true);
+            say('comfort', 'final_lose', true);
           }
         } else {
           const matchPoint = isMatchPoint(
@@ -744,10 +822,9 @@ export function GamePlayPage() {
           });
           if (matchPoint) {
             audioManager.playSFX('match_point', { intensity: 0.9 });
-            audioManager.callVoice('match_point');
-            updateDealer('surprise', `매치포인트! (${matchRules.shortLabel})`, true);
+            say('surprise', 'match_point', true, { isMatchPoint: true });
           } else {
-            updateDealer('ask_select', '아래에서 하나를 눌러주세요.');
+            say('ask_select', 'ask_select');
           }
         }
       }, getResultReadMs(
@@ -832,6 +909,7 @@ export function GamePlayPage() {
       pendingSelectMeta.current = logBuilderRef.current?.recordSelect(hand as LogHand) ?? null;
     }
     
+    recentHandsRef.current = [...recentHandsRef.current, hand].slice(-8);
     updateState({ myHand: hand });
 
     if (gameState.opponentHand) {
@@ -932,20 +1010,14 @@ export function GamePlayPage() {
           timeLeft: getPickTimeLimit(isBeginnerMode, 'calm', combatTempo),
           roundMessage: '다시 골라주세요',
         });
-        updateDealer('surprise', '비겼어요. 다시 골라주세요.', true);
+        say('surprise', 'draw', true);
       } else {
-        let message = '';
         if (rpsWinner === 'ME') {
           audioManager.playSFX('attack_get', { intensity: audioManager.getIntensityBoost() });
-          audioManager.callVoice('attack');
-          message = '내 공격이에요! 같은 손을 내면 이겨요.';
+          say('ask_select', 'attack_get', true);
         } else {
           audioManager.playSFX('attack_fail', { intensity: audioManager.getIntensityBoost() });
-          message = '상대 공격이에요. 다른 손을 내 막아보세요.';
-        }
-
-        if (isBeginnerMode && gameSettings.options.beginnerHelpVoice && gameState.round === 1) {
-          message += ' 아래에서 골라주세요.';
+          say('ask_select', 'attack_fail', true);
         }
 
         // 리벤지: 공격권 RPS에서 진 쪽 손 봉인
@@ -953,8 +1025,6 @@ export function GamePlayPage() {
           if (rpsWinner === 'ME') setOppRevengeBan(opponentHand);
           else setMyRevengeBan(myHand);
         }
-
-        updateDealer('ask_select', message, true);
         appendRoundLog('ATTACK_GAIN', null, rpsWinner);
         const nextSeal = refreshSealForNextPick();
         const avail = availableHands({
@@ -1034,7 +1104,12 @@ export function GamePlayPage() {
           roundMessage: '이겼어요!',
         });
         triggerHaptic('success');
-        updateDealer('congrats', '이겼어요!', true);
+        const selectMs = pendingSelectMeta.current?.selectDurationMs ?? 0;
+        say('congrats', 'point_win', true, {
+          streak: nextMyStreak,
+          wasBehind: isComeback,
+          selectMs,
+        });
       } else {
         appendRoundLog('POINT_OPPONENT', attacker, attacker);
         const scored = applyPointGain(matchRules, gameState.myScore, gameState.opponentScore, 'OPPONENT');
@@ -1076,7 +1151,7 @@ export function GamePlayPage() {
           roundMessage: '아쉬워요',
         });
         triggerHaptic('error');
-        updateDealer('comfort', '아쉬워요. 다음 판!', true);
+        say('comfort', 'point_lose', true);
       }
     } else {
       const rpsWinner = getRpsWinner(myHand, opponentHand);
@@ -1096,10 +1171,10 @@ export function GamePlayPage() {
           pan: -1,
           intensity: audioManager.getIntensityBoost(),
         });
-        audioManager.callVoice('steal');
+        stealCountRef.current += 1;
         const nextCombo = comboHits + 1;
         setComboHits(nextCombo);
-        updateDealer('ask_select', '공격권을 가져왔어요!', true);
+        say('ask_select', 'steal', true, { steals: stealCountRef.current });
         showCutIn({
           role: 'arena',
           title: 'STEAL!',
@@ -1112,7 +1187,7 @@ export function GamePlayPage() {
           intensity: audioManager.getIntensityBoost(),
         });
         setComboHits(0);
-        updateDealer('ask_select', '공격권이 상대에게 넘어갔어요.', true);
+        say('ask_select', 'attack_lost', true);
       }
       appendRoundLog('ATTACK_CHANGE', attacker, rpsWinner);
       updateState({

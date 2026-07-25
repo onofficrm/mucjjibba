@@ -7,6 +7,7 @@ import { gameSettings, GameOptions } from '@/utils/gameSettings';
 import { trackMission } from '@/services/mission';
 import { SOUND_PRESET_IDS, SOUND_PRESETS, type SoundPresetId } from '@/utils/soundPresets';
 import { TEMPO_PRESET_IDS, TEMPO_PRESET_META, type TempoPreset } from '@/game/combatTiming';
+import { VOICE_STYLE_IDS, VOICE_STYLE_META } from '@/game/narration';
 
 export function GameSettingsPage() {
   const navigate = useNavigate();
@@ -63,6 +64,38 @@ export function GameSettingsPage() {
       </header>
 
       <div className="max-w-xl mx-auto p-4 space-y-6">
+
+        <section className="bg-arena-card border border-white/10 rounded-2xl p-4">
+          <div className="text-arena-text-muted text-xs font-bold uppercase tracking-wider mb-3">
+            나레이션 말투
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {VOICE_STYLE_IDS.map((id) => {
+              const p = VOICE_STYLE_META[id];
+              const active = (options.voiceStyle ?? 'hype') === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    gameSettings.updateOption('voiceStyle', id);
+                    setOptions({ ...gameSettings.options });
+                    audioManager.playSFX('btn_touch');
+                    triggerHaptic('light');
+                  }}
+                  className={`text-left px-3 py-3 rounded-xl border transition-colors ${
+                    active
+                      ? 'border-fuchsia-400/50 bg-fuchsia-500/15 text-fuchsia-200'
+                      : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="text-sm font-black">{p.label}</div>
+                  <div className="text-[11px] text-gray-500 mt-1 leading-snug">{p.description}</div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
         <section className="bg-arena-card border border-white/10 rounded-2xl p-4">
           <div className="text-arena-text-muted text-xs font-bold uppercase tracking-wider mb-3">
