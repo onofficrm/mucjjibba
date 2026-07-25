@@ -12,6 +12,8 @@ export interface GameOptions {
   introMode: 'always' | 'first_only' | 'tournament_only' | 'skip';
   introMute: boolean;
   reactionMute: boolean;
+  /** PC 듀얼 모드 Q/W/E 단축키 가이드 오버레이 표시 */
+  showKeyGuide: boolean;
 }
 
 const defaultOptions: GameOptions = {
@@ -27,6 +29,7 @@ const defaultOptions: GameOptions = {
   introMode: 'always',
   introMute: false,
   reactionMute: false,
+  showKeyGuide: true,
 };
 
 class GameSettingsManager {

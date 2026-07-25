@@ -23,11 +23,14 @@ import { WinTierBanner } from '@/components/casino/WinTierBanner';
 import { VegasSpotlight, ChaseLightTitle } from '@/components/casino/VegasSpotlight';
 import { StreakAura } from '@/components/casino/StreakAura';
 import { NearMissOverlay } from '@/components/casino/NearMissOverlay';
+import { ResultRevealSequence } from '@/components/casino/ResultRevealSequence';
 import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
 import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { settleMatchPoints, getDemoPoints } from '@/utils/demoWallet';
 import { loadMatchSession, updateMatchSession, clearMatchSession, hasSettledGame, markSettledGame } from '@/services/match/matchSession';
 import type { MatchTable } from '@/types/match';
+import { getTableTier } from '@/types/match';
+import { gameSettings } from '@/utils/gameSettings';
 
 type RematchState = 'idle' | 'requesting' | 'accepted' | 'declined' | 'timeout' | 'disconnected';
 
@@ -78,9 +81,11 @@ export function GameResultPage() {
   const [showShare, setShowShare] = useState(false);
   const [rankLabel, setRankLabel] = useState('랭킹 반영 중…');
   const [showNearMiss, setShowNearMiss] = useState(nearMiss);
+  const reduceAnim = gameSettings.options.reduceAnimations;
+  const [revealDone, setRevealDone] = useState(() => reduceAnim || nearMiss);
 
   useEffect(() => {
-    if (!gameLog || showNearMiss) return;
+    if (!gameLog || showNearMiss || !revealDone) return;
     const key = `arena_share_auto_${gameLog.gameId}`;
     try {
       if (sessionStorage.getItem(key)) return;
@@ -88,10 +93,10 @@ export function GameResultPage() {
     } catch {
       /* ignore */
     }
-    const delay = isWin ? 1400 : 2200;
+    const delay = isWin ? 700 : 1200;
     const t = window.setTimeout(() => setShowShare(true), delay);
     return () => window.clearTimeout(t);
-  }, [gameLog.gameId, isWin, showNearMiss]);
+  }, [gameLog.gameId, isWin, showNearMiss, revealDone]);
   const [settledOnce] = useState(() => {
     const session = loadMatchSession();
     const table = (location.state?.table as MatchTable | undefined) ?? session?.table;
@@ -164,12 +169,18 @@ export function GameResultPage() {
   }, [gameLog.gameId]);
 
   useEffect(() => {
+    audioManager.setAmbienceTier(getTableTier(tableFromState));
+    return () => audioManager.setAmbienceTier('normal');
+  }, [tableFromState?.id]);
+
+  useEffect(() => {
+    // 리빌 시퀀스가 판정 SFX를 담당하므로, 시퀀스가 끝난 뒤(또는 스킵 시) BGM/보조 연출만 처리
+    if (!revealDone) return;
     if (isWin) {
       if (winTier.tier === 'JACKPOT') {
         audioManager.playSFX('jackpot');
         triggerHaptic('jackpot');
       } else {
-        audioManager.playSFX('final_win');
         triggerHaptic('success');
       }
       audioManager.playBGM('win_result');
@@ -178,10 +189,9 @@ export function GameResultPage() {
       triggerHaptic('warning');
       audioManager.stopBGM();
     } else {
-      audioManager.playSFX('final_lose');
       audioManager.stopBGM();
     }
-  }, [isWin, winTier.tier, nearMiss]);
+  }, [isWin, winTier.tier, nearMiss, revealDone]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -242,6 +252,18 @@ export function GameResultPage() {
           />
         )}
       </AnimatePresence>
+
+      {!revealDone && !showNearMiss && (
+        <ResultRevealSequence
+          verdict={isWin ? 'win' : myScore === opponentScore ? 'draw' : 'lose'}
+          tierLabel={isWin ? winTier.label : undefined}
+          tableName={tableInfo.name}
+          pointsDelta={pointsAfter - pointsBefore}
+          isFree={tableInfo.isFree}
+          reduceAnimations={reduceAnim}
+          onDone={() => setRevealDone(true)}
+        />
+      )}
 
       {/* Main Result Content */}
       <div className="flex-1 overflow-y-auto px-6 py-10 relative z-10 flex flex-col items-center">

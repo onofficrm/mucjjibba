@@ -9,6 +9,9 @@ export type SoundEffectType =
 
 export type BgmType = 'lobby' | 'normal_game' | 'attack_game' | 'last_round' | 'tournament_final' | 'win_result';
 
+/** 테이블 등급별 사운드 앰비언스 톤 */
+export type AmbienceTier = 'free' | 'normal' | 'vip';
+
 export interface VolumeSettings {
   master: number;
   bgm: number;
@@ -37,6 +40,8 @@ class AudioManager {
   private bgmActiveOscillators: OscillatorNode[] = [];
   private speechSynthesis: SpeechSynthesis | null = null;
   private voiceInstance: SpeechSynthesisUtterance | null = null;
+  /** 현재 테이블 등급 앰비언스 (BGM 레이어링에 반영) */
+  public ambienceTier: AmbienceTier = 'normal';
   
   public settings: VolumeSettings = { ...defaultSettings };
 
@@ -79,6 +84,11 @@ class AudioManager {
   public updateSetting<K extends keyof VolumeSettings>(key: K, value: VolumeSettings[K]) {
     this.settings[key] = value;
     this.saveSettings();
+  }
+
+  /** 테이블 등급별 앰비언스 톤 설정 (무료=담백 / 일반=기본 / VIP=풍성) */
+  public setAmbienceTier(tier: AmbienceTier) {
+    this.ambienceTier = tier;
   }
 
   private getEffectiveVolume(type: 'sfx' | 'bgm' | 'voice' | 'spectate') {
@@ -427,13 +437,31 @@ class AudioManager {
     let step = 0;
     const tick = () => {
       if (!this.ctx || this.currentBgm !== type || !this.currentBgmGainNode) return;
-      const peak = this.getEffectiveVolume('bgm') * 0.28;
+      const bus = this.currentBgmGainNode;
+      const tier = this.ambienceTier;
+      // 등급별 볼륨 톤: 무료는 담백, VIP는 살짝 풍성
+      const tierGain = tier === 'vip' ? 0.32 : tier === 'free' ? 0.22 : 0.28;
+      const peak = this.getEffectiveVolume('bgm') * tierGain;
       if (peak <= 0) return;
       const freq = pattern.notes[step % pattern.notes.length];
-      this.playBgmPluck(freq, pattern.wave, this.currentBgmGainNode, peak);
+      this.playBgmPluck(freq, pattern.wave, bus, peak);
+
       // 가벼운 하모닉 (5도) — 경쾌한 층
       if (step % 2 === 0) {
-        this.playBgmPluck(freq * 1.5, 'sine', this.currentBgmGainNode, peak * 0.35);
+        this.playBgmPluck(freq * 1.5, 'sine', bus, peak * 0.35);
+      }
+
+      // VIP: 옥타브 위 반짝임 + 저음 드론으로 고급스러운 홀 느낌
+      if (tier === 'vip') {
+        this.playBgmPluck(freq * 2, 'sine', bus, peak * 0.22);
+        if (step % 4 === 0) {
+          this.playBgmPluck(freq / 2, 'triangle', bus, peak * 0.3);
+        }
+      } else if (tier === 'free') {
+        // 무료: 담백하게 4스텝마다 하모닉만 살짝
+        if (step % 4 === 0) {
+          this.playBgmPluck(freq * 1.5, 'sine', bus, peak * 0.25);
+        }
       }
       step += 1;
     };

@@ -321,6 +321,27 @@ export function GameSettingsPage() {
                   <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${options.reactionMute ? 'left-6' : 'left-1'}`} />
                 </button>
               </div>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+                <div className="flex flex-col">
+                  <span className="flex items-center text-sm font-medium text-gray-400">
+                    PC 단축키 가이드 (Q·W·E)
+                  </span>
+                  <span className="text-[10px] text-gray-500 mt-0.5">
+                    대결 스테이지에서 H 키로도 켜고 끌 수 있어요.
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    gameSettings.updateOption('showKeyGuide', !options.showKeyGuide);
+                    setOptions({ ...gameSettings.options });
+                    audioManager.playSFX('btn_touch');
+                    triggerHaptic('light');
+                  }}
+                  className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${options.showKeyGuide ? 'bg-arena-gold' : 'bg-white/10'}`}
+                >
+                  <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${options.showKeyGuide ? 'left-6' : 'left-1'}`} />
+                </button>
+              </div>
             </div>
           </div>
         </section>

@@ -50,6 +50,7 @@ import {
 import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { loadMatchSession } from '@/services/match/matchSession';
 import type { MatchOpponent, MatchTable } from '@/types/match';
+import { getTableTier } from '@/types/match';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type PlayerId = 'ME' | 'OPPONENT';
@@ -262,6 +263,11 @@ export function GamePlayPage() {
     const path = `/game/${id || 'quick-start'}`;
     saveLastPlayPath(path);
   }, [id]);
+
+  useEffect(() => {
+    audioManager.setAmbienceTier(getTableTier(matchTable));
+    return () => audioManager.setAmbienceTier('normal');
+  }, [matchTable?.id]);
   
   const [myReaction, setMyReaction] = useState<ReactionType | null>(null);
   const [opponentReaction, setOpponentReaction] = useState<ReactionType | null>(null);

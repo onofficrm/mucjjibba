@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogOut, Volume2, VolumeX, Info, Lock } from 'lucide-react';
+import { LogOut, Volume2, VolumeX, Info, Lock, Keyboard } from 'lucide-react';
 import { HOSTESS, hostessForHand } from '@/data/hostessAssets';
 import { ConnectionBadge } from '@/components/game/ReconnectOverlay';
 import type { ConnectionStatus } from '@/realtime/types';
+import { gameSettings } from '@/utils/gameSettings';
 import {
   EmoteQuickBar,
   FloatingEmotesLayer,
@@ -163,6 +165,37 @@ export function BattleDuelStage({
   myReaction?: ReactionType | null;
   opponentReaction?: ReactionType | null;
 }) {
+  const [showKeyGuide, setShowKeyGuide] = useState<boolean>(
+    () => gameSettings.options.showKeyGuide,
+  );
+  // 물리 키보드(=PC) 환경에서만 단축키 가이드를 노출
+  const [hasKeyboard, setHasKeyboard] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const fine = window.matchMedia?.('(pointer: fine)').matches;
+    setHasKeyboard(!!fine);
+  }, []);
+
+  const toggleKeyGuide = () => {
+    setShowKeyGuide((prev) => {
+      const next = !prev;
+      gameSettings.updateOption('showKeyGuide', next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === '?' || e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        toggleKeyGuide();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const centerHand: Hand | null =
     phase === 'REVEAL' || phase === 'ROUND_RESULT'
       ? myHand
@@ -273,6 +306,20 @@ export function BattleDuelStage({
         </div>
 
         <div className="flex gap-1.5">
+          {hasKeyboard && (
+            <button
+              type="button"
+              onClick={toggleKeyGuide}
+              title="단축키 가이드 (H)"
+              className={`w-9 h-9 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                showKeyGuide
+                  ? 'bg-amber-400/90 border-black text-black shadow-[2px_2px_0_#000]'
+                  : 'bg-black/50 border-white/20 text-white/80'
+              }`}
+            >
+              <Keyboard className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onInfo}
@@ -465,9 +512,35 @@ export function BattleDuelStage({
             );
           })}
         </div>
-        <p className="text-center text-[10px] text-white/50 font-bold mt-2 hidden md:block">
-          PC: Q 묵 · W 찌 · E 빠
-        </p>
+        <AnimatePresence>
+          {hasKeyboard && showKeyGuide && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              className="max-w-lg mx-auto mt-2.5 rounded-xl border border-white/10 bg-black/55 backdrop-blur-sm px-3 py-2 flex items-center justify-center gap-3 flex-wrap"
+            >
+              <span className="text-[10px] font-black text-arena-gold/90 tracking-wider uppercase">
+                단축키
+              </span>
+              {(
+                [
+                  ['Q', '묵'],
+                  ['W', '찌'],
+                  ['E', '빠'],
+                ] as const
+              ).map(([key, ko]) => (
+                <span key={key} className="flex items-center gap-1.5 text-white/85">
+                  <kbd className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-md bg-white/10 border border-white/25 text-[11px] font-black">
+                    {key}
+                  </kbd>
+                  <span className="text-xs font-bold">{ko}</span>
+                </span>
+              ))}
+              <span className="text-[10px] text-white/40 font-bold">H · 가이드 접기</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

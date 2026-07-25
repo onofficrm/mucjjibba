@@ -127,6 +127,13 @@ export function gradeRank(grade: string): number {
   return GRADE_RANK[grade] ?? 0;
 }
 
+/** 테이블 등급별 사운드/연출 톤 구분 */
+export function getTableTier(table?: MatchTable | null): 'free' | 'normal' | 'vip' {
+  if (!table || table.isFree) return 'free';
+  if (table.id === 'vip' || table.id === 'platinum') return 'vip';
+  return 'normal';
+}
+
 export function canEnterTable(points: number, userGrade: string, table: MatchTable): {
   ok: boolean;
   reason: string | null;
