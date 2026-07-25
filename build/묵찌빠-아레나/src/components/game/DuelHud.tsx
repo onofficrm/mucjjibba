@@ -87,6 +87,7 @@ export function DuelHud({
           <button
             type="button"
             onClick={onToggleMute}
+            aria-label={soundEnabled ? '소리 끄기' : '소리 켜기'}
             className="w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 flex items-center justify-center text-white/80"
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -96,6 +97,7 @@ export function DuelHud({
               type="button"
               onClick={onSettings}
               title="게임 설정"
+              aria-label="게임 설정"
               className="hidden md:flex w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 items-center justify-center text-white/80"
             >
               <Settings className="w-4 h-4" />
@@ -117,7 +119,11 @@ export function DuelHud({
           </div>
           <LifeBar score={myScore} max={lifeBarMax} side="left" />
 
-          <div className="flex flex-col items-center shrink-0 px-1">
+          <div
+            className="flex flex-col items-center shrink-0 px-1"
+            role="group"
+            aria-label={`점수 ${myScore} 대 ${opponentScore}`}
+          >
             <ConnectionBadge status={connStatus} />
             <div className="mt-0.5 flex flex-col items-center rounded-xl bg-black/80 border border-white/15 px-2.5 py-1 shadow-[0_0_20px_rgba(0,0,0,0.55)] backdrop-blur-sm min-w-[4.5rem]">
               <div
@@ -128,6 +134,9 @@ export function DuelHud({
                 {isLastRound ? 'MATCH' : ruleShortLabel}
               </div>
               <div
+                role="timer"
+                aria-live={urgent ? 'assertive' : 'off'}
+                aria-label={`남은 시간 ${timeLeft}초`}
                 className={`text-xl md:text-2xl font-black tabular-nums leading-none mt-0.5 ${
                   urgent ? 'text-arena-error' : 'text-arena-gold'
                 }`}
@@ -169,6 +178,8 @@ export function DuelHud({
               type="button"
               onClick={toggleKeyGuide}
               title="단축키 가이드 (H)"
+              aria-label="단축키 가이드"
+              aria-pressed={showKeyGuide}
               className={`w-9 h-9 rounded-lg border-2 flex items-center justify-center transition-colors ${
                 showKeyGuide
                   ? 'bg-amber-400/90 border-black text-black shadow-[2px_2px_0_#000]'
@@ -181,6 +192,7 @@ export function DuelHud({
           <button
             type="button"
             onClick={onInfo}
+            aria-label="게임 정보"
             className="hidden md:flex w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 items-center justify-center text-white/80"
           >
             <Info className="w-4 h-4" />
@@ -188,6 +200,7 @@ export function DuelHud({
           <button
             type="button"
             onClick={onToggleLayout}
+            aria-label="심플 화면으로 전환"
             className="px-2 h-9 rounded-lg bg-amber-400/90 border-2 border-black text-[10px] font-black text-black shadow-[2px_2px_0_#000]"
           >
             심플

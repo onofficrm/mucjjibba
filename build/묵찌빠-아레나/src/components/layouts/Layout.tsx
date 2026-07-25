@@ -115,7 +115,7 @@ export function Layout() {
   };
 
   return (
-    <div className="flex h-screen bg-arena-bg text-arena-text overflow-hidden font-sans">
+    <div className="flex h-[100dvh] bg-arena-bg text-arena-text overflow-hidden font-sans">
       <MissionFanfareToast
         open={!!fanfare}
         title={fanfare?.title ?? ''}

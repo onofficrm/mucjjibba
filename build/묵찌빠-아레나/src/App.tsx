@@ -3,56 +3,76 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layouts/Layout';
 import { AdminLayout } from './components/layouts/AdminLayout';
 
-// Auth Pages
+// Core flow — eager (splash → auth → lobby → play → result)
 import { SplashPage } from './pages/auth/SplashPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { OnboardingPage } from './pages/auth/OnboardingPage';
 import { LobbyPage } from './pages/lobby/LobbyPage';
-
-// User Pages
-import {
-  TermsPage, QuickMatchPage,
-  RematchPage, RankingPage, NotificationsPage,
-  FriendsListPage, GameSettingsPage, CustomerSupportPage,
-  UsageLimitsPage, DecorationPage
-} from './pages/UserPages';
-import { TableSelectPage } from './pages/match/TableSelectPage';
-import { RealtimeMatchingPage } from './pages/match/RealtimeMatchingPage';
-import { FriendMatchPage } from './pages/match/FriendMatchPage';
-import { ArenaPage } from './pages/arena/ArenaPage';
-import { TournamentListPage } from './pages/tournament/TournamentListPage';
-import { TournamentBracketPage } from './pages/tournament/TournamentBracketPage';
 import { GamePlayPage } from './pages/game/GamePlayPage';
 import { GameResultPage } from './pages/game/GameResultPage';
-import { ReplayPage } from './pages/game/ReplayPage';
-import { MatchHistoryPage } from './pages/user/MatchHistoryPage';
-import { PlayPatternAnalysisPage } from './pages/user/PlayPatternAnalysisPage';
-import { MyPage } from './pages/user/MyPage';
-import { PointHistoryPage } from './pages/user/PointHistoryPage';
-import { CompetitionPage } from './pages/competition/CompetitionPage';
-import { TutorialPage } from './pages/tutorial/TutorialPage';
-import { SpectatePage } from './pages/spectate/SpectatePage';
-import { BroadcastPage } from './pages/broadcast/BroadcastPage';
-
-// Admin Pages
-import {
-  AdminLoginPage, AdminDashboardPage, AdminUsersPage, AdminGamesPage,
-  AdminPointsPage, AdminTablesPage, AdminTournamentsPage, AdminReportsPage,
-  AdminAnomaliesPage, AdminNoticesPage, AdminSettingsPage
-} from './pages/AdminPages';
-
 import { AdvisoryBanner } from './components/common/AdvisoryBanner';
+
+// User Pages — lazy (secondary routes)
+const TermsPage = lazy(() => import('./pages/UserPages').then((m) => ({ default: m.TermsPage })));
+const QuickMatchPage = lazy(() => import('./pages/UserPages').then((m) => ({ default: m.QuickMatchPage })));
+const RematchPage = lazy(() => import('./pages/UserPages').then((m) => ({ default: m.RematchPage })));
+const RankingPage = lazy(() => import('./pages/UserPages').then((m) => ({ default: m.RankingPage })));
+const NotificationsPage = lazy(() => import('./pages/UserPages').then((m) => ({ default: m.NotificationsPage })));
+const FriendsListPage = lazy(() => import('./pages/UserPages').then((m) => ({ default: m.FriendsListPage })));
+const GameSettingsPage = lazy(() => import('./pages/UserPages').then((m) => ({ default: m.GameSettingsPage })));
+const CustomerSupportPage = lazy(() => import('./pages/UserPages').then((m) => ({ default: m.CustomerSupportPage })));
+const UsageLimitsPage = lazy(() => import('./pages/UserPages').then((m) => ({ default: m.UsageLimitsPage })));
+const DecorationPage = lazy(() => import('./pages/UserPages').then((m) => ({ default: m.DecorationPage })));
+const TableSelectPage = lazy(() => import('./pages/match/TableSelectPage').then((m) => ({ default: m.TableSelectPage })));
+const RealtimeMatchingPage = lazy(() => import('./pages/match/RealtimeMatchingPage').then((m) => ({ default: m.RealtimeMatchingPage })));
+const FriendMatchPage = lazy(() => import('./pages/match/FriendMatchPage').then((m) => ({ default: m.FriendMatchPage })));
+const ArenaPage = lazy(() => import('./pages/arena/ArenaPage').then((m) => ({ default: m.ArenaPage })));
+const TournamentListPage = lazy(() => import('./pages/tournament/TournamentListPage').then((m) => ({ default: m.TournamentListPage })));
+const TournamentBracketPage = lazy(() => import('./pages/tournament/TournamentBracketPage').then((m) => ({ default: m.TournamentBracketPage })));
+const ReplayPage = lazy(() => import('./pages/game/ReplayPage').then((m) => ({ default: m.ReplayPage })));
+const MatchHistoryPage = lazy(() => import('./pages/user/MatchHistoryPage').then((m) => ({ default: m.MatchHistoryPage })));
+const PlayPatternAnalysisPage = lazy(() => import('./pages/user/PlayPatternAnalysisPage').then((m) => ({ default: m.PlayPatternAnalysisPage })));
+const MyPage = lazy(() => import('./pages/user/MyPage').then((m) => ({ default: m.MyPage })));
+const PointHistoryPage = lazy(() => import('./pages/user/PointHistoryPage').then((m) => ({ default: m.PointHistoryPage })));
+const CompetitionPage = lazy(() => import('./pages/competition/CompetitionPage').then((m) => ({ default: m.CompetitionPage })));
+const TutorialPage = lazy(() => import('./pages/tutorial/TutorialPage').then((m) => ({ default: m.TutorialPage })));
+const SpectatePage = lazy(() => import('./pages/spectate/SpectatePage').then((m) => ({ default: m.SpectatePage })));
+const BroadcastPage = lazy(() => import('./pages/broadcast/BroadcastPage').then((m) => ({ default: m.BroadcastPage })));
+
+// Admin Pages — lazy (separate operator bundle)
+const AdminLoginPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminLoginPage })));
+const AdminDashboardPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminDashboardPage })));
+const AdminUsersPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminUsersPage })));
+const AdminGamesPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminGamesPage })));
+const AdminPointsPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminPointsPage })));
+const AdminTablesPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminTablesPage })));
+const AdminTournamentsPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminTournamentsPage })));
+const AdminReportsPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminReportsPage })));
+const AdminAnomaliesPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminAnomaliesPage })));
+const AdminNoticesPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminNoticesPage })));
+const AdminSettingsPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AdminSettingsPage })));
+
+function RouteFallback() {
+  return (
+    <div className="flex h-[100dvh] items-center justify-center bg-arena-bg" aria-live="polite" aria-busy="true">
+      <span className="sr-only">불러오는 중</span>
+      <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-arena-gold" />
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <>
       <AdvisoryBanner />
       <HashRouter>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         {/* Splash & Auth (No Layout) */}
         <Route path="/" element={<SplashPage />} />
@@ -120,6 +140,7 @@ export default function App() {
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
       </Routes>
+      </Suspense>
     </HashRouter>
     </>
   );

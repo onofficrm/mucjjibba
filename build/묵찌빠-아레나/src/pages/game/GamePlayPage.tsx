@@ -847,25 +847,50 @@ export function GamePlayPage() {
     }
   }, [gameState.phase, isBeginnerMode, matchRules, myPointStreak, oppPointStreak, sealedHand, myRevengeBan]);
 
-  // Timer Logic
+  // Timer Logic — 마감 시각 기준으로 계산해 백그라운드 탭 스로틀링에도 정확하게 유지
   useEffect(() => {
     if ((gameState.phase === 'ATTACK_DECISION' || gameState.phase === 'SELECTING') && !showBeginnerHelp && !showExitModal) {
-      timerRef.current = setInterval(() => {
+      const deadline = Date.now() + Math.max(0, gameState.timeLeft) * 1000;
+      const tick = () => {
         setGameState(prev => {
-          if (prev.timeLeft <= 1) {
+          const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+          if (remaining <= 0) {
             if (!prev.myHand) {
               handleHandSelect(getRandomHand(), true);
             }
             return { ...prev, timeLeft: 0 };
           }
-          return { ...prev, timeLeft: prev.timeLeft - 1 };
+          if (remaining === prev.timeLeft) return prev;
+          return { ...prev, timeLeft: remaining };
         });
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
+      };
+      timerRef.current = setInterval(tick, 500);
+      // 앱 전환 후 복귀 시 즉시 보정 (스로틀된 interval 대기 없이)
+      const onVisible = () => { if (!document.hidden) tick(); };
+      document.addEventListener('visibilitychange', onVisible);
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        document.removeEventListener('visibilitychange', onVisible);
+      };
     }
+    if (timerRef.current) clearInterval(timerRef.current);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [gameState.phase, gameState.myHand, showBeginnerHelp, showExitModal]);
+
+  // 경기 진행 중 새로고침·탭 종료 시 이탈 확인
+  useEffect(() => {
+    const inMatch =
+      gameState.phase !== 'GAME_OVER' &&
+      gameState.phase !== 'VS_INTRO' &&
+      gameState.phase !== 'RULE_CARD';
+    if (!inMatch || isBeginnerMode) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [gameState.phase, isBeginnerMode]);
 
   const banOpts = () => ({
     sealed: usesHandSeal(matchRules) ? sealedHand : null,
@@ -1909,17 +1934,19 @@ export function GamePlayPage() {
                   <span>연결 상태</span>
                   <ConnectionBadge status={connStatus} />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('medium');
-                    socketRef.current.simulateDisconnect?.();
-                    setShowInfo(false);
-                  }}
-                  className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-gray-300 hover:text-white"
-                >
-                  연결 끊김 시뮬레이션 (Mock)
-                </button>
+                {import.meta.env.DEV && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('medium');
+                      socketRef.current.simulateDisconnect?.();
+                      setShowInfo(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-gray-300 hover:text-white"
+                  >
+                    연결 끊김 시뮬레이션 (Mock)
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {

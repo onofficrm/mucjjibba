@@ -11,6 +11,10 @@ export class RealGameSocketAdapter implements GameSocketAdapter {
   private ws: WebSocket | null = null;
   private listeners: { [K in keyof SocketEventMap]?: Set<Handler<SocketEventMap[K]>> } = {};
   private gameId = '';
+  private manualClose = false;
+  private reconnectAttempts = 0;
+  private reconnectTimer: number | null = null;
+  private readonly maxReconnectAttempts = 6;
 
   constructor(private readonly url = (import.meta as any).env?.VITE_GAME_WS_URL as string | undefined) {}
 
@@ -38,6 +42,7 @@ export class RealGameSocketAdapter implements GameSocketAdapter {
 
   async connect(gameId: string): Promise<void> {
     this.gameId = gameId;
+    this.manualClose = false;
     if (!this.url) {
       this.setStatus('failed');
       this.emit('error', 'VITE_GAME_WS_URL 미설정 — RealGameSocketAdapter 사용 불가');
@@ -48,12 +53,22 @@ export class RealGameSocketAdapter implements GameSocketAdapter {
       try {
         this.ws = new WebSocket(`${this.url}?gameId=${encodeURIComponent(gameId)}`);
         this.ws.onopen = () => {
+          const wasReconnecting = this.reconnectAttempts > 0;
+          this.reconnectAttempts = 0;
           this.setStatus('connected');
+          // 재연결 성공 시 최신 상태로 재동기화
+          if (wasReconnecting) {
+            void this.requestSnapshot().catch(() => {
+              /* 스냅샷 실패는 다음 이벤트에서 복구 */
+            });
+          }
           resolve();
         };
-        this.ws.onclose = () => this.setStatus('disconnected');
+        this.ws.onclose = () => {
+          this.setStatus('disconnected');
+          this.scheduleReconnect();
+        };
         this.ws.onerror = () => {
-          this.setStatus('failed');
           this.emit('error', 'WebSocket 연결 실패');
           reject(new Error('ws error'));
         };
@@ -72,7 +87,34 @@ export class RealGameSocketAdapter implements GameSocketAdapter {
     });
   }
 
+  private scheduleReconnect(): void {
+    if (this.manualClose || !this.url) return;
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.setStatus('failed');
+      this.emit('error', '재연결 시도 횟수를 초과했습니다.');
+      return;
+    }
+    if (this.reconnectTimer !== null) return;
+    const attempt = this.reconnectAttempts++;
+    // 지수 백오프 + 지터 (0.5s → 최대 8s)
+    const base = Math.min(8000, 500 * 2 ** attempt);
+    const delay = base + Math.random() * 300;
+    this.setStatus('reconnecting');
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectTimer = null;
+      void this.connect(this.gameId).catch(() => {
+        this.scheduleReconnect();
+      });
+    }, delay);
+  }
+
   disconnect(): void {
+    this.manualClose = true;
+    if (this.reconnectTimer !== null) {
+      window.clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempts = 0;
     this.ws?.close();
     this.ws = null;
     this.setStatus('disconnected');

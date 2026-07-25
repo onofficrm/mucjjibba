@@ -734,6 +734,8 @@ export function BattleDuelStage({
                 type="button"
                 disabled={!canPress}
                 onClick={() => onSelectHand(hand)}
+                aria-label={`${HAND_KO[hand]} 선택${banned ? ' (사용 불가)' : ''}`}
+                aria-pressed={selected}
                 whileTap={canPress && !reduceMotion ? { scale: 0.92, y: 4 } : undefined}
                 animate={
                   !reduceMotion && canPress

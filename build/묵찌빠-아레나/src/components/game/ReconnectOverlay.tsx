@@ -31,6 +31,9 @@ export function ReconnectOverlay({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="absolute inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
+          role="alertdialog"
+          aria-live="assertive"
+          aria-label={LABELS[status]}
         >
           <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-gray-900 p-5 text-center">
             <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white/5 flex items-center justify-center">
@@ -47,6 +50,7 @@ export function ReconnectOverlay({
             {status === 'failed' && onRetry && (
               <button
                 onClick={onRetry}
+                aria-label="다시 시도"
                 className="w-full py-3 rounded-xl bg-arena-cyan text-black text-xs font-black"
               >
                 다시 시도
@@ -67,8 +71,12 @@ export function ConnectionBadge({ status }: { status: ConnectionStatus }) {
         ? 'bg-arena-error'
         : 'bg-arena-warning';
   return (
-    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-gray-300">
-      <span className={`w-1.5 h-1.5 rounded-full ${color}`} />
+    <span
+      className="inline-flex items-center gap-1.5 text-[10px] font-bold text-gray-300"
+      role="status"
+      aria-live="polite"
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${color}`} aria-hidden="true" />
       {LABELS[status]}
     </span>
   );
