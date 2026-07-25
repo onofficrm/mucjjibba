@@ -9,6 +9,8 @@ import { DEMO_USER } from '@/data/demoData';
 import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { MATCH_TABLES, canEnterTable, type MatchTable } from '@/types/match';
 import { matchmakingService } from '@/services/matchmakingService';
+import { HostessAvatar, HostessBanner } from '@/components/casino/HostessAvatar';
+import { HOSTESS } from '@/data/hostessAssets';
 
 export function TableSelectPage() {
   const navigate = useNavigate();
@@ -68,8 +70,17 @@ export function TableSelectPage() {
 
   return (
     <div className="h-full flex flex-col relative font-sans overflow-hidden bg-arena-bg pb-16 md:pb-8">
+      <div className="absolute inset-0 pointer-events-none opacity-25">
+        <img
+          src={HOSTESS.table}
+          alt=""
+          className="absolute right-0 bottom-0 h-[55%] w-auto object-cover object-top"
+          draggable={false}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-arena-bg via-arena-bg/90 to-transparent" />
+      </div>
       <div className="relative z-10 flex flex-col p-4">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <button
             type="button"
             onClick={() => {
@@ -81,6 +92,7 @@ export function TableSelectPage() {
             <ChevronLeft className="w-8 h-8" />
           </button>
           <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-full px-4 py-1.5 shadow-lg">
+            <HostessAvatar role="table" size="xs" ring={false} />
             <span className="text-xs text-gray-400 font-bold">보유 포인트</span>
             <span className="text-sm font-black text-white">
               {wallet.points.toLocaleString()} <span className="text-arena-gold text-xs">P</span>
@@ -88,7 +100,9 @@ export function TableSelectPage() {
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center space-y-2 mt-4 transition-all h-24">
+        <HostessBanner role="table" heightClass="h-20 md:h-28" className="mb-3 border border-white/10" />
+
+        <div className="flex flex-col items-center justify-center space-y-2 mt-2 transition-all h-24">
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedTable.id}

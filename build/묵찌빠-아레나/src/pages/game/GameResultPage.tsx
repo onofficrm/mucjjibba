@@ -211,7 +211,7 @@ export function GameResultPage() {
               : 'bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05)_0%,_rgba(0,0,0,1)_80%)]'
       }`} />
 
-      <HostessBackdrop role={isWin ? 'victory' : 'dealer'} opacity={isWin ? 0.38 : 0.18} />
+      <HostessBackdrop role={isWin ? 'jackpot' : 'comfort'} opacity={isWin ? 0.38 : 0.22} />
       {isWin && <VegasSpotlight active intense={winTier.intensity >= 2} />}
       {isWin && <CoinBurst intensity={winTier.intensity} active />}
 
@@ -241,7 +241,7 @@ export function GameResultPage() {
         >
           {isWin ? (
             <>
-              <HostessAvatar role="victory" size="xl" pulse className="mb-3" />
+              <HostessAvatar role={isWin ? 'jackpot' : 'comfort'} size="xl" pulse className="mb-3" />
               <WinTierBanner info={winTier} />
               <ChaseLightTitle>
                 <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-600 drop-shadow-[0_0_20px_rgba(245,158,11,0.8)] tracking-widest">

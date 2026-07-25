@@ -11,6 +11,8 @@ import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { matchmakingService } from '@/services/matchmakingService';
 import { loadMatchSession } from '@/services/match/matchSession';
 import type { MatchOpponent, MatchTable } from '@/types/match';
+import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
+import { HOSTESS } from '@/data/hostessAssets';
 
 const CANDIDATES = ['🦊', '🐻', '🐼', '🐯', '🦁', '🐸', '🐵', '🦉', '🐺', '🐗'];
 
@@ -148,10 +150,11 @@ export function RealtimeMatchingPage() {
 
   return (
     <div className="min-h-screen bg-arena-bg flex flex-col relative font-sans text-white overflow-hidden pb-safe">
+      <HostessBackdrop role="match" opacity={0.2} />
       <div
         className={`absolute inset-0 pointer-events-none transition-colors duration-1000 ${
           matchState === 'searching'
-            ? 'bg-arena-bg'
+            ? 'bg-arena-bg/40'
             : matchState === 'failed'
               ? 'bg-arena-error/10'
               : matchState === 'found'
@@ -175,6 +178,7 @@ export function RealtimeMatchingPage() {
               {matchState === 'searching' && (
                 <>
                   <h2 className="text-3xl font-black tracking-tight flex items-center justify-center gap-2">
+                    <HostessAvatar role="match" size="sm" pulse />
                     상대 찾는 중<span className="animate-pulse">...</span>
                   </h2>
                   <div className="text-arena-text-muted font-mono bg-white/5 rounded-full px-4 py-1 inline-block border border-white/5">
@@ -258,16 +262,24 @@ export function RealtimeMatchingPage() {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 40, opacity: 0.5 }}
                     transition={{ duration: 0.1 }}
-                    className="absolute"
+                    className="absolute inset-0"
                   >
-                    {currentCandidate}
+                    <img
+                      src={HOSTESS.match}
+                      alt=""
+                      className="w-full h-full object-cover object-top opacity-80"
+                      draggable={false}
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center text-3xl drop-shadow-lg">
+                      {currentCandidate}
+                    </span>
                   </motion.div>
                 ) : (
                   <motion.div
                     key="found"
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="relative z-10"
+                    className="relative z-10 text-4xl"
                   >
                     {opponent?.avatar ?? '👻'}
                   </motion.div>

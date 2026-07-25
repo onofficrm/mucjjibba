@@ -345,7 +345,7 @@ export function LobbyPage() {
             {/* Left: banner + featured */}
             <div className="lg:col-span-7 xl:col-span-8 space-y-4">
               <HostessBanner
-                role="play"
+                role="arena"
                 heightClass="h-28 md:h-44"
                 className="border border-arena-gold/30 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
               />

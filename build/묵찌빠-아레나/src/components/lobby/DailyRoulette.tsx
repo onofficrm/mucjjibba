@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Gift, Sparkles, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { PrimaryButton, SecondaryButton } from '@/components/common/Buttons';
 import { CoinBurst } from '@/components/casino/CoinBurst';
+import { HostessAvatar, HostessBanner } from '@/components/casino/HostessAvatar';
 import { triggerHaptic } from '@/utils/haptics';
 import { audioManager } from '@/utils/audio';
 import { applyRouletteReward } from '@/utils/demoWallet';
@@ -154,9 +155,11 @@ export function DailyRoulette() {
           >
             {burst && <CoinBurst />}
 
+            <HostessBanner role="roulette" heightClass="h-24" className="mb-4 border border-arena-gold/30" />
+
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-black text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-arena-gold" /> 일일 출석 룰렛
+                <HostessAvatar role="roulette" size="sm" /> 일일 출석 룰렛
               </h3>
               <button
                 type="button"
@@ -283,7 +286,7 @@ export function DailyRoulette() {
             : 'bg-arena-gold/15 border-arena-gold/40 text-arena-gold animate-pulse'
         }`}
       >
-        <Gift className="w-3.5 h-3.5" />
+        <HostessAvatar role="roulette" size="xs" ring={false} />
         {done ? '출석 완료' : '출석 룰렛'}
       </button>
       {typeof document !== 'undefined' ? modal : null}

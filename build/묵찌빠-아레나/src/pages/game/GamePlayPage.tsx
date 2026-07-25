@@ -27,7 +27,7 @@ import { getRankingService } from '@/services/ranking';
 import { RevealTension, LastRoundNeon } from '@/components/casino/RevealTension';
 import { StreakScreenFrame } from '@/components/casino/StreakAura';
 import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
-import { hostessByIndex } from '@/data/hostessAssets';
+import { hostessForHand } from '@/data/hostessAssets';
 import { ActionCue, FirstPlayCoach } from '@/components/game/ActionCue';
 import {
   saveLastPlayPath,
@@ -764,7 +764,7 @@ export function GamePlayPage() {
           ? 'bg-[radial-gradient(circle_at_center,_rgba(40,0,0,1)_0%,_rgba(0,0,0,1)_100%)]' 
           : 'bg-[radial-gradient(circle_at_center,_rgba(24,24,27,1)_0%,_rgba(0,0,0,1)_100%)]'
       }`} />
-      <HostessBackdrop role="play" opacity={0.16} />
+      <HostessBackdrop role="arena" opacity={0.16} />
       
       {/* Background Particles (Fancy only) */}
       {gameSettings.options.performanceMode === 'fancy' && (
@@ -1046,7 +1046,7 @@ export function GamePlayPage() {
               markFirstGuideDone();
             }}
           />
-          {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand, hi) => {
+          {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand) => {
             const isSelected = gameState.myHand === hand;
             const canSelect = canPickNow;
             const isRecommend =
@@ -1072,10 +1072,10 @@ export function GamePlayPage() {
                 }`}
               >
                 <img
-                  src={hostessByIndex(hi)}
+                  src={hostessForHand(hand)}
                   alt=""
                   className={`absolute inset-0 w-full h-full object-cover object-top pointer-events-none ${
-                    canSelect ? 'opacity-40' : 'opacity-15'
+                    canSelect ? 'opacity-45' : 'opacity-15'
                   }`}
                   draggable={false}
                 />
@@ -1128,7 +1128,7 @@ export function GamePlayPage() {
             >
               {gameState.winner === 'ME' ? (
                 <>
-                  <HostessAvatar role="victory" size="xl" pulse className="mb-4" />
+                  <HostessAvatar role="jackpot" size="xl" pulse className="mb-4" />
                   <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_20px_rgba(245,158,11,0.8)] mb-2">
                     VICTORY
                   </h1>

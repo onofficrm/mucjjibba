@@ -90,7 +90,7 @@ export function VsIntro({
         } flex items-center justify-center text-4xl sm:text-5xl overflow-hidden shrink-0`}
       >
         <img
-          src={isMe ? HOSTESS.play : HOSTESS.dealer}
+          src={isMe ? HOSTESS.play : HOSTESS.spectate}
           alt=""
           className="absolute inset-0 w-full h-full object-cover object-top opacity-55"
           draggable={false}

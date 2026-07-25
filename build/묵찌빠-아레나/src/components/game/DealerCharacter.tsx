@@ -14,11 +14,11 @@ interface DealerCharacterProps {
 const STATE_ROLE: Record<DealerState, HostessRole> = {
   idle: 'dealer',
   start: 'play',
-  ask_select: 'icon',
-  surprise: 'lobby',
-  congrats: 'victory',
-  comfort: 'dealer',
-  error: 'icon',
+  ask_select: 'match',
+  surprise: 'arena',
+  congrats: 'jackpot',
+  comfort: 'comfort',
+  error: 'spectate',
 };
 
 export function DealerCharacter({ state, message, reducedAnimations = false }: DealerCharacterProps) {

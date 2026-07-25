@@ -11,6 +11,7 @@ import { triggerHaptic } from '@/utils/haptics';
 import { audioManager } from '@/utils/audio';
 import { DEMO_USER } from '@/data/demoData';
 import { trackMission } from '@/services/mission';
+import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type GamePhase = 'INIT' | 'SELECTING' | 'REVEAL' | 'END';
@@ -198,9 +199,10 @@ export function SpectatePage() {
   };
 
   return (
-    <div className="h-full bg-black text-white flex flex-col font-sans overflow-hidden">
+    <div className="h-full bg-black text-white flex flex-col font-sans overflow-hidden relative">
       
       {/* Background Ambience */}
+      <HostessBackdrop role="spectate" opacity={0.18} />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.05)_0%,_rgba(0,0,0,1)_80%)] pointer-events-none" />
 
       {/* Top Bar */}

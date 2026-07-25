@@ -269,11 +269,11 @@ export function Layout() {
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="relative w-full max-w-md bg-arena-card border border-white/10 rounded-3xl p-6 shadow-2xl pb-8 overflow-hidden"
             >
-              <img src={hostessByIndex(1)} alt="" className="absolute right-0 top-0 h-40 w-28 object-cover object-top opacity-25 pointer-events-none" draggable={false} />
+              <img src={hostessByIndex(8)} alt="" className="absolute right-0 top-0 h-40 w-28 object-cover object-top opacity-25 pointer-events-none" draggable={false} />
               <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6 sm:hidden" />
               <div className="flex justify-between items-center mb-6 relative z-10">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <HostessAvatar role="play" size="sm" /> 게임 선택
+                  <HostessAvatar role="match" size="sm" /> 게임 선택
                 </h2>
                 <button onClick={() => setIsGameSelectOpen(false)} className="text-gray-400 hover:text-white p-2">
                   <X className="w-6 h-6" />
@@ -285,7 +285,7 @@ export function Layout() {
                   title="초보자 빠른 시작"
                   subtitle="안전한 입문 테이블"
                   tone="mint"
-                  hostessIndex={0}
+                  hostessIndex={12}
                   chips={[{ label: '무료' }, { label: '튜토리얼' }]}
                   delayIndex={0}
                   onClick={() => { setIsGameSelectOpen(false); navigate('/tutorial'); }}
@@ -294,7 +294,7 @@ export function Layout() {
                   title="일반 빠른 대전"
                   subtitle="실력에 맞는 상대 찾기"
                   tone="cyan"
-                  hostessIndex={1}
+                  hostessIndex={8}
                   chips={[{ label: '+WP' }, { label: '랭킹 반영' }]}
                   delayIndex={1}
                   onClick={() => { setIsGameSelectOpen(false); navigate('/match/tables'); }}
@@ -303,7 +303,7 @@ export function Layout() {
                   title="연승 아레나"
                   subtitle="최고 8연승 도전"
                   tone="gold"
-                  hostessIndex={2}
+                  hostessIndex={14}
                   chips={[{ label: '8연승' }, { label: 'WP x2.0' }]}
                   hot
                   featured
@@ -314,7 +314,7 @@ export function Layout() {
                   title="친구 대전"
                   subtitle="비공개 방 만들기"
                   tone="purple"
-                  hostessIndex={3}
+                  hostessIndex={10}
                   chips={[{ label: '초대 코드' }, { label: '관전' }]}
                   delayIndex={3}
                   onClick={() => { setIsGameSelectOpen(false); navigate('/match/friend'); }}
@@ -323,7 +323,7 @@ export function Layout() {
                   title="무료 연습"
                   subtitle="포인트 차감 없음"
                   tone="silver"
-                  hostessIndex={4}
+                  hostessIndex={5}
                   chips={[{ label: '무료' }]}
                   delayIndex={4}
                   onClick={() => { setIsGameSelectOpen(false); navigate('/match/tables'); }}
