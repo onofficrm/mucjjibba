@@ -159,6 +159,7 @@ function StageHandDuel({
   flyHand,
   skinId = 'classic',
   comboHits = 0,
+  timerLimit = 8,
 }: {
   myHand: Hand | null;
   opponentHand: Hand | null;
@@ -169,6 +170,7 @@ function StageHandDuel({
   flyHand: Hand | null;
   skinId?: string;
   comboHits?: number;
+  timerLimit?: number;
 }) {
   const reduceMotion = gameSettings.options.performanceMode === 'low';
   const reveal = phase === 'REVEAL' || phase === 'ROUND_RESULT';
@@ -182,8 +184,9 @@ function StageHandDuel({
         : '?';
 
   const clash = reveal && !!myHand && !!opponentHand;
-  const timerPct = Math.max(0, Math.min(1, timeLeft / 5));
-  const ringColor = timeLeft <= 3 ? '#ef4444' : '#f59e0b';
+  const limit = Math.max(1, timerLimit);
+  const timerPct = Math.max(0, Math.min(1, timeLeft / limit));
+  const ringColor = timeLeft <= Math.min(3, Math.ceil(limit * 0.4)) ? '#ef4444' : '#f59e0b';
 
   const handMotion = (hand: Hand, side: 'me' | 'opp') => {
     if (reduceMotion) return {};
@@ -419,6 +422,7 @@ export function BattleDuelStage({
   ruleShortLabel = '3판2승',
   lifeBarMax = 2,
   bannedHands = [],
+  timerLimit = 8,
 }: {
   myName: string;
   myGrade: string;
@@ -456,6 +460,8 @@ export function BattleDuelStage({
   ruleShortLabel?: string;
   lifeBarMax?: number;
   bannedHands?: Hand[];
+  /** 선택 제한 시간(초) — 타이머 링 기준 */
+  timerLimit?: number;
 }) {
   const skinId = handSkinId || gameSettings.options.handSkinId || 'classic';
   const [showKeyGuide, setShowKeyGuide] = useState<boolean>(
@@ -673,6 +679,7 @@ export function BattleDuelStage({
               flyHand={flyHand}
               skinId={skinId}
               comboHits={comboHits}
+              timerLimit={timerLimit}
             />
           </div>
 

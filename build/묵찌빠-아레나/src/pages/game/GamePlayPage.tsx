@@ -47,7 +47,16 @@ import { HandVictoryClash } from '@/components/game/HandVictoryClash';
 import { InGameSettingsModal } from '@/components/game/InGameSettingsModal';
 import { rollJackpotRound } from '@/utils/jackpotRound';
 import { analyzeOpponentPatterns, pickLiveHabitHint } from '@/game/patternStats';
-import { getRevealSchedule, getResultReadMs } from '@/game/combatTiming';
+import {
+  getOpponentThinkMs,
+  getOpeningPickLimit,
+  getPickTimeLimit,
+  getResultReadMs,
+  getRevealSchedule,
+  getRoundStartDelayMs,
+  getToResultDelayMs,
+  resolveCombatPace,
+} from '@/game/combatTiming';
 import { getMatchupKind, getWinningHand } from '@/game/rpsMatchup';
 import {
   applyPointGain,
@@ -277,7 +286,7 @@ export function GamePlayPage() {
       attacker: null,
       myHand: null,
       opponentHand: null,
-      timeLeft: isBeginnerMode ? 15 : 7,
+      timeLeft: getOpeningPickLimit(isBeginnerMode),
       winner: null,
       roundMessage: '준비',
     };
@@ -507,7 +516,12 @@ export function GamePlayPage() {
               matchSession: loadMatchSession(),
             },
           });
-        }, 1600);
+        }, getToResultDelayMs(
+          resolveCombatPace({
+            isSuddenDeath: matchRules.winMode === 'sudden_death',
+            isMatchPoint: true,
+          }),
+        ));
       }
     } else if (
       isMatchPoint(
@@ -547,10 +561,10 @@ export function GamePlayPage() {
         updateState({ 
           phase: 'ATTACK_DECISION', 
           roundMessage: '아래에서 선택',
-          timeLeft: isBeginnerMode ? 10 : 5
+          timeLeft: getPickTimeLimit(isBeginnerMode, 'calm'),
         });
         updateDealer('ask_select', '아래에서 하나를 눌러주세요.');
-      }, 1500);
+      }, getRoundStartDelayMs('calm'));
       return () => clearTimeout(timer);
     }
 
@@ -561,7 +575,6 @@ export function GamePlayPage() {
       if (!leftSnap || !rightSnap) return;
       revealHandsRef.current = { left: leftSnap, right: rightSnap };
 
-      const schedule = getRevealSchedule(isBeginnerMode);
       const mpNow = isMatchPoint(
         matchRules,
         gameState.myScore,
@@ -569,9 +582,14 @@ export function GamePlayPage() {
         myPointStreak,
         oppPointStreak,
       );
+      const pace = resolveCombatPace({
+        isMatchPoint: mpNow,
+        isSuddenDeath: matchRules.winMode === 'sudden_death',
+      });
+      const schedule = getRevealSchedule(isBeginnerMode, pace);
       audioManager.duckBgm(schedule.tensionMs + 200, 0.35);
       audioManager.playSFX('tension_before_reveal', {
-        intensity: (mpNow ? 1.3 : 1) * audioManager.getIntensityBoost(),
+        intensity: (pace === 'urgent' ? 1.3 : 1) * audioManager.getIntensityBoost(),
       });
       if (mpNow) {
         audioManager.playSFX('match_point', { intensity: 0.85 });
@@ -588,7 +606,7 @@ export function GamePlayPage() {
       timers.push(
         window.setTimeout(() => {
           audioManager.playSFX('slot_spin', {
-            intensity: (mpNow ? 1.2 : 1) * audioManager.getIntensityBoost(),
+            intensity: (pace === 'urgent' ? 1.2 : 1) * audioManager.getIntensityBoost(),
           });
         }, schedule.tensionMs),
       );
@@ -607,7 +625,7 @@ export function GamePlayPage() {
               winHand && loseHand ? getMatchupKind(winHand, loseHand) : null;
             if (matchup) {
               audioManager.playClashImpact(matchup, {
-                intensity: (mpNow ? 1.35 : 1.15) * audioManager.getIntensityBoost(),
+                intensity: (pace === 'urgent' ? 1.35 : 1.15) * audioManager.getIntensityBoost(),
               });
             } else {
               // 무승부 튕김
@@ -689,11 +707,15 @@ export function GamePlayPage() {
             revengeBan: usesRevenge(matchRules) ? myRevengeBan : null,
           });
           setRecommendHand(avail[Math.floor(Math.random() * avail.length)] ?? 'ROCK');
+          const nextPace = resolveCombatPace({
+            isMatchPoint: matchPoint,
+            isSuddenDeath: matchRules.winMode === 'sudden_death',
+          });
           updateState({
             phase: 'SELECTING',
             myHand: null,
             opponentHand: null,
-            timeLeft: isBeginnerMode ? 10 : 5,
+            timeLeft: getPickTimeLimit(isBeginnerMode, nextPace),
             roundMessage: matchPoint ? '매치포인트!' : '아래에서 선택',
             round: gameState.round + 1,
           });
@@ -708,6 +730,16 @@ export function GamePlayPage() {
       }, getResultReadMs(
         isBeginnerMode,
         !!(gameState.myHand && gameState.opponentHand && getWinningHand(gameState.myHand, gameState.opponentHand)),
+        resolveCombatPace({
+          isMatchPoint: isMatchPoint(
+            matchRules,
+            gameState.myScore,
+            gameState.opponentScore,
+            myPointStreak,
+            oppPointStreak,
+          ),
+          isSuddenDeath: matchRules.winMode === 'sudden_death',
+        }),
       ));
       return () => clearTimeout(timer);
     }
@@ -770,7 +802,7 @@ export function GamePlayPage() {
       else if (hand === 'SCISSORS') void trackMission('SCISSORS_SELECTED');
       else void trackMission('PAPER_SELECTED');
 
-      const limit = isBeginnerMode ? 10 : 5;
+      const limit = getPickTimeLimit(isBeginnerMode, 'calm');
       logBuilderRef.current?.markSelectStart(gameState.timeLeft, limit);
       pendingSelectMeta.current = logBuilderRef.current?.recordSelect(hand as LogHand) ?? null;
     }
@@ -783,6 +815,17 @@ export function GamePlayPage() {
       updateState({ phase: 'WAITING_OPPONENT', roundMessage: '상대 대기' });
       audioManager.playSFX('lock_select');
       
+      const thinkPace = resolveCombatPace({
+        isMatchPoint: isMatchPoint(
+          matchRules,
+          gameState.myScore,
+          gameState.opponentScore,
+          myPointStreak,
+          oppPointStreak,
+        ),
+        isSuddenDeath: matchRules.winMode === 'sudden_death',
+        timeLeft: gameState.timeLeft,
+      });
       // Simulate opponent selection
       setTimeout(() => {
         audioManager.playSFX('opponent_ready');
@@ -790,7 +833,7 @@ export function GamePlayPage() {
         // Since state updates are async, we handle phase transition here
         updateState({ phase: 'REVEAL', roundMessage: '결과 공개' });
         triggerHaptic('light');
-      }, Math.random() * 1000 + 300);
+      }, getOpponentThinkMs(thinkPace));
     }
   };
 
@@ -821,7 +864,7 @@ export function GamePlayPage() {
       attackerAfter,
       result,
       timeLeftOnSelect: meta?.timeLeftOnSelect ?? gameState.timeLeft,
-      timerLimit: meta?.timerLimit ?? (isBeginnerMode ? 10 : 5),
+      timerLimit: meta?.timerLimit ?? getPickTimeLimit(isBeginnerMode, 'calm'),
       selectDurationMs: meta?.selectDurationMs ?? 0,
       selectedAt: meta?.selectedAt ?? now,
       lockedAt: now,
@@ -861,7 +904,7 @@ export function GamePlayPage() {
           phase: 'ATTACK_DECISION',
           myHand: null,
           opponentHand: null,
-          timeLeft: isBeginnerMode ? 10 : 5,
+          timeLeft: getPickTimeLimit(isBeginnerMode, 'calm'),
           roundMessage: '다시 골라주세요',
         });
         updateDealer('surprise', '비겼어요. 다시 골라주세요.', true);
@@ -904,7 +947,7 @@ export function GamePlayPage() {
           phase: 'SELECTING',
           myHand: null,
           opponentHand: null,
-          timeLeft: isBeginnerMode ? 10 : 5,
+          timeLeft: getPickTimeLimit(isBeginnerMode, 'calm'),
           roundMessage: rpsWinner === 'ME' ? '내 공격 시작' : '상대 공격 시작',
         });
       }
@@ -1063,6 +1106,11 @@ export function GamePlayPage() {
     myPointStreak,
     oppPointStreak,
   );
+  const pickPace = resolveCombatPace({
+    isMatchPoint: !!isLastRound,
+    isSuddenDeath: matchRules.winMode === 'sudden_death',
+  });
+  const pickTimerLimit = getPickTimeLimit(isBeginnerMode, pickPace);
   const isHandBanned = (hand: Hand) =>
     (usesHandSeal(matchRules) && sealedHand === hand) ||
     (usesRevenge(matchRules) && myRevengeBan === hand);
@@ -1087,7 +1135,8 @@ export function GamePlayPage() {
       : null;
 
   const circumference = 2 * Math.PI * 20;
-  const strokeDashoffset = circumference - ((gameState.timeLeft / 5) * circumference);
+  const strokeDashoffset =
+    circumference - (gameState.timeLeft / Math.max(1, pickTimerLimit)) * circumference;
 
   return (
     <div className="h-full min-h-0 bg-black text-white flex flex-col font-sans select-none overflow-hidden relative">
@@ -1160,6 +1209,7 @@ export function GamePlayPage() {
           tableShake={tableShake}
           isSpinning={isSpinning}
           isLastRound={!!isLastRound}
+          timerLimit={pickTimerLimit}
           ruleShortLabel={matchRules.shortLabel}
           lifeBarMax={matchRules.lifeBarMax}
           bannedHands={[

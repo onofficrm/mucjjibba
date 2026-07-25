@@ -42,36 +42,46 @@ export function VsIntro({
       if (!muteAudio) audioManager.playSFX(sfx as any);
     };
 
-    const timers = [
-      setTimeout(() => setStep(1), 500),
-      setTimeout(() => {
-        setStep(2);
-        playSound('menu_open');
-      }, 1000),
-      setTimeout(() => {
-        setStep(3);
-        playSound('countdown_3');
-        triggerHaptic('light');
-      }, 1500),
-      setTimeout(() => {
-        setStep(4);
-        playSound('countdown_3');
-        triggerHaptic('light');
-      }, 2000),
-      setTimeout(() => {
-        setStep(5);
-        playSound('countdown_3');
-        triggerHaptic('light');
-      }, 2500),
-      setTimeout(() => {
-        playSound('start_sfx');
-        triggerHaptic('heavy');
-        onComplete();
-      }, 3000),
-    ];
+    const timers = reduceAnimations
+      ? [
+          setTimeout(() => setStep(1), 200),
+          setTimeout(() => {
+            setStep(5);
+            playSound('start_sfx');
+            triggerHaptic('heavy');
+            onComplete();
+          }, 700),
+        ]
+      : [
+          setTimeout(() => setStep(1), 650),
+          setTimeout(() => {
+            setStep(2);
+            playSound('menu_open');
+          }, 1300),
+          setTimeout(() => {
+            setStep(3);
+            playSound('countdown_3');
+            triggerHaptic('light');
+          }, 2000),
+          setTimeout(() => {
+            setStep(4);
+            playSound('countdown_3');
+            triggerHaptic('light');
+          }, 2600),
+          setTimeout(() => {
+            setStep(5);
+            playSound('countdown_3');
+            triggerHaptic('light');
+          }, 3200),
+          setTimeout(() => {
+            playSound('start_sfx');
+            triggerHaptic('heavy');
+            onComplete();
+          }, 3800),
+        ];
 
     return () => timers.forEach(clearTimeout);
-  }, [onComplete, muteAudio]);
+  }, [onComplete, muteAudio, reduceAnimations]);
 
   const PlayerCard = ({ info, isMe }: { info: PlayerInfo; isMe: boolean }) => (
     <motion.div

@@ -1,28 +1,51 @@
 import { VICTORY_CLASH_MS } from '@/game/rpsMatchup';
 
-/** 전투 연출 시간 토큰 — 선택→잠금→긴장→공개→판정→다음 */
+/**
+ * 전투 연출 템포
+ * - calm: 기본 — 여유 있게 읽고 반응할 수 있는 호흡
+ * - urgent: 매치포인트·한판승부·시간 압박 등 — 빠르게 전개
+ */
 
+export type CombatPace = 'calm' | 'urgent';
+
+const CALM = {
+  lockHoldMs: 320,
+  tensionMs: 700,
+  revealSpinMs: 1250,
+  snapMs: 200,
+  clashHoldMs: VICTORY_CLASH_MS + 220,
+  replayDelayMs: 260,
+  resultReadMs: 2100,
+  beginnerResultReadMs: 2900,
+  cameraPunchMs: 480,
+  /** 라운드 시작 / VS 이후 첫 선택까지 */
+  roundStartMs: 2000,
+  /** 게임 종료 → 결과 화면 */
+  toResultMs: 2000,
+} as const;
+
+const URGENT = {
+  lockHoldMs: 180,
+  tensionMs: 320,
+  revealSpinMs: 720,
+  snapMs: 140,
+  clashHoldMs: VICTORY_CLASH_MS + 80,
+  replayDelayMs: 140,
+  resultReadMs: 1100,
+  beginnerResultReadMs: 1600,
+  cameraPunchMs: 320,
+  roundStartMs: 900,
+  toResultMs: 1200,
+} as const;
+
+/** 하위 호환 — 기본(calm) 값 */
 export const COMBAT_TIMING = {
-  /** 손 잠금 연출 */
-  lockHoldMs: 220,
-  /** 공개 직전 긴장(슬로모) */
-  tensionMs: 400,
-  /** 손이 흔들리며 대기하는 공개 전 스핀 */
-  revealSpinMs: 900,
-  /** 스냅 플래시 */
-  snapMs: 160,
-  /** 충돌 후 판정까지 홀드 — 전체화면 승부 영상(VICTORY_CLASH_MS)이 끝난 뒤 판정 */
-  clashHoldMs: VICTORY_CLASH_MS + 120,
-  /** 미니 리플레이 / 승부 연출 지연(스냅 후) */
-  replayDelayMs: 180,
-  /** 판정 문구 읽는 시간 */
-  resultReadMs: 1400,
-  beginnerResultReadMs: 2400,
-  /** 카메라 줌 펀치 */
-  cameraPunchMs: 420,
+  ...CALM,
+  urgent: URGENT,
 } as const;
 
 export type RevealSchedule = {
+  pace: CombatPace;
   tensionMs: number;
   snapAtMs: number;
   replayAtMs: number;
@@ -30,11 +53,34 @@ export type RevealSchedule = {
   snapClearMs: number;
 };
 
-export function getRevealSchedule(isBeginner: boolean): RevealSchedule {
-  const t = COMBAT_TIMING;
-  const spin = isBeginner ? t.revealSpinMs + 200 : t.revealSpinMs;
+export function resolveCombatPace(opts: {
+  isMatchPoint?: boolean;
+  isSuddenDeath?: boolean;
+  timeLeft?: number;
+  forceUrgent?: boolean;
+}): CombatPace {
+  if (opts.forceUrgent) return 'urgent';
+  if (opts.isSuddenDeath) return 'urgent';
+  if (opts.isMatchPoint) return 'urgent';
+  if (typeof opts.timeLeft === 'number' && opts.timeLeft > 0 && opts.timeLeft <= 2) {
+    return 'urgent';
+  }
+  return 'calm';
+}
+
+function pack(pace: CombatPace) {
+  return pace === 'urgent' ? URGENT : CALM;
+}
+
+export function getRevealSchedule(
+  isBeginner: boolean,
+  pace: CombatPace = 'calm',
+): RevealSchedule {
+  const t = pack(pace);
+  const spin = isBeginner && pace === 'calm' ? t.revealSpinMs + 250 : t.revealSpinMs;
   const snapAtMs = t.tensionMs + spin;
   return {
+    pace,
     tensionMs: t.tensionMs,
     snapAtMs,
     replayAtMs: snapAtMs + t.replayDelayMs,
@@ -43,7 +89,38 @@ export function getRevealSchedule(isBeginner: boolean): RevealSchedule {
   };
 }
 
-export function getResultReadMs(isBeginner: boolean, hasMatchupClash = false): number {
-  const base = isBeginner ? COMBAT_TIMING.beginnerResultReadMs : COMBAT_TIMING.resultReadMs;
-  return hasMatchupClash ? base + 400 : base;
+export function getResultReadMs(
+  isBeginner: boolean,
+  hasMatchupClash = false,
+  pace: CombatPace = 'calm',
+): number {
+  const t = pack(pace);
+  const base = isBeginner ? t.beginnerResultReadMs : t.resultReadMs;
+  const clashExtra = pace === 'urgent' ? 200 : hasMatchupClash ? 500 : 0;
+  return base + clashExtra;
+}
+
+/** 선택 제한 시간(초) — 여유롭게, 긴박 시에만 짧게 */
+export function getPickTimeLimit(isBeginner: boolean, pace: CombatPace = 'calm'): number {
+  if (pace === 'urgent') return isBeginner ? 8 : 5;
+  return isBeginner ? 12 : 8;
+}
+
+/** 첫 라운드(INIT) 타이머 */
+export function getOpeningPickLimit(isBeginner: boolean): number {
+  return isBeginner ? 16 : 9;
+}
+
+export function getRoundStartDelayMs(pace: CombatPace = 'calm'): number {
+  return pack(pace).roundStartMs;
+}
+
+export function getToResultDelayMs(pace: CombatPace = 'calm'): number {
+  return pack(pace).toResultMs;
+}
+
+/** 상대 AI 생각 시간 — 평소 여유, 긴박 시 즉시감 */
+export function getOpponentThinkMs(pace: CombatPace = 'calm'): number {
+  if (pace === 'urgent') return 180 + Math.random() * 420;
+  return 750 + Math.random() * 1200;
 }
