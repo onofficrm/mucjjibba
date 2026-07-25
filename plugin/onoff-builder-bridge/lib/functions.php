@@ -704,6 +704,40 @@ if (!function_exists('onoff_builder_rewrite_asset_paths')) {
     }
 }
 
+/**
+ * Vite 번들 내부 `/assets/...` 문자열용 런타임 베이스 URL 주입
+ * (HTML src/href 재작성만으로는 JS import 이미지 경로가 깨짐)
+ */
+if (!function_exists('onoff_builder_inject_asset_base')) {
+    function onoff_builder_inject_asset_base($html, $project_id)
+    {
+        $id = onoff_builder_sanitize_project_id($project_id);
+        if ($id === '' || strpos($html, '__ONOFF_ASSET_BASE__') !== false) {
+            return $html;
+        }
+
+        $root_assets = onoff_builder_get_import_root_assets_url($id);
+        $script = '<script>window.__ONOFF_ASSET_BASE__=' . json_encode($root_assets) . ';</script>';
+
+        $replaced = preg_replace(
+            '#(<script[^>]+type=["\']module["\'][^>]*>)#i',
+            $script . '$1',
+            $html,
+            1,
+            $count
+        );
+        if ($count > 0 && is_string($replaced)) {
+            return $replaced;
+        }
+
+        if (stripos($html, '</head>') !== false) {
+            return str_ireplace('</head>', $script . '</head>', $html);
+        }
+
+        return $script . $html;
+    }
+}
+
 if (!function_exists('onoff_builder_resolve_import_index_file')) {
     function onoff_builder_resolve_import_index_file($id, $entry_path)
     {
@@ -782,6 +816,7 @@ if (!function_exists('onoff_builder_render_import_page')) {
 
         $html = onoff_builder_remove_base_tags($html);
         $html = onoff_builder_rewrite_asset_paths($html, $id, $entry);
+        $html = onoff_builder_inject_asset_base($html, $id);
 
         header('Content-Type: text/html; charset=utf-8');
         echo $html;

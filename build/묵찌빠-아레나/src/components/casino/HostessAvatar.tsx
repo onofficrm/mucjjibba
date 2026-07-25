@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { HOSTESS, hostessByIndex, type HostessRole } from '@/data/hostessAssets';
+import { resolveAssetUrl } from '@/utils/assetUrl';
 
 type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'hero';
 
@@ -29,7 +30,7 @@ export function HostessAvatar({
   pulse?: boolean;
   alt?: string;
 }) {
-  const src = index !== undefined ? hostessByIndex(index) : HOSTESS[role];
+  const src = resolveAssetUrl(index !== undefined ? hostessByIndex(index) : HOSTESS[role]);
 
   return (
     <motion.span
@@ -60,7 +61,7 @@ export function HostessBackdrop({
       aria-hidden
     >
       <img
-        src={HOSTESS[role]}
+        src={resolveAssetUrl(HOSTESS[role])}
         alt=""
         className="absolute right-[-8%] bottom-0 h-[78%] w-auto max-w-none object-cover object-top select-none"
         style={{ opacity }}
@@ -85,7 +86,7 @@ export function HostessBanner({
   return (
     <div className={`relative overflow-hidden rounded-2xl ${heightClass} ${className}`}>
       <img
-        src={HOSTESS[role]}
+        src={resolveAssetUrl(HOSTESS[role])}
         alt=""
         className="absolute inset-0 w-full h-full object-cover object-[center_20%]"
         draggable={false}

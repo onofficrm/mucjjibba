@@ -272,13 +272,31 @@ export function GameResultPage() {
                 className="overflow-hidden"
               >
                 <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      triggerHaptic('light');
+                      if (gameLog) navigate(`/replay/${gameLog.gameId}`, { state: { gameLog } });
+                    }}
+                    className="flex items-center gap-2 p-3 rounded-xl bg-black/50 border border-white/5 text-xs font-bold text-gray-300 hover:text-white"
+                  >
+                    <Play className="w-3.5 h-3.5 text-gray-500" /> 리플레이
+                  </button>
+                  <button
+                    onClick={() => {
+                      triggerHaptic('light');
+                      navigate('/match/tables');
+                    }}
+                    className="flex items-center gap-2 p-3 rounded-xl bg-black/50 border border-white/5 text-xs font-bold text-gray-300 hover:text-white"
+                  >
+                    <Search className="w-3.5 h-3.5 text-gray-500" /> 새 상대 찾기
+                  </button>
                   {(
                     [
                       ['settlement', '정산 내역', Zap],
                       ['analysis', '경기 분석', Activity],
                       ['verify', '경기 검증', ShieldAlert],
                       ['report', '신고', XCircle],
-                      ['share', '공유 설정', Share2],
+                      ['share', '공유하기', Share2],
                       ['tech', '기술 연결', Clock],
                     ] as const
                   ).map(([key, label, Icon]) => (
@@ -394,75 +412,35 @@ export function GameResultPage() {
             )}
           </AnimatePresence>
 
-          {/* Primary Action Buttons */}
+          {/* Primary — 한 판 더 / 로비로 */}
           {rematchState === 'idle' && (
             <div className="flex gap-3">
-              {isBeginnerMode ? (
-                <>
-                  <PrimaryButton 
-                    onClick={() => navigate('/match/tables')} 
-                    className="flex-1 py-5 text-lg shadow-[0_0_20px_rgba(34,197,94,0.3)] bg-arena-success hover:bg-emerald-500 border-none flex flex-col items-center justify-center gap-1"
-                  >
-                    실전 대전하기
-                  </PrimaryButton>
-                  <SecondaryButton 
-                    onClick={() => navigate('/lobby')} 
-                    className="flex-1 py-5 text-lg bg-gray-800 hover:bg-gray-700 border-gray-700 flex flex-col items-center justify-center gap-1"
-                  >
-                    로비로 가기
-                  </SecondaryButton>
-                </>
-              ) : (
-                <>
-                  <PrimaryButton 
-                    onClick={handleRequestRematch} 
-                    className={`flex-1 py-5 text-lg shadow-[0_0_20px_rgba(245,158,11,0.2)] flex flex-col items-center justify-center gap-1 ${isWin ? 'bg-arena-gold text-black hover:bg-yellow-500 border-none' : ''}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <RotateCcw className="w-5 h-5" /> 재대결
-                    </div>
-                  </PrimaryButton>
-                  <SecondaryButton 
-                    onClick={() => navigate('/match/tables')} 
-                    className="flex-1 py-5 text-lg bg-gray-800 hover:bg-gray-700 border-gray-700 flex flex-col items-center justify-center gap-1"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Search className="w-5 h-5" /> 새 상대
-                    </div>
-                  </SecondaryButton>
-                </>
-              )}
+              <PrimaryButton
+                onClick={() => {
+                  triggerHaptic('heavy');
+                  if (isBeginnerMode) {
+                    navigate('/game/beginner-ai', { replace: true });
+                  } else {
+                    navigate(`/game/${id || 'quick-start'}`, { replace: true });
+                  }
+                }}
+                className={`flex-1 py-5 text-lg flex items-center justify-center gap-2 ${
+                  isWin ? 'bg-arena-gold text-black hover:bg-yellow-500 border-none shadow-[0_0_20px_rgba(245,158,11,0.25)]' : ''
+                }`}
+              >
+                <RotateCcw className="w-5 h-5" /> 한 판 더
+              </PrimaryButton>
+              <SecondaryButton
+                onClick={() => navigate('/lobby')}
+                className="flex-1 py-5 text-lg bg-gray-800 hover:bg-gray-700 border-gray-700 flex items-center justify-center gap-2"
+              >
+                <Home className="w-5 h-5" /> 로비로
+              </SecondaryButton>
             </div>
           )}
 
-          {/* Secondary — 리플레이 / 공유 / 더보기 / 로비 */}
-          <div className="flex justify-center gap-5 mt-2 pt-4 border-t border-gray-900">
-            <button
-              className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors"
-              onClick={() => {
-                triggerHaptic('light');
-                if (gameLog) {
-                  navigate(`/replay/${gameLog.gameId}`, { state: { gameLog } });
-                }
-              }}
-            >
-              <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center border border-gray-800">
-                <Play className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold">리플레이</span>
-            </button>
-            <button
-              className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors"
-              onClick={() => {
-                triggerHaptic('light');
-                setShowShare(true);
-              }}
-            >
-              <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center border border-gray-800">
-                <Share2 className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold">공유</span>
-            </button>
+          {/* Secondary — 더보기 안에 리플레이·공유·새 상대 */}
+          <div className="flex justify-center gap-6 mt-2 pt-4 border-t border-gray-900">
             <button
               className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors"
               onClick={() => {
@@ -475,12 +453,20 @@ export function GameResultPage() {
               </div>
               <span className="text-[10px] font-bold">더보기</span>
             </button>
-            <button onClick={() => { triggerHaptic('light'); navigate('/lobby'); }} className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors">
-              <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center border border-gray-800">
-                <Home className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold">로비</span>
-            </button>
+            {!isBeginnerMode && (
+              <button
+                className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors"
+                onClick={() => {
+                  triggerHaptic('light');
+                  handleRequestRematch();
+                }}
+              >
+                <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center border border-gray-800">
+                  <Search className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-bold">상대에게 재대결</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

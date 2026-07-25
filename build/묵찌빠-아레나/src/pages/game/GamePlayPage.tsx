@@ -28,6 +28,15 @@ import { RevealTension, LastRoundNeon } from '@/components/casino/RevealTension'
 import { StreakScreenFrame } from '@/components/casino/StreakAura';
 import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
 import { hostessByIndex } from '@/data/hostessAssets';
+import { ActionCue, FirstPlayCoach } from '@/components/game/ActionCue';
+import {
+  saveLastPlayPath,
+  bumpGamesPlayed,
+  markFirstGuideDone,
+  isFirstGuideDone,
+  easyStatusMessage,
+  easyRoundLabel,
+} from '@/utils/playEase';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type PlayerId = 'ME' | 'OPPONENT';
@@ -214,6 +223,13 @@ export function GamePlayPage() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [showImpact, setShowImpact] = useState(false);
   const [tableShake, setTableShake] = useState(false);
+  const [showCoach, setShowCoach] = useState(() => !isFirstGuideDone());
+  const [recommendHand, setRecommendHand] = useState<Hand>('ROCK');
+
+  useEffect(() => {
+    const path = `/game/${id || 'quick-start'}`;
+    saveLastPlayPath(path);
+  }, [id]);
   
   const [myReaction, setMyReaction] = useState<ReactionType | null>(null);
   const [opponentReaction, setOpponentReaction] = useState<ReactionType | null>(null);
@@ -329,6 +345,8 @@ export function GamePlayPage() {
                 mode: isBeginnerMode ? 'PRACTICE' : 'LIVE',
               });
         saveMatchLog(gameLog);
+        bumpGamesPlayed();
+        markFirstGuideDone();
         if (!isBeginnerMode) {
           getRankingService().recordMatchResult(winner === 'ME', winner === 'ME' ? 120 : 40);
         }
@@ -359,12 +377,13 @@ export function GamePlayPage() {
       updateDealer('start', '묵찌빠 대결을 시작합니다.');
       
       const timer = setTimeout(() => {
+        setRecommendHand('ROCK');
         updateState({ 
           phase: 'ATTACK_DECISION', 
-          roundMessage: '선택하세요',
+          roundMessage: '아래에서 선택',
           timeLeft: isBeginnerMode ? 10 : 5
         });
-        updateDealer('ask_select', '하나를 선택하세요.');
+        updateDealer('ask_select', '아래에서 하나를 눌러주세요.');
       }, 1500);
       return () => clearTimeout(timer);
     }
@@ -417,18 +436,19 @@ export function GamePlayPage() {
           }
         } else {
           const isFinalRound = gameState.myScore === 1 && gameState.opponentScore === 1;
+          setRecommendHand(ALL_HANDS[Math.floor(Math.random() * 3)]);
           updateState({ 
             phase: 'SELECTING', 
             myHand: null, 
             opponentHand: null, 
             timeLeft: isBeginnerMode ? 10 : 5,
-            roundMessage: '선택하세요',
+            roundMessage: isFinalRound ? '마지막 판!' : '아래에서 선택',
             round: gameState.round + 1
           });
           if (isFinalRound) {
-            updateDealer('surprise', '승부를 결정할 마지막 라운드입니다!');
+            updateDealer('surprise', '마지막 판이에요! 아래에서 골라주세요.');
           } else {
-            updateDealer('ask_select', '하나를 선택하세요.');
+            updateDealer('ask_select', '아래에서 하나를 눌러주세요.');
           }
         }
       }, isBeginnerMode ? 2500 : 1000); // 2.5 sec for beginners to read result
@@ -505,6 +525,10 @@ export function GamePlayPage() {
 
   const handleHandSelect = (hand: Hand, auto = false) => {
     if (gameState.phase !== 'ATTACK_DECISION' && gameState.phase !== 'SELECTING') return;
+    if (showCoach) {
+      setShowCoach(false);
+      markFirstGuideDone();
+    }
     if (gameState.myHand) return;
     
     if (!auto) {
@@ -574,30 +598,32 @@ export function GamePlayPage() {
       if (rpsWinner === null) {
         audioManager.playSFX('game_void');
         appendRoundLog('DRAW_RPS', null, null);
+        setRecommendHand(ALL_HANDS[Math.floor(Math.random() * 3)]);
         updateState({ 
           phase: 'ATTACK_DECISION', 
           myHand: null, 
           opponentHand: null, 
           timeLeft: isBeginnerMode ? 10 : 5,
-          roundMessage: '선택하세요' 
+          roundMessage: '다시 골라주세요' 
         });
-        updateDealer('surprise', '비겼습니다. 다시 선택하세요.', true);
+        updateDealer('surprise', '비겼어요. 다시 골라주세요.', true);
       } else {
         let message = '';
         if (rpsWinner === 'ME') {
           audioManager.playSFX('attack_get');
-          message = '공격권을 가져왔습니다.';
+          message = '내 공격이에요! 같은 손을 내면 이겨요.';
         } else {
           audioManager.playSFX('attack_fail');
-          message = '공격권이 상대에게 넘어갑니다.';
+          message = '상대 공격이에요. 다른 손을 내 막아보세요.';
         }
         
         if (isBeginnerMode && gameSettings.options.beginnerHelpVoice && gameState.round === 1) {
-          message += ' 공격 중 같은 손이 나오면 승리합니다.';
+          message += ' 아래에서 골라주세요.';
         }
         
         updateDealer('ask_select', message, true);
         appendRoundLog('ATTACK_GAIN', null, rpsWinner);
+        setRecommendHand(rpsWinner === 'ME' ? 'ROCK' : 'PAPER');
 
         updateState({ 
           attacker: rpsWinner,
@@ -605,7 +631,7 @@ export function GamePlayPage() {
           myHand: null,
           opponentHand: null,
           timeLeft: isBeginnerMode ? 10 : 5,
-          roundMessage: '공격권 획득', // Simplified
+          roundMessage: rpsWinner === 'ME' ? '내 공격 시작' : '상대 공격 시작',
         });
       }
       return;
@@ -618,39 +644,59 @@ export function GamePlayPage() {
         updateState({
           myScore: gameState.myScore + 1,
           phase: 'ROUND_RESULT',
-          roundMessage: 'WIN',
+          roundMessage: '이겼어요!',
         });
         triggerHaptic('success');
-        updateDealer('congrats', '라운드 승리!', true);
+        updateDealer('congrats', '이겼어요!', true);
       } else {
         audioManager.playSFX('round_lose');
         appendRoundLog('POINT_OPPONENT', attacker, attacker);
         updateState({
           opponentScore: gameState.opponentScore + 1,
           phase: 'ROUND_RESULT',
-          roundMessage: 'LOSE',
+          roundMessage: '아쉬워요',
         });
         triggerHaptic('error');
-        updateDealer('comfort', '라운드 패배!', true);
+        updateDealer('comfort', '아쉬워요. 다음 판!', true);
       }
     } else {
       const rpsWinner = getRpsWinner(myHand, opponentHand);
       if (rpsWinner === 'ME') {
         audioManager.playSFX('attack_move', { pan: -1 });
-        updateDealer('ask_select', '공격권을 가져왔습니다.', true);
+        updateDealer('ask_select', '공격권을 가져왔어요!', true);
       } else {
         audioManager.playSFX('attack_move', { pan: 1 });
-        updateDealer('ask_select', '공격권이 상대에게 넘어갑니다.', true);
+        updateDealer('ask_select', '공격권이 상대에게 넘어갔어요.', true);
       }
       appendRoundLog('ATTACK_CHANGE', attacker, rpsWinner);
       updateState({
         attacker: rpsWinner,
         phase: 'ROUND_RESULT',
-        roundMessage: '공격권 이동',
+        roundMessage: '공격권이 바뀌었어요',
       });
       triggerHaptic('light');
     }
   };
+
+  const isLastRound = gameState.myScore === 1 && gameState.opponentScore === 1;
+  const canPickNow =
+    !gameState.myHand &&
+    (gameState.phase === 'ATTACK_DECISION' || gameState.phase === 'SELECTING');
+  const actionText = easyStatusMessage({
+    phase: gameState.phase,
+    attacker: gameState.attacker,
+    roundMessage: gameState.roundMessage,
+    myHand: !!gameState.myHand,
+    isLastRound,
+  });
+  const actionTip =
+    canPickNow && (isBeginnerMode || showCoach)
+      ? gameState.phase === 'ATTACK_DECISION' || !gameState.attacker
+        ? '아무거나 골라도 괜찮아요 · 시간 끝나면 자동 선택'
+        : gameState.attacker === 'ME'
+          ? '나와 같은 손을 내면 이겨요'
+          : '상대와 다른 손을 내면 공격권을 가져와요'
+      : null;
 
   const circumference = 2 * Math.PI * 20;
   const strokeDashoffset = circumference - ((gameState.timeLeft / 5) * circumference);
@@ -779,7 +825,7 @@ export function GamePlayPage() {
           <div className="flex flex-col items-start gap-1">
              <div className="flex items-center gap-2">
                <AnimatedScore score={gameState.myScore} colorClass="text-arena-cyan" />
-               <div className="text-xs font-bold text-gray-500">WINS</div>
+               <div className="text-xs font-bold text-gray-500">승</div>
              </div>
              {DEMO_USER.streak >= 2 && (
                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-arena-warning to-arena-error text-white">
@@ -834,30 +880,32 @@ export function GamePlayPage() {
           </div>
           <div className="flex items-center gap-2 flex-row-reverse">
              <AnimatedScore score={gameState.opponentScore} colorClass="text-arena-error" />
-             <div className="text-xs font-bold text-gray-500">WINS</div>
+             <div className="text-xs font-bold text-gray-500">승</div>
           </div>
         </div>
       </div>
+
+      <ActionCue text={actionText} highlight={canPickNow} tip={actionTip} />
 
       {/* Main Reels Area */}
       <div className="flex-1 flex flex-col justify-center items-center relative z-10 w-full max-w-md mx-auto">
         
         {/* Status Text (Slot Top Display) */}
-        <div className="mb-8 w-4/5 h-12 bg-black border-[3px] border-gray-800 rounded-xl shadow-[inset_0_0_20px_rgba(0,0,0,1)] flex items-center justify-center overflow-hidden">
+        <div className="mb-6 w-4/5 h-12 bg-black border-[3px] border-gray-800 rounded-xl shadow-[inset_0_0_20px_rgba(0,0,0,1)] flex items-center justify-center overflow-hidden">
            <AnimatePresence mode="wait">
              <motion.div
                key={gameState.roundMessage}
                initial={{ y: 30, opacity: 0 }}
                animate={{ y: 0, opacity: 1 }}
                exit={{ y: -30, opacity: 0 }}
-               className={`font-black text-xl tracking-widest uppercase ${
-                 gameState.roundMessage === 'WIN' ? 'text-arena-cyan drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]' :
-                 gameState.roundMessage === 'LOSE' ? 'text-arena-error drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]' :
-                 gameState.roundMessage.includes('획득') ? 'text-arena-gold drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]' :
+               className={`font-black text-lg tracking-tight ${
+                 gameState.roundMessage === '이겼어요!' || gameState.roundMessage === 'WIN' ? 'text-arena-cyan drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]' :
+                 gameState.roundMessage === '아쉬워요' || gameState.roundMessage === 'LOSE' ? 'text-arena-error drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]' :
+                 gameState.roundMessage.includes('공격') ? 'text-arena-gold drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]' :
                  'text-white drop-shadow-md'
                }`}
              >
-               {gameState.roundMessage}
+               {easyRoundLabel(gameState.roundMessage)}
              </motion.div>
            </AnimatePresence>
         </div>
@@ -869,9 +917,9 @@ export function GamePlayPage() {
           className={`flex items-center gap-3 md:gap-5 p-5 bg-gradient-to-b from-gray-800 to-gray-900 rounded-[2rem] border-[8px] border-gray-800 shadow-[0_15px_40px_rgba(0,0,0,0.9)] relative transition-all duration-1000 ${
            gameState.myScore === 1 && gameState.opponentScore === 1 ? 'shadow-[0_0_50px_rgba(220,38,38,0.3)] border-red-900/40' : ''
         }`}>
-          {gameState.myScore === 1 && gameState.opponentScore === 1 && (
-            <div className="absolute -top-10 inset-x-0 text-center font-black text-red-500 tracking-[0.4em] text-sm animate-pulse drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">
-              FINAL ROUND
+          {isLastRound && (
+            <div className="absolute -top-10 inset-x-0 text-center font-black text-red-500 tracking-widest text-sm animate-pulse drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">
+              마지막 판!
             </div>
           )}
 
@@ -960,31 +1008,32 @@ export function GamePlayPage() {
       {/* Bottom Area: Points and Action Buttons */}
       <div className="relative z-20 w-full max-w-md mx-auto bg-gray-900 border-t border-gray-800 rounded-t-[2rem] pt-6 pb-6 px-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         
-        <div className="flex justify-between items-center mb-6 px-4">
+        <div className="flex justify-between items-center mb-4 px-4">
            <div className="flex flex-col">
-              <span className="text-[10px] text-gray-500 font-bold">{isBeginnerMode ? '연습 비용' : '참가 포인트'}</span>
-              <span className="font-bold text-white text-sm">{isBeginnerMode ? '무료' : '1,000 P'}</span>
+              <span className="text-[10px] text-gray-500 font-bold">{isBeginnerMode ? '연습 비용' : '이번 판 참가'}</span>
+              <span className="font-bold text-white text-sm">{isBeginnerMode ? '무료 · 차감 없음' : '데모 1,000 P'}</span>
            </div>
            <div className="flex flex-col items-end">
-              <span className="text-[10px] text-gray-500 font-bold">보유 포인트</span>
+              <span className="text-[10px] text-gray-500 font-bold">내 보유 (데모)</span>
               <span className="font-bold text-arena-gold text-sm">{DEMO_USER.points.toLocaleString()} P</span>
            </div>
         </div>
 
-        {isBeginnerMode && (
-          <div className="mb-4 bg-arena-gold/10 border border-arena-gold/30 rounded-xl p-3 flex items-center justify-center text-arena-gold text-sm font-bold shadow-[0_0_15px_rgba(245,158,11,0.15)]">
-            <Info className="w-4 h-4 mr-2" />
-            {gameState.phase === 'ATTACK_DECISION' ? '아래에서 하나를 선택하세요.' :
-             gameState.attacker === 'ME' ? '지금은 내가 공격 중입니다.' :
-             gameState.attacker === 'OPPONENT' ? '공격권이 상대에게 넘어갔습니다.' :
-             '같은 손이면 공격권을 가진 사람이 이깁니다.'}
-          </div>
-        )}
-
         <div className="flex justify-between gap-3 relative">
+          <FirstPlayCoach
+            visible={showCoach && canPickNow}
+            onDismiss={() => {
+              setShowCoach(false);
+              markFirstGuideDone();
+            }}
+          />
           {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand, hi) => {
             const isSelected = gameState.myHand === hand;
-            const canSelect = !gameState.myHand && (gameState.phase === 'ATTACK_DECISION' || gameState.phase === 'SELECTING');
+            const canSelect = canPickNow;
+            const isRecommend =
+              canSelect &&
+              (isBeginnerMode || showCoach) &&
+              hand === recommendHand;
             
             return (
               <button
@@ -993,19 +1042,32 @@ export function GamePlayPage() {
                 disabled={!canSelect}
                 className={`flex-1 aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all duration-150 transform active:scale-95 overflow-hidden ${
                   isSelected ? 'bg-gradient-to-b from-gray-700 to-gray-800 border-b-4 border-gray-900 shadow-inner' :
-                  !canSelect ? 'bg-gray-800 opacity-50 grayscale border-b-8 border-gray-900' :
+                  !canSelect ? 'bg-gray-800 opacity-35 grayscale border-b-8 border-gray-900' :
                   'bg-gradient-to-b from-gray-600 to-gray-700 border-b-8 border-gray-900 hover:brightness-110 shadow-lg'
-                } ${canSelect && isBeginnerMode ? 'ring-2 ring-arena-gold ring-offset-2 ring-offset-gray-900 animate-pulse' : ''}`}
+                } ${
+                  isRecommend
+                    ? 'ring-2 ring-arena-gold ring-offset-2 ring-offset-gray-900 scale-[1.03] z-10'
+                    : canSelect
+                      ? 'opacity-100'
+                      : ''
+                }`}
               >
                 <img
                   src={hostessByIndex(hi)}
                   alt=""
-                  className="absolute inset-0 w-full h-full object-cover object-top opacity-35 pointer-events-none"
+                  className={`absolute inset-0 w-full h-full object-cover object-top pointer-events-none ${
+                    canSelect ? 'opacity-40' : 'opacity-15'
+                  }`}
                   draggable={false}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
+                {isRecommend && (
+                  <span className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 text-[9px] font-black bg-arena-gold text-black px-1.5 py-0.5 rounded-full">
+                    추천
+                  </span>
+                )}
                 {isSelected && <div className="absolute inset-0 rounded-2xl shadow-[inset_0_0_20px_rgba(34,211,238,0.5)] border-2 border-arena-cyan pointer-events-none z-10" />}
-                <span className={`relative z-10 text-4xl drop-shadow-lg mb-1 ${!canSelect && !isSelected ? 'opacity-50' : ''}`}>
+                <span className={`relative z-10 text-4xl drop-shadow-lg mb-1 ${!canSelect && !isSelected ? 'opacity-40' : ''}`}>
                   {myHandEmojis[hand]}
                 </span>
                 <span className={`relative z-10 text-xs font-black ${isSelected ? 'text-arena-cyan' : 'text-gray-200'}`}>
@@ -1015,6 +1077,11 @@ export function GamePlayPage() {
             )
           })}
         </div>
+        {canPickNow && (
+          <p className="text-center text-[10px] text-gray-500 font-bold mt-3">
+            시간이 끝나면 자동으로 선택돼요
+          </p>
+        )}
       </div>
 
       {/* Final Game Over Overlay */}

@@ -14,6 +14,7 @@ import { DailyRoulette } from '@/components/lobby/DailyRoulette';
 import { HostessAvatar, HostessBackdrop, HostessBanner } from '@/components/casino/HostessAvatar';
 import { DEMO_USER } from '@/data/demoData';
 import { HOSTESS } from '@/data/hostessAssets';
+import { getQuickStartPath, getResumePath } from '@/utils/playEase';
 
 type GameType = 'LIVE' | 'TOURNAMENT' | 'ARENA' | 'REPLAY' | 'AI DEMO' | 'PRACTICE';
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
@@ -229,7 +230,7 @@ export function LobbyPage() {
                 </div>
                 <div className="flex flex-col items-center">
                   <span className="text-[9px] text-gray-400 font-bold">{FEATURED_GAME.player1.grade}</span>
-                  <span className="font-bold text-sm truncate w-20 text-center">{FEATURED_GAME.player1.name}</span>
+                  <span className="font-bold text-sm truncate max-w-full px-1 text-center">{FEATURED_GAME.player1.name}</span>
                 </div>
               </div>
 
@@ -276,7 +277,7 @@ export function LobbyPage() {
                 </div>
                 <div className="flex flex-col items-center">
                   <span className="text-[9px] text-gray-400 font-bold">{FEATURED_GAME.player2.grade}</span>
-                  <span className="font-bold text-sm truncate w-20 text-center">{FEATURED_GAME.player2.name}</span>
+                  <span className="font-bold text-sm truncate max-w-full px-1 text-center">{FEATURED_GAME.player2.name}</span>
                 </div>
               </div>
             </div>
@@ -333,30 +334,60 @@ export function LobbyPage() {
       {/* Action Button & Ticker Area (Fixed Bottom) */}
       <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black via-black to-transparent pt-12 pb-safe px-4 z-20">
         
-        {/* Play Button */}
+        {/* Play Button — 원탭 빠른 시작 */}
         <div className="max-w-md mx-auto mb-6 flex flex-col gap-3">
           <button 
-            onClick={() => { triggerHaptic('heavy'); openGameSelect(); }}
+            onClick={() => {
+              triggerHaptic('heavy');
+              audioManager.playSFX('game_start');
+              navigate(getQuickStartPath());
+            }}
             className="w-full relative group overflow-hidden rounded-[2rem] p-[3px] bg-gradient-to-r from-arena-gold via-yellow-300 to-arena-gold shadow-[0_0_30px_rgba(245,158,11,0.3)]"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-arena-gold via-yellow-200 to-arena-gold opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="relative bg-black rounded-[calc(2rem-3px)] px-6 py-5 flex items-center justify-center gap-3 transition-transform duration-200 group-active:scale-[0.98] overflow-hidden">
               <img src={HOSTESS.play} alt="" className="absolute left-0 top-0 h-full w-24 object-cover object-top opacity-40" draggable={false} />
               <HostessAvatar role="play" size="md" pulse />
-              <span className="text-xl font-black text-white tracking-wide relative z-10">나도 게임하기</span>
+              <div className="relative z-10 text-left">
+                <span className="block text-xl font-black text-white tracking-wide">바로 게임 시작</span>
+                <span className="block text-[10px] text-arena-gold font-bold">원탭 · 자동 매칭</span>
+              </div>
               <Swords className="w-5 h-5 text-arena-gold relative z-10" />
             </div>
           </button>
+
+          {getResumePath() && getResumePath() !== getQuickStartPath() && (
+            <button
+              onClick={() => {
+                triggerHaptic('medium');
+                navigate(getResumePath()!);
+              }}
+              className="w-full rounded-2xl px-4 py-3 bg-arena-cyan/10 border border-arena-cyan/30 text-arena-cyan text-sm font-bold"
+            >
+              지난 모드로 이어하기
+            </button>
+          )}
           
-          <button
-            onClick={() => { triggerHaptic('medium'); navigate('/game/beginner-ai'); }}
-            className="w-full relative group overflow-hidden rounded-[2rem] p-[2px] bg-gray-800"
-          >
-            <div className="relative bg-black rounded-[calc(2rem-2px)] px-6 py-4 flex items-center justify-center gap-2 transition-transform duration-200 group-active:scale-[0.98] overflow-hidden">
-              <HostessAvatar role="dealer" size="sm" />
-              <span className="text-sm font-bold text-gray-300">초보자 연습 (무료)</span>
-            </div>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { triggerHaptic('medium'); navigate('/game/beginner-ai'); }}
+              className="flex-1 relative group overflow-hidden rounded-2xl p-[2px] bg-gray-800"
+            >
+              <div className="relative bg-black rounded-[calc(1rem-2px)] px-3 py-3 flex items-center justify-center gap-2">
+                <HostessAvatar role="dealer" size="xs" />
+                <span className="text-xs font-bold text-gray-300">무료 연습</span>
+              </div>
+            </button>
+            <button
+              onClick={() => { triggerHaptic('light'); openGameSelect(); }}
+              className="flex-1 relative group overflow-hidden rounded-2xl p-[2px] bg-gray-800"
+            >
+              <div className="relative bg-black rounded-[calc(1rem-2px)] px-3 py-3 flex items-center justify-center gap-2">
+                <HostessAvatar role="lobby" size="xs" />
+                <span className="text-xs font-bold text-gray-300">다른 모드</span>
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Bottom ticker (보조) */}
