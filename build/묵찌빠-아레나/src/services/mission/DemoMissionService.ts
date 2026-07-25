@@ -1,6 +1,7 @@
-import { buildFreshMissions, getMissionDayId } from '@/missions/catalog';
+import { buildFreshMissions, DAILY_MISSION_DEFINITIONS, getMissionDayId } from '@/missions/catalog';
 import { getMissionExpiresAt } from '@/missions/day';
 import { applyMissionReward } from '@/missions/rewardInventory';
+import { addSeasonXp } from '@/utils/seasonPass';
 import type {
   ClaimResult,
   Mission,
@@ -25,9 +26,12 @@ export class DemoMissionService implements MissionService {
   private storage: Storage | null;
 
   constructor(storage?: Storage | null) {
-    this.storage = storage === undefined
-      ? (typeof localStorage !== 'undefined' ? localStorage : null)
-      : storage;
+    this.storage =
+      storage === undefined
+        ? typeof localStorage !== 'undefined'
+          ? localStorage
+          : null
+        : storage;
   }
 
   setNow(iso: string | null) {
@@ -38,10 +42,25 @@ export class DemoMissionService implements MissionService {
     return this.nowOverride ? new Date(this.nowOverride.getTime()) : new Date();
   }
 
+  private mergeMissingMissions(state: PersistedState): PersistedState {
+    const existing = new Set(state.missions.map((m) => m.id));
+    const fresh = buildFreshMissions(this.now());
+    let changed = false;
+    for (const m of fresh) {
+      if (!existing.has(m.id)) {
+        state.missions.push(m);
+        changed = true;
+      }
+    }
+    void DAILY_MISSION_DEFINITIONS;
+    if (changed) this.persist(state);
+    return state;
+  }
+
   private load(): PersistedState {
     const dayId = getMissionDayId(this.now());
     if (this.memory && this.memory.dayId === dayId) {
-      return this.memory;
+      return this.mergeMissingMissions(this.memory);
     }
 
     let parsed: PersistedState | null = null;
@@ -57,6 +76,8 @@ export class DemoMissionService implements MissionService {
     if (!parsed || parsed.dayId !== dayId) {
       parsed = this.createDayState(dayId);
       this.persist(parsed);
+    } else {
+      parsed = this.mergeMissingMissions(parsed);
     }
 
     this.memory = parsed;
@@ -163,6 +184,18 @@ export class DemoMissionService implements MissionService {
       case 'SETTINGS_VIEWED':
         bumpId('settings_view', 1);
         break;
+      case 'MATCH_WON':
+        bumpId('match_win_once', 1);
+        addSeasonXp(25);
+        break;
+      case 'SHARE_CARD_OPENED':
+        bumpId('share_highlight', 1);
+        addSeasonXp(10);
+        break;
+      case 'ANALYSIS_VIEWED':
+        bumpId('analysis_view', 1);
+        addSeasonXp(10);
+        break;
       case 'SPECTATE_DURATION_UPDATED': {
         const add = Math.max(0, Number(event.payload?.seconds ?? 0));
         state.spectateSeconds += add;
@@ -234,6 +267,7 @@ export class DemoMissionService implements MissionService {
       requestId,
       now: this.now(),
     });
+    addSeasonXp(15);
 
     return { ok: true, requestId, mission: { ...mission } };
   }

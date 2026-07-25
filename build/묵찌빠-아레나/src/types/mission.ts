@@ -26,7 +26,10 @@ export type MissionIconKey =
   | 'file'
   | 'users'
   | 'trophy'
-  | 'settings';
+  | 'settings'
+  | 'share'
+  | 'brain'
+  | 'flame';
 
 export interface Mission {
   id: string;
@@ -56,7 +59,10 @@ export type MissionEventType =
   | 'MATCH_HISTORY_VIEWED'
   | 'FRIEND_ROOM_CREATED'
   | 'TOURNAMENT_WATCHED'
-  | 'SETTINGS_VIEWED';
+  | 'SETTINGS_VIEWED'
+  | 'MATCH_WON'
+  | 'SHARE_CARD_OPENED'
+  | 'ANALYSIS_VIEWED';
 
 export interface MissionEventPayload {
   /** SPECTATE_DURATION_UPDATED: 추가 초 */

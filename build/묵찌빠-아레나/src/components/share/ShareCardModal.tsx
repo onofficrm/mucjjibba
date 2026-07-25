@@ -1,28 +1,39 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Link2, Check } from 'lucide-react';
 import { ShareCard } from './ShareCard';
 import { buildShareCardData, buildShareLink, copyText } from '@/game/shareCard';
-import type { GameLog, SharePrivacyOptions } from '@/types/gameLog';
+import type { GameLog, SharePrivacyOptions, ShareSettlementExtras } from '@/types/gameLog';
 import { PrimaryButton, SecondaryButton } from '@/components/common/Buttons';
 import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings } from '@/utils/gameSettings';
+import { trackMission } from '@/services/mission';
 
 interface Props {
   open: boolean;
   log: GameLog | null;
+  settlement?: ShareSettlementExtras;
   onClose: () => void;
 }
 
-export function ShareCardModal({ open, log, onClose }: Props) {
+export function ShareCardModal({ open, log, settlement, onClose }: Props) {
   const [privacy, setPrivacy] = useState<SharePrivacyOptions>({
     maskOpponentNickname: true,
-    hidePoints: true,
+    hidePoints: false,
     hideProfileImage: false,
   });
   const [copied, setCopied] = useState(false);
 
-  const card = useMemo(() => (log ? buildShareCardData(log, privacy) : null), [log, privacy]);
+  const card = useMemo(
+    () => (log ? buildShareCardData(log, privacy, settlement) : null),
+    [log, privacy, settlement],
+  );
+
+  useEffect(() => {
+    if (open && log) {
+      void trackMission('SHARE_CARD_OPENED');
+    }
+  }, [open, log?.gameId]);
 
   const toggle = (key: keyof SharePrivacyOptions) => {
     triggerHaptic('light');
@@ -59,8 +70,9 @@ export function ShareCardModal({ open, log, onClose }: Props) {
             className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto bg-gray-900 border border-white/10 rounded-t-3xl md:rounded-3xl p-5"
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-black text-white">공유 카드</h2>
+              <h2 className="text-lg font-black text-white">하이라이트 카드</h2>
               <button
+                type="button"
                 onClick={onClose}
                 className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center text-gray-400"
               >
@@ -106,7 +118,7 @@ export function ShareCardModal({ open, log, onClose }: Props) {
               </SecondaryButton>
             </div>
             <p className="text-[10px] text-gray-500 text-center mt-3 font-bold">
-              외부 공유 API 준비 전 · 미리보기와 링크 복사만 지원
+              하이라이트 자동 생성 · 외부 공유 API 준비 전
             </p>
           </motion.div>
         </div>

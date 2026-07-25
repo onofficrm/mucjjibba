@@ -79,12 +79,23 @@ export interface ShareCardData {
   myScore: number;
   opponentScore: number;
   highlightText: string;
+  highlightDetail?: string;
   grade: string;
   streak: number;
   playedAt: string;
   myNickname: string;
   opponentNickname: string;
   pointsDeltaLabel?: string;
+  tableName?: string;
+  modeLabel?: string;
+  resultLabel?: string;
   showPoints: boolean;
   showProfileImage: boolean;
+}
+
+export interface ShareSettlementExtras {
+  tableName?: string;
+  pointsDelta?: number;
+  isWin?: boolean;
+  isFree?: boolean;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -12,7 +12,15 @@ import { DEMO_USER } from '@/data/demoData';
 import { DealerCharacter, DealerState } from '@/components/game/DealerCharacter';
 import { CharacterAvatar } from '@/components/game/CharacterAvatar';
 import { VsIntro } from '@/components/game/VsIntro';
-import { ReactionButton, ReactionBubble, ReactionType } from '@/components/game/GameReactions';
+import {
+  ReactionButton,
+  ReactionBubble,
+  EmoteQuickBar,
+  FloatingEmotesLayer,
+  REACTIONS,
+  type ReactionType,
+  type FloatingEmote,
+} from '@/components/game/GameReactions';
 import { gameSettings } from '@/utils/gameSettings';
 import { getHandSkinEmojis, getCharacterEmoji } from '@/data/decorations';
 import { trackMission } from '@/services/mission';
@@ -30,6 +38,7 @@ import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvata
 import { hostessForHand } from '@/data/hostessAssets';
 import { ActionCue, FirstPlayCoach } from '@/components/game/ActionCue';
 import { BattleDuelStage } from '@/components/game/BattleDuelStage';
+import { analyzeOpponentPatterns, pickLiveHabitHint } from '@/game/patternStats';
 import {
   saveLastPlayPath,
   bumpGamesPlayed,
@@ -257,6 +266,13 @@ export function GamePlayPage() {
   const [myReaction, setMyReaction] = useState<ReactionType | null>(null);
   const [opponentReaction, setOpponentReaction] = useState<ReactionType | null>(null);
   const [reactionCooldown, setReactionCooldown] = useState(0);
+  const [floatingEmotes, setFloatingEmotes] = useState<FloatingEmote[]>([]);
+  const floatingIdRef = useRef(0);
+
+  const habitHint = useMemo(() => {
+    const hints = analyzeOpponentPatterns(activeOpponent.nickname);
+    return pickLiveHabitHint(hints);
+  }, [activeOpponent.nickname, gameState.myScore, gameState.opponentScore]);
 
   // Reel scrolling states
   const [myReelIcon, setMyReelIcon] = useState<Hand>('ROCK');
@@ -337,6 +353,9 @@ export function GamePlayPage() {
       if (isBeginnerMode && !practiceTrackedRef.current) {
         practiceTrackedRef.current = true;
         void trackMission('PRACTICE_COMPLETED');
+      }
+      if (gameState.winner === 'ME') {
+        void trackMission('MATCH_WON');
       }
       if (!resultNavigatedRef.current) {
         resultNavigatedRef.current = true;
@@ -530,15 +549,26 @@ export function GamePlayPage() {
 
   const handleSendReaction = (id: ReactionType) => {
     setMyReaction(id);
-    setReactionCooldown(3000); // 3 seconds cooldown
+    setReactionCooldown(3000);
     void trackMission('REACTION_SENT');
+    const icon = REACTIONS.find((r) => r.id === id)?.icon ?? '✨';
+    const fid = ++floatingIdRef.current;
+    setFloatingEmotes((prev) => [...prev, { id: fid, icon, side: 'me' }]);
+    window.setTimeout(() => {
+      setFloatingEmotes((prev) => prev.filter((e) => e.id !== fid));
+    }, 1500);
 
-    // Simulate opponent sending a reaction back sometimes
     if (Math.random() > 0.5) {
       setTimeout(() => {
         const reactions: ReactionType[] = ['CHALLENGE', 'GOOD', 'CLOSE', 'FAST', 'SURPRISE', 'CLAP', 'LAUGH', 'REMATCH'];
         const randomOpponentReaction = reactions[Math.floor(Math.random() * reactions.length)];
         setOpponentReaction(randomOpponentReaction);
+        const oIcon = REACTIONS.find((r) => r.id === randomOpponentReaction)?.icon ?? '✨';
+        const oid = ++floatingIdRef.current;
+        setFloatingEmotes((prev) => [...prev, { id: oid, icon: oIcon, side: 'opp' }]);
+        window.setTimeout(() => {
+          setFloatingEmotes((prev) => prev.filter((e) => e.id !== oid));
+        }, 1500);
       }, 1000 + Math.random() * 1000);
     }
   };
@@ -816,6 +846,12 @@ export function GamePlayPage() {
           onInfo={() => { triggerHaptic('light'); setShowInfo(true); }}
           onSelectHand={(hand) => handleHandSelect(hand)}
           onToggleLayout={toggleBattleLayout}
+          onSendEmote={handleSendReaction}
+          emoteCooldownMs={reactionCooldown}
+          floatingEmotes={floatingEmotes}
+          habitHint={habitHint}
+          myReaction={myReaction}
+          opponentReaction={opponentReaction}
         />
       ) : (
       <>
@@ -1429,6 +1465,23 @@ export function GamePlayPage() {
         )}
       </AnimatePresence>
       <ReactionButton onSendReaction={handleSendReaction} cooldownRemaining={reactionCooldown} />
+      {!isDuelLayout && (
+        <>
+          <FloatingEmotesLayer emotes={floatingEmotes} />
+          <div className="fixed bottom-[max(5.5rem,env(safe-area-inset-bottom))] inset-x-0 z-40 flex justify-center pointer-events-none">
+            <div className="pointer-events-auto px-3 py-2 rounded-2xl bg-black/55 border border-white/10 backdrop-blur-sm">
+              <EmoteQuickBar onSend={handleSendReaction} cooldownRemaining={reactionCooldown} />
+            </div>
+          </div>
+          {habitHint && canPickNow && (
+            <div className="fixed top-20 inset-x-0 z-30 flex justify-center pointer-events-none px-4">
+              <p className="text-[11px] font-bold text-arena-cyan bg-black/60 border border-arena-cyan/25 rounded-full px-3 py-1.5">
+                힌트 · {habitHint}
+              </p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

@@ -42,12 +42,13 @@ export const PrimaryButton = forwardRef<HTMLButtonElement, ButtonProps>(
           audioManager.playSFX('btn_select');
           if (onClick) onClick(e);
         }}
-        className={`relative w-full py-4 px-6 bg-arena-gold hover:bg-arena-gold-light text-arena-bg font-bold rounded-2xl transition-colors shadow-lg shadow-arena-gold/20 flex items-center justify-center gap-2 overflow-hidden ${className}`}
+        className={`relative w-full py-4 px-6 bg-gradient-to-r from-amber-400 via-arena-gold to-amber-500 hover:from-amber-300 hover:via-amber-400 hover:to-arena-gold text-arena-bg font-bold rounded-2xl transition-all shadow-[0_0_24px_rgba(245,158,11,0.28)] border border-amber-200/30 flex items-center justify-center gap-2 overflow-hidden ${className}`}
         {...props}
       >
+        <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-black/10" />
         {showHostess && (
-          <span className="absolute left-2 top-1/2 -translate-y-1/2 opacity-95">
-            <HostessAvatar index={seed} size="sm" ring={false} className="ring-2 ring-black/20" />
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 opacity-95 z-10">
+            <HostessAvatar index={seed} size="sm" ring={false} className="ring-2 ring-black/25 shadow-md" />
           </span>
         )}
         <span className={`relative z-10 flex items-center justify-center gap-2 ${showHostess ? 'pl-8' : ''}`}>
@@ -82,11 +83,11 @@ export const SecondaryButton = forwardRef<HTMLButtonElement, ButtonProps>(
           audioManager.playSFX('btn_touch');
           if (onClick) onClick(e);
         }}
-        className={`relative w-full py-4 px-6 bg-arena-card hover:bg-arena-card-hover border border-white/10 text-white font-medium rounded-2xl transition-colors flex items-center justify-center gap-2 overflow-hidden ${className}`}
+        className={`relative w-full py-4 px-6 bg-gradient-to-b from-zinc-800/95 to-zinc-950 hover:from-zinc-700 hover:to-zinc-900 border border-white/15 hover:border-white/25 text-white font-medium rounded-2xl transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center justify-center gap-2 overflow-hidden backdrop-blur-sm ${className}`}
         {...props}
       >
         {showHostess && (
-          <span className="absolute left-2 top-1/2 -translate-y-1/2">
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
             <HostessAvatar index={seed + 1} size="sm" />
           </span>
         )}

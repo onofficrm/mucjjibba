@@ -10,6 +10,9 @@ import {
   Users,
   Trophy,
   Settings,
+  Share2,
+  Brain,
+  Flame,
 } from 'lucide-react';
 import type { MissionIconKey } from '@/types/mission';
 
@@ -37,6 +40,12 @@ export function MissionIcon({ name, className = CLASS }: { name: MissionIconKey;
       return <Trophy className={`${className} text-arena-gold`} />;
     case 'settings':
       return <Settings className={`${className} text-gray-300`} />;
+    case 'share':
+      return <Share2 className={`${className} text-arena-cyan`} />;
+    case 'brain':
+      return <Brain className={`${className} text-violet-300`} />;
+    case 'flame':
+      return <Flame className={`${className} text-orange-400`} />;
     default:
       return <Target className={`${className} text-arena-cyan`} />;
   }

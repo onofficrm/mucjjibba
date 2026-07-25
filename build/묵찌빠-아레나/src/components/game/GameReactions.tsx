@@ -114,6 +114,89 @@ export function ReactionButton({ onSendReaction, cooldownRemaining }: GameReacti
   );
 }
 
+/** 인매치 상시 노출 퀵바 (도발·박수·미안 등) */
+export const QUICK_EMOTES: ReactionType[] = ['CHALLENGE', 'GOOD', 'CLOSE', 'CLAP', 'SURPRISE'];
+
+interface EmoteQuickBarProps {
+  onSend: (id: ReactionType) => void;
+  cooldownRemaining: number;
+  className?: string;
+}
+
+export function EmoteQuickBar({ onSend, cooldownRemaining, className = '' }: EmoteQuickBarProps) {
+  const items = REACTIONS.filter((r) => QUICK_EMOTES.includes(r.id));
+  return (
+    <div
+      className={`flex items-center justify-center gap-1.5 ${className}`}
+      role="toolbar"
+      aria-label="이모트 퀵바"
+    >
+      {items.map((r) => (
+        <button
+          key={r.id}
+          type="button"
+          disabled={cooldownRemaining > 0}
+          title={r.text}
+          onClick={() => {
+            if (cooldownRemaining > 0) {
+              triggerHaptic('error');
+              return;
+            }
+            triggerHaptic('medium');
+            audioManager.playSFX('btn_touch');
+            onSend(r.id);
+          }}
+          className={`w-10 h-10 md:w-11 md:h-11 rounded-xl border flex flex-col items-center justify-center transition-all ${
+            cooldownRemaining > 0
+              ? 'bg-black/40 border-white/5 opacity-45'
+              : 'bg-gradient-to-b from-zinc-800/95 to-zinc-950 border-white/15 hover:border-arena-gold/50 hover:shadow-[0_0_12px_rgba(245,158,11,0.2)] active:scale-95'
+          }`}
+        >
+          <span className="text-base leading-none">{r.icon}</span>
+        </button>
+      ))}
+      {cooldownRemaining > 0 && (
+        <span className="text-[10px] font-black text-white/50 tabular-nums ml-1 w-5">
+          {Math.ceil(cooldownRemaining / 1000)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export interface FloatingEmote {
+  id: number;
+  icon: string;
+  side: 'me' | 'opp';
+}
+
+interface FloatingEmotesLayerProps {
+  emotes: FloatingEmote[];
+}
+
+export function FloatingEmotesLayer({ emotes }: FloatingEmotesLayerProps) {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 overflow-hidden">
+      <AnimatePresence>
+        {emotes.map((e) => (
+          <motion.div
+            key={e.id}
+            initial={{ opacity: 0, y: 20, scale: 0.6 }}
+            animate={{ opacity: 1, y: -80, scale: 1.2 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.4, ease: 'easeOut' }}
+            className={`absolute bottom-[28%] text-3xl drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)] ${
+              e.side === 'me' ? 'left-[18%]' : 'right-[18%]'
+            }`}
+          >
+            {e.icon}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 interface ReactionBubbleProps {
   reactionId: ReactionType;
   isMe?: boolean;

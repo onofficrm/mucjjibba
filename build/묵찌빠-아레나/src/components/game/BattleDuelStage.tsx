@@ -3,6 +3,13 @@ import { LogOut, Volume2, VolumeX, Info, Lock } from 'lucide-react';
 import { HOSTESS, hostessForHand } from '@/data/hostessAssets';
 import { ConnectionBadge } from '@/components/game/ReconnectOverlay';
 import type { ConnectionStatus } from '@/realtime/types';
+import {
+  EmoteQuickBar,
+  FloatingEmotesLayer,
+  ReactionBubble,
+  type FloatingEmote,
+  type ReactionType,
+} from '@/components/game/GameReactions';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type PlayerId = 'ME' | 'OPPONENT';
@@ -117,6 +124,12 @@ export function BattleDuelStage({
   onInfo,
   onSelectHand,
   onToggleLayout,
+  onSendEmote,
+  emoteCooldownMs = 0,
+  floatingEmotes = [],
+  habitHint = null,
+  myReaction = null,
+  opponentReaction = null,
 }: {
   myName: string;
   myGrade: string;
@@ -143,6 +156,12 @@ export function BattleDuelStage({
   onInfo: () => void;
   onSelectHand: (hand: Hand) => void;
   onToggleLayout: () => void;
+  onSendEmote?: (id: ReactionType) => void;
+  emoteCooldownMs?: number;
+  floatingEmotes?: FloatingEmote[];
+  habitHint?: string | null;
+  myReaction?: ReactionType | null;
+  opponentReaction?: ReactionType | null;
 }) {
   const centerHand: Hand | null =
     phase === 'REVEAL' || phase === 'ROUND_RESULT'
@@ -292,7 +311,14 @@ export function BattleDuelStage({
               {attacker === 'ME' ? '내 공격권' : '상대 공격권'}
             </p>
           )}
+          {habitHint && canPickNow && (
+            <p className="mt-2 inline-flex max-w-[90%] mx-auto text-[10px] md:text-[11px] font-bold text-arena-cyan/95 bg-black/55 border border-arena-cyan/25 rounded-full px-3 py-1">
+              힌트 · {habitHint}
+            </p>
+          )}
         </div>
+
+        <FloatingEmotesLayer emotes={floatingEmotes} />
 
         {/* Big move glyph */}
         <div className="absolute top-[22%] left-1/2 -translate-x-1/2 z-30 pointer-events-none">
@@ -340,11 +366,16 @@ export function BattleDuelStage({
             tableShake ? '' : ''
           }`}
         >
-          <Fighter
-            src={myHand ? hostessForHand(myHand) : HOSTESS.play}
-            shake={tableShake && phase === 'ROUND_RESULT' && roundMessage.includes('아쉬')}
-            highlight={attacker === 'ME' ? 'gold' : null}
-          />
+          <div className="relative">
+            <Fighter
+              src={myHand ? hostessForHand(myHand) : HOSTESS.play}
+              shake={tableShake && phase === 'ROUND_RESULT' && roundMessage.includes('아쉬')}
+              highlight={attacker === 'ME' ? 'gold' : null}
+            />
+            <AnimatePresence>
+              {myReaction && <ReactionBubble key={myReaction} reactionId={myReaction} isMe />}
+            </AnimatePresence>
+          </div>
 
           <div className="absolute left-1/2 -translate-x-1/2 bottom-[42%] z-20">
             {showLock && (
@@ -354,18 +385,25 @@ export function BattleDuelStage({
             )}
           </div>
 
-          <Fighter
-            src={
-              phase === 'REVEAL' || phase === 'ROUND_RESULT'
-                ? opponentHand
-                  ? hostessForHand(opponentHand)
+          <div className="relative">
+            <Fighter
+              src={
+                phase === 'REVEAL' || phase === 'ROUND_RESULT'
+                  ? opponentHand
+                    ? hostessForHand(opponentHand)
+                    : HOSTESS.spectate
                   : HOSTESS.spectate
-                : HOSTESS.spectate
-            }
-            flip
-            shake={tableShake && phase === 'ROUND_RESULT' && (roundMessage.includes('이겼') || roundMessage === 'WIN')}
-            highlight={attacker === 'OPPONENT' ? 'red' : null}
-          />
+              }
+              flip
+              shake={tableShake && phase === 'ROUND_RESULT' && (roundMessage.includes('이겼') || roundMessage === 'WIN')}
+              highlight={attacker === 'OPPONENT' ? 'red' : null}
+            />
+            <AnimatePresence>
+              {opponentReaction && (
+                <ReactionBubble key={opponentReaction} reactionId={opponentReaction} isMe={false} />
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* Hand reveal chips under fighters */}
@@ -385,6 +423,11 @@ export function BattleDuelStage({
 
       {/* Controls — arcade style */}
       <div className="relative z-30 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
+        {onSendEmote && (
+          <div className="max-w-lg mx-auto mb-2.5">
+            <EmoteQuickBar onSend={onSendEmote} cooldownRemaining={emoteCooldownMs} />
+          </div>
+        )}
         <div className="max-w-lg mx-auto grid grid-cols-3 gap-2 md:gap-3">
           {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand) => {
             const selected = myHand === hand;

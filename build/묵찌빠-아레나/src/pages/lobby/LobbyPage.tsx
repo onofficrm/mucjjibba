@@ -11,6 +11,7 @@ import { gameSettings } from '@/utils/gameSettings';
 import { DailyMissions } from '@/components/lobby/DailyMissions';
 import { ActivityMarquee } from '@/components/lobby/ActivityMarquee';
 import { DailyRoulette } from '@/components/lobby/DailyRoulette';
+import { SeasonPassStrip } from '@/components/lobby/SeasonPassStrip';
 import { HostessAvatar, HostessBackdrop, HostessBanner } from '@/components/casino/HostessAvatar';
 import { DEMO_USER } from '@/data/demoData';
 import { HOSTESS } from '@/data/hostessAssets';
@@ -337,6 +338,8 @@ export function LobbyPage() {
             </div>
             <DailyMissions />
           </div>
+
+          <SeasonPassStrip />
 
           <ActivityMarquee />
 
