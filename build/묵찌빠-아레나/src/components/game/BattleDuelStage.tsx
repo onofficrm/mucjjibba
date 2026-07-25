@@ -282,7 +282,7 @@ function StageHandDuel({
             />
           )}
         </span>
-        <span className="mt-2 rounded-full border border-sky-300/30 bg-sky-950/65 px-2.5 py-1 text-[10px] md:text-xs font-black text-sky-200 shadow-[0_2px_0_#000]">
+        <span className="mt-2 hidden md:inline-flex rounded-full border border-sky-300/30 bg-sky-950/65 px-2.5 py-1 text-xs font-black text-sky-200 shadow-[0_2px_0_#000]">
           나 · {myHand ? HAND_KO[myHand] : '선택'}
         </span>
       </motion.div>
@@ -377,7 +377,7 @@ function StageHandDuel({
             />
           )}
         </span>
-        <span className="mt-2 rounded-full border border-rose-300/30 bg-rose-950/65 px-2.5 py-1 text-[10px] md:text-xs font-black text-rose-200 shadow-[0_2px_0_#000]">
+        <span className="mt-2 hidden md:inline-flex rounded-full border border-rose-300/30 bg-rose-950/65 px-2.5 py-1 text-xs font-black text-rose-200 shadow-[0_2px_0_#000]">
           상대 · {showOpp && opponentHand ? HAND_KO[opponentHand] : '비공개'}
         </span>
       </motion.div>
