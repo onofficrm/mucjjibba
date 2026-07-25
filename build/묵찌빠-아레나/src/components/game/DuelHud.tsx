@@ -100,6 +100,16 @@ export function DuelHud({
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </button>
+          {onSettings && (
+            <button
+              type="button"
+              onClick={onSettings}
+              title="게임 설정"
+              className="hidden md:flex w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 items-center justify-center text-white/80"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         <div className="flex-1 flex items-center gap-2 md:gap-3 min-w-0">
@@ -184,16 +194,6 @@ export function DuelHud({
           >
             <Info className="w-4 h-4" />
           </button>
-          {onSettings && (
-            <button
-              type="button"
-              onClick={onSettings}
-              title="게임 설정"
-              className="hidden md:flex w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 items-center justify-center text-white/80"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-          )}
           <button
             type="button"
             onClick={onToggleLayout}
