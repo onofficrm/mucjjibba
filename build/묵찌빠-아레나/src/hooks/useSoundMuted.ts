@@ -11,8 +11,17 @@ export function useSoundMuted() {
       const detail = (e as CustomEvent<VolumeSettings>).detail;
       setMuted(detail ? detail.mute : audioManager.settings.mute);
     };
+    // 다른 탭/프레임에서 바꾼 경우도 반영 (같은 창은 커스텀 이벤트로 즉시 동기화)
+    const onStorage = (e: StorageEvent) => {
+      if (e.key && e.key !== 'arena_audio_settings') return;
+      audioManager.reloadAndApplySettings();
+    };
     window.addEventListener(AUDIO_SETTINGS_EVENT, onChange);
-    return () => window.removeEventListener(AUDIO_SETTINGS_EVENT, onChange);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(AUDIO_SETTINGS_EVENT, onChange);
+      window.removeEventListener('storage', onStorage);
+    };
   }, []);
 
   const setMutedValue = useCallback((next: boolean) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Volume2, Vibrate, Zap, MessageSquare, Users, Trophy, Globe, LogOut, Smartphone, VolumeX, Music, Mic, Eye, Bot, MessageCircle, MonitorPlay } from 'lucide-react';
-import { audioManager, VolumeSettings } from '@/utils/audio';
+import { audioManager, AUDIO_SETTINGS_EVENT, VolumeSettings } from '@/utils/audio';
 import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings, GameOptions } from '@/utils/gameSettings';
 import { trackMission } from '@/services/mission';
@@ -21,6 +21,10 @@ export function GameSettingsPage() {
   useEffect(() => {
     setSettings(audioManager.settings);
     void trackMission('SETTINGS_VIEWED');
+    // 사이드바·게임 화면에서 바꾼 음소거도 이 페이지에 즉시 반영
+    const onChange = () => setSettings({ ...audioManager.settings });
+    window.addEventListener(AUDIO_SETTINGS_EVENT, onChange);
+    return () => window.removeEventListener(AUDIO_SETTINGS_EVENT, onChange);
   }, []);
 
   const updateAudioSetting = <K extends keyof VolumeSettings>(key: K, value: VolumeSettings[K]) => {
@@ -303,22 +307,6 @@ export function GameSettingsPage() {
                   className={`w-12 h-7 rounded-full transition-colors relative ${options.introMute ? 'bg-arena-cyan' : 'bg-white/10'}`}
                 >
                   <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${options.introMute ? 'left-6' : 'left-1'}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
-                <div className="flex items-center text-sm font-medium text-gray-400">
-                  리액션 효과음 끄기
-                </div>
-                <button 
-                  onClick={() => {
-                    gameSettings.updateOption('reactionMute', !options.reactionMute);
-                    setOptions({ ...gameSettings.options });
-                    audioManager.playSFX('btn_touch');
-                    triggerHaptic('light');
-                  }} 
-                  className={`w-12 h-7 rounded-full transition-colors relative ${options.reactionMute ? 'bg-arena-cyan' : 'bg-white/10'}`}
-                >
-                  <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${options.reactionMute ? 'left-6' : 'left-1'}`} />
                 </button>
               </div>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">

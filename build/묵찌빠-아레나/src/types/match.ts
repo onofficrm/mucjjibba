@@ -1,5 +1,8 @@
 /** 빠른 대전 테이블 · 매칭 세션 타입 */
 
+import type { MatchRuleId } from '@/game/matchRules';
+import { TABLE_DEFAULT_RULE } from '@/game/matchRules';
+
 export interface MatchTable {
   id: string;
   name: string;
@@ -10,6 +13,8 @@ export interface MatchTable {
   minGrade: string;
   isFree: boolean;
   color: string;
+  /** 테이블 기본 경기 룰 (없으면 TABLE_DEFAULT_RULE 사용) */
+  ruleId?: MatchRuleId;
 }
 
 export interface MatchOpponent {
@@ -41,6 +46,8 @@ export interface MatchSession {
   settled: boolean;
   pointsBeforeDeposit: number;
   createdAt: string;
+  /** 친구방 등에서 명시적으로 고른 룰 */
+  ruleId?: MatchRuleId;
 }
 
 export const MATCH_TABLES: MatchTable[] = [
@@ -54,6 +61,7 @@ export const MATCH_TABLES: MatchTable[] = [
     minGrade: '입문',
     isFree: true,
     color: 'border-white text-white',
+    ruleId: TABLE_DEFAULT_RULE.practice,
   },
   {
     id: 'bronze',
@@ -65,6 +73,7 @@ export const MATCH_TABLES: MatchTable[] = [
     minGrade: '브론즈',
     isFree: false,
     color: 'border-orange-400 text-orange-400 bg-orange-400/10',
+    ruleId: TABLE_DEFAULT_RULE.bronze,
   },
   {
     id: 'silver',
@@ -76,6 +85,7 @@ export const MATCH_TABLES: MatchTable[] = [
     minGrade: '실버',
     isFree: false,
     color: 'border-slate-300 text-slate-300 bg-slate-300/10',
+    ruleId: TABLE_DEFAULT_RULE.silver,
   },
   {
     id: 'gold',
@@ -87,6 +97,7 @@ export const MATCH_TABLES: MatchTable[] = [
     minGrade: '골드',
     isFree: false,
     color: 'border-yellow-400 text-yellow-400 bg-yellow-400/10',
+    ruleId: TABLE_DEFAULT_RULE.gold,
   },
   {
     id: 'platinum',
@@ -98,6 +109,7 @@ export const MATCH_TABLES: MatchTable[] = [
     minGrade: '플래티넘',
     isFree: false,
     color: 'border-cyan-400 text-cyan-400 bg-cyan-400/10',
+    ruleId: TABLE_DEFAULT_RULE.platinum,
   },
   {
     id: 'vip',
@@ -109,6 +121,7 @@ export const MATCH_TABLES: MatchTable[] = [
     minGrade: '다이아',
     isFree: false,
     color: 'border-purple-500 text-purple-400 bg-purple-500/10',
+    ruleId: TABLE_DEFAULT_RULE.vip,
   },
 ];
 

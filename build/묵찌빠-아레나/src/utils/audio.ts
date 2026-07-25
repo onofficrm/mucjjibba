@@ -80,18 +80,48 @@ class AudioManager {
   }
 
   public saveSettings() {
-    localStorage.setItem('arena_audio_settings', JSON.stringify(this.settings));
+    try {
+      localStorage.setItem('arena_audio_settings', JSON.stringify(this.settings));
+    } catch (e) {
+      console.warn('Failed to save audio settings', e);
+    }
     this.updateCurrentBgmVolume();
   }
 
   public updateSetting<K extends keyof VolumeSettings>(key: K, value: VolumeSettings[K]) {
     this.settings[key] = value;
+    // 어느 화면에서 토글해도 즉시 전체 반영: 재생 중 오디오 갱신 → 저장 → 방송
+    this.applyMuteState();
     this.saveSettings();
+    this.broadcastSettings();
+  }
+
+  /** 현재 설정을 모든 화면(사이드바·게임 HUD 등)에 방송 */
+  private broadcastSettings() {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent(AUDIO_SETTINGS_EVENT, { detail: { ...this.settings } }),
       );
     }
+  }
+
+  /** 음소거 즉시 반영 — 재생 중 BGM 볼륨·진행 중 음성 안내까지 끊는다 */
+  private applyMuteState() {
+    this.updateCurrentBgmVolume();
+    if (this.settings.mute && this.speechSynthesis) {
+      try {
+        this.speechSynthesis.cancel();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  /** 다른 탭/프레임에서 바뀐 설정을 다시 읽어 현재 오디오에 반영 */
+  public reloadAndApplySettings() {
+    this.loadSettings();
+    this.applyMuteState();
+    this.broadcastSettings();
   }
 
   /** 테이블 등급별 앰비언스 톤 설정 (무료=담백 / 일반=기본 / VIP=풍성) */
@@ -486,8 +516,13 @@ class AudioManager {
     if (this.currentBgmGainNode && this.ctx) {
       const vol = this.getEffectiveVolume('bgm');
       const t = this.ctx.currentTime;
-      this.currentBgmGainNode.gain.cancelScheduledValues(t);
-      this.currentBgmGainNode.gain.linearRampToValueAtTime(vol * 0.22, t + 0.1);
+      try {
+        this.currentBgmGainNode.gain.cancelScheduledValues(t);
+        this.currentBgmGainNode.gain.setValueAtTime(this.currentBgmGainNode.gain.value, t);
+        this.currentBgmGainNode.gain.linearRampToValueAtTime(vol * 0.22, t + 0.1);
+      } catch {
+        /* ignore */
+      }
     }
   }
 

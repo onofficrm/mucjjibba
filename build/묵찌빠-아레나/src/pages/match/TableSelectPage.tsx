@@ -17,6 +17,7 @@ import { audioManager } from '@/utils/audio';
 import { DEMO_USER } from '@/data/demoData';
 import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { MATCH_TABLES, canEnterTable, type MatchTable } from '@/types/match';
+import { getMatchRules } from '@/game/matchRules';
 import { matchmakingService } from '@/services/matchmakingService';
 import { HOSTESS } from '@/data/hostessAssets';
 
@@ -71,9 +72,9 @@ export function TableSelectPage() {
         tone: 'text-white',
       },
       {
-        label: '수수료',
-        value: selectedTable.fee.toLocaleString(),
-        tone: 'text-rose-300',
+        label: '룰',
+        value: getMatchRules(selectedTable.ruleId).shortLabel,
+        tone: 'text-arena-cyan',
       },
       {
         label: '승리',
@@ -302,6 +303,13 @@ export function TableSelectPage() {
                 >
                   {table.isFree ? '연습' : table.name.replace(' 테이블', '')}
                 </span>
+                <span
+                  className={`text-[9px] font-black truncate max-w-[5.5rem] ${
+                    isSelected ? 'text-arena-gold' : 'text-white/25'
+                  }`}
+                >
+                  {getMatchRules(table.ruleId).shortLabel}
+                </span>
               </button>
             );
           })}
@@ -359,6 +367,15 @@ export function TableSelectPage() {
                 className="overflow-hidden"
               >
                 <div className="p-4 mt-2 bg-black/50 border border-white/10 rounded-2xl text-xs text-white/55 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <span>경기 룰</span>
+                    <span className="font-bold text-arena-gold">
+                      {getMatchRules(selectedTable.ruleId).label}
+                    </span>
+                  </div>
+                  <p className="text-white/70 leading-relaxed">
+                    {getMatchRules(selectedTable.ruleId).description}
+                  </p>
                   <div className="flex justify-between items-center">
                     <span>최소 입장</span>
                     <span className="font-bold text-white">{selectedTable.minGrade} 이상</span>

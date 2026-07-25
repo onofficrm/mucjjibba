@@ -27,5 +27,5 @@ export const MATCHUP_LABEL: Record<MatchupKind, string> = {
   crush: '부수기!',
 };
 
-/** Standard 패키지 연출 길이 */
-export const VICTORY_CLASH_MS = 1100;
+/** 전체화면 승부 연출 길이 */
+export const VICTORY_CLASH_MS = 1700;

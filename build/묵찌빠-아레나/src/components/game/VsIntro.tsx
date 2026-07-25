@@ -85,22 +85,27 @@ export function VsIntro({
       className="flex flex-col items-center gap-2 z-20 w-[42%] max-w-[140px] min-w-0"
     >
       <div
-        className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-zinc-900 border-[3px] ${
-          isMe ? 'border-arena-cyan shadow-[0_0_20px_rgba(34,211,238,0.35)]' : 'border-arena-error shadow-[0_0_20px_rgba(220,38,38,0.35)]'
-        } flex items-center justify-center text-4xl sm:text-5xl overflow-hidden shrink-0`}
+        className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-[3px] shrink-0 ${
+          isMe
+            ? 'border-arena-cyan shadow-[0_0_20px_rgba(34,211,238,0.35)]'
+            : 'border-arena-error shadow-[0_0_20px_rgba(220,38,38,0.35)]'
+        }`}
       >
-        <img
-          src={isMe ? HOSTESS.play : HOSTESS.spectate}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover object-top opacity-55"
-          draggable={false}
-        />
-        <div
-          className={`absolute inset-0 bg-gradient-to-t ${
-            isMe ? 'from-arena-cyan/30' : 'from-arena-error/30'
-          } to-transparent`}
-        />
-        <span className="relative z-10 drop-shadow-lg">
+        {/* 보더와 분리된 내부 클립 — 하단 직선 막대/빈틈 방지 */}
+        <div className="absolute inset-0 rounded-[13px] sm:rounded-[13px] overflow-hidden bg-zinc-900 isolate">
+          <img
+            src={isMe ? HOSTESS.play : HOSTESS.spectate}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover object-top opacity-55"
+            draggable={false}
+          />
+          <div
+            className={`absolute inset-0 bg-gradient-to-t ${
+              isMe ? 'from-arena-cyan/30' : 'from-arena-error/30'
+            } to-transparent`}
+          />
+        </div>
+        <span className="absolute inset-0 z-10 flex items-center justify-center text-4xl sm:text-5xl drop-shadow-lg pointer-events-none">
           {info.characterId ? getCharacterEmoji(info.characterId) : info.avatar}
         </span>
       </div>

@@ -49,6 +49,7 @@ export function createMatchSession(table: MatchTable, pointsBefore: number): Mat
     settled: false,
     pointsBeforeDeposit: pointsBefore,
     createdAt: new Date().toISOString(),
+    ruleId: table.ruleId,
   };
   saveMatchSession(session);
   return session;

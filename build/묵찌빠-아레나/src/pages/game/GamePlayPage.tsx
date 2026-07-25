@@ -12,14 +12,6 @@ import { DEMO_USER } from '@/data/demoData';
 import { DealerCharacter, DealerState } from '@/components/game/DealerCharacter';
 import { CharacterAvatar } from '@/components/game/CharacterAvatar';
 import { VsIntro } from '@/components/game/VsIntro';
-import {
-  ReactionBubble,
-  EmoteQuickBar,
-  FloatingEmotesLayer,
-  REACTIONS,
-  type ReactionType,
-  type FloatingEmote,
-} from '@/components/game/GameReactions';
 import { gameSettings } from '@/utils/gameSettings';
 import { getHandSkinEmojis, getCharacterEmoji } from '@/data/decorations';
 import { trackMission } from '@/services/mission';
@@ -56,6 +48,19 @@ import { rollJackpotRound } from '@/utils/jackpotRound';
 import { analyzeOpponentPatterns, pickLiveHabitHint } from '@/game/patternStats';
 import { getRevealSchedule, getResultReadMs } from '@/game/combatTiming';
 import { getWinningHand } from '@/game/rpsMatchup';
+import {
+  applyPointGain,
+  availableHands,
+  handKo,
+  hasWonMatch,
+  isMatchPoint,
+  pickRandomAvailable,
+  pickSealedHand,
+  resolveMatchRules,
+  usesHandSeal,
+  usesRevenge,
+  type MatchRuleId,
+} from '@/game/matchRules';
 import { useSoundMuted } from '@/hooks/useSoundMuted';
 import {
   saveLastPlayPath,
@@ -183,6 +188,25 @@ export function GamePlayPage() {
   const isBeginnerMode = id === 'beginner-ai' || !!tableFromState?.isFree;
   const matchTable = tableFromState;
   const activeOpponent = opponentFromState ?? DEMO_OPPONENT;
+  const matchRules = useMemo(
+    () =>
+      resolveMatchRules({
+        ruleId:
+          (location.state?.ruleId as MatchRuleId | undefined) ??
+          matchSession?.ruleId ??
+          tableFromState?.ruleId ??
+          null,
+        tableId: tableFromState?.id ?? null,
+        bestOf: (location.state?.bestOf as 3 | 5 | 7 | undefined) ?? null,
+      }),
+    [
+      location.state?.ruleId,
+      location.state?.bestOf,
+      matchSession?.ruleId,
+      tableFromState?.ruleId,
+      tableFromState?.id,
+    ],
+  );
   
   const myHandEmojis = getHandSkinEmojis(gameSettings.options.handSkinId);
   const opponentHandEmojis = getHandSkinEmojis('classic');
@@ -298,15 +322,14 @@ export function GamePlayPage() {
     return () => audioManager.setAmbienceTier('normal');
   }, [matchTable?.id]);
   
-  const [myReaction, setMyReaction] = useState<ReactionType | null>(null);
-  const [opponentReaction, setOpponentReaction] = useState<ReactionType | null>(null);
-  const [reactionCooldown, setReactionCooldown] = useState(0);
-  const [floatingEmotes, setFloatingEmotes] = useState<FloatingEmote[]>([]);
-  const floatingIdRef = useRef(0);
-
   const [cutIn, setCutIn] = useState<CutInEvent | null>(null);
   const cutIdRef = useRef(0);
   const [comboHits, setComboHits] = useState(0);
+  const [myPointStreak, setMyPointStreak] = useState(0);
+  const [oppPointStreak, setOppPointStreak] = useState(0);
+  const [sealedHand, setSealedHand] = useState<Hand | null>(null);
+  const [myRevengeBan, setMyRevengeBan] = useState<Hand | null>(null);
+  const [oppRevengeBan, setOppRevengeBan] = useState<Hand | null>(null);
   const [nearMissFlash, setNearMissFlash] = useState(false);
   const [revealSnap, setRevealSnap] = useState(false);
   const [screenCrack, setScreenCrack] = useState(false);
@@ -319,6 +342,8 @@ export function GamePlayPage() {
     right: Hand;
     winnerSide: 'left' | 'right';
   } | null>(null);
+  /** REVEAL 타이머가 닫힌 손 스냅샷을 쓰도록 (듀얼·심플 공통) */
+  const revealHandsRef = useRef<{ left: Hand; right: Hand } | null>(null);
 
   useEffect(() => {
     setJackpotActive(rollJackpotRound());
@@ -478,14 +503,32 @@ export function GamePlayPage() {
           });
         }, 1600);
       }
-    } else if (gameState.myScore === 1 && gameState.opponentScore === 1) {
+    } else if (
+      isMatchPoint(
+        matchRules,
+        gameState.myScore,
+        gameState.opponentScore,
+        myPointStreak,
+        oppPointStreak,
+      )
+    ) {
       audioManager.playBGM('last_round');
     } else if (gameState.attacker) {
       audioManager.playBGM('attack_game');
     } else {
       audioManager.playBGM('normal_game');
     }
-  }, [gameState.phase, gameState.attacker, gameState.myScore, gameState.opponentScore, gameState.winner, isBeginnerMode]);
+  }, [
+    gameState.phase,
+    gameState.attacker,
+    gameState.myScore,
+    gameState.opponentScore,
+    gameState.winner,
+    isBeginnerMode,
+    matchRules,
+    myPointStreak,
+    oppPointStreak,
+  ]);
 
   useEffect(() => {
     if (gameState.phase === 'INIT') {
@@ -505,7 +548,12 @@ export function GamePlayPage() {
     }
 
     if (gameState.phase === 'REVEAL') {
-      // 선택 잠금 → 긴장 → 스핀 → 스냅 → 충돌 홀드 → 판정 (순차)
+      // 선택 잠금 → 긴장 → 스핀 → 스냅 → 충돌 홀드 → 판정 (순차) — 듀얼·심플 동일
+      const leftSnap = gameState.myHand;
+      const rightSnap = gameState.opponentHand;
+      if (!leftSnap || !rightSnap) return;
+      revealHandsRef.current = { left: leftSnap, right: rightSnap };
+
       const schedule = getRevealSchedule(isBeginnerMode);
       audioManager.playSFX('tension_before_reveal');
       setIsSpinning(true);
@@ -524,14 +572,15 @@ export function GamePlayPage() {
 
       timers.push(
         window.setTimeout(() => {
+          const snap = revealHandsRef.current;
           setIsSpinning(false);
           setRevealSnap(true);
           setShowImpact(true);
-          if (gameState.myHand === 'ROCK' || gameState.opponentHand === 'ROCK') {
+          if (snap?.left === 'ROCK' || snap?.right === 'ROCK') {
             setTableShake(true);
             timers.push(window.setTimeout(() => setTableShake(false), 300));
             audioManager.playSFX('rock_btn');
-          } else if (gameState.myHand === 'SCISSORS' || gameState.opponentHand === 'SCISSORS') {
+          } else if (snap?.left === 'SCISSORS' || snap?.right === 'SCISSORS') {
             audioManager.playSFX('scissors_btn');
           } else {
             audioManager.playSFX('paper_btn');
@@ -546,16 +595,15 @@ export function GamePlayPage() {
 
       timers.push(
         window.setTimeout(() => {
-          const left = gameState.myHand;
-          const right = gameState.opponentHand;
-          if (left && right) {
-            const winHand = getWinningHand(left, right);
+          const snap = revealHandsRef.current;
+          if (snap) {
+            const winHand = getWinningHand(snap.left, snap.right);
             if (winHand) {
               setVictoryClash({
                 key: Date.now(),
-                left,
-                right,
-                winnerSide: winHand === left ? 'left' : 'right',
+                left: snap.left,
+                right: snap.right,
+                winnerSide: winHand === snap.left ? 'left' : 'right',
               });
             }
           }
@@ -576,30 +624,48 @@ export function GamePlayPage() {
 
     if (gameState.phase === 'ROUND_RESULT') {
       const timer = setTimeout(() => {
-        if (gameState.myScore >= 2 || gameState.opponentScore >= 2) {
-          const isWin = gameState.myScore >= 2;
-          updateState({ 
+        const winner = hasWonMatch(
+          matchRules,
+          gameState.myScore,
+          gameState.opponentScore,
+          myPointStreak,
+          oppPointStreak,
+        );
+        if (winner) {
+          updateState({
             phase: 'GAME_OVER',
-            winner: isWin ? 'ME' : 'OPPONENT',
+            winner,
           });
-          if (isWin) {
+          if (winner === 'ME') {
             updateDealer('congrats', '최종 승리했습니다!', true);
           } else {
             updateDealer('comfort', '최종 패배했습니다.', true);
           }
         } else {
-          const isFinalRound = gameState.myScore === 1 && gameState.opponentScore === 1;
-          setRecommendHand(ALL_HANDS[Math.floor(Math.random() * 3)]);
-          updateState({ 
-            phase: 'SELECTING', 
-            myHand: null, 
-            opponentHand: null, 
-            timeLeft: isBeginnerMode ? 10 : 5,
-            roundMessage: isFinalRound ? '마지막 판!' : '아래에서 선택',
-            round: gameState.round + 1
+          const matchPoint = isMatchPoint(
+            matchRules,
+            gameState.myScore,
+            gameState.opponentScore,
+            myPointStreak,
+            oppPointStreak,
+          );
+          const nextSeal = usesHandSeal(matchRules) ? pickSealedHand(sealedHand) : null;
+          setSealedHand(nextSeal);
+          const avail = availableHands({
+            sealed: nextSeal,
+            revengeBan: usesRevenge(matchRules) ? myRevengeBan : null,
           });
-          if (isFinalRound) {
-            updateDealer('surprise', '마지막 판이에요! 아래에서 골라주세요.');
+          setRecommendHand(avail[Math.floor(Math.random() * avail.length)] ?? 'ROCK');
+          updateState({
+            phase: 'SELECTING',
+            myHand: null,
+            opponentHand: null,
+            timeLeft: isBeginnerMode ? 10 : 5,
+            roundMessage: matchPoint ? '매치포인트!' : '아래에서 선택',
+            round: gameState.round + 1,
+          });
+          if (matchPoint) {
+            updateDealer('surprise', `매치포인트! (${matchRules.shortLabel})`, true);
           } else {
             updateDealer('ask_select', '아래에서 하나를 눌러주세요.');
           }
@@ -610,7 +676,7 @@ export function GamePlayPage() {
       ));
       return () => clearTimeout(timer);
     }
-  }, [gameState.phase, isBeginnerMode]);
+  }, [gameState.phase, isBeginnerMode, matchRules, myPointStreak, oppPointStreak, sealedHand, myRevengeBan]);
 
   // Timer Logic
   useEffect(() => {
@@ -632,57 +698,17 @@ export function GamePlayPage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [gameState.phase, gameState.myHand, showBeginnerHelp, showExitModal]);
 
-  const getRandomHand = (): Hand => ALL_HANDS[Math.floor(Math.random() * ALL_HANDS.length)];
+  const banOpts = () => ({
+    sealed: usesHandSeal(matchRules) ? sealedHand : null,
+    revengeBan: usesRevenge(matchRules) ? myRevengeBan : null,
+  });
+  const oppBanOpts = () => ({
+    sealed: usesHandSeal(matchRules) ? sealedHand : null,
+    revengeBan: usesRevenge(matchRules) ? oppRevengeBan : null,
+  });
 
-  useEffect(() => {
-    let cooldownTimer: NodeJS.Timeout;
-    if (reactionCooldown > 0) {
-      cooldownTimer = setTimeout(() => {
-        setReactionCooldown(prev => Math.max(0, prev - 1000));
-      }, 1000);
-    }
-    return () => clearTimeout(cooldownTimer);
-  }, [reactionCooldown]);
-
-  useEffect(() => {
-    if (myReaction) {
-      const t = setTimeout(() => setMyReaction(null), 2000);
-      return () => clearTimeout(t);
-    }
-  }, [myReaction]);
-
-  useEffect(() => {
-    if (opponentReaction) {
-      const t = setTimeout(() => setOpponentReaction(null), 2000);
-      return () => clearTimeout(t);
-    }
-  }, [opponentReaction]);
-
-  const handleSendReaction = (id: ReactionType) => {
-    setMyReaction(id);
-    setReactionCooldown(3000);
-    void trackMission('REACTION_SENT');
-    const icon = REACTIONS.find((r) => r.id === id)?.icon ?? '✨';
-    const fid = ++floatingIdRef.current;
-    setFloatingEmotes((prev) => [...prev, { id: fid, icon, side: 'me' }]);
-    window.setTimeout(() => {
-      setFloatingEmotes((prev) => prev.filter((e) => e.id !== fid));
-    }, 1500);
-
-    if (Math.random() > 0.5) {
-      setTimeout(() => {
-        const reactions: ReactionType[] = ['CHALLENGE', 'GOOD', 'CLOSE', 'FAST', 'SURPRISE', 'CLAP', 'LAUGH', 'REMATCH'];
-        const randomOpponentReaction = reactions[Math.floor(Math.random() * reactions.length)];
-        setOpponentReaction(randomOpponentReaction);
-        const oIcon = REACTIONS.find((r) => r.id === randomOpponentReaction)?.icon ?? '✨';
-        const oid = ++floatingIdRef.current;
-        setFloatingEmotes((prev) => [...prev, { id: oid, icon: oIcon, side: 'opp' }]);
-        window.setTimeout(() => {
-          setFloatingEmotes((prev) => prev.filter((e) => e.id !== oid));
-        }, 1500);
-      }, 1000 + Math.random() * 1000);
-    }
-  };
+  const getRandomHand = (): Hand => pickRandomAvailable(banOpts());
+  const getOpponentRandomHand = (): Hand => pickRandomAvailable(oppBanOpts());
 
   const handleHandSelect = (hand: Hand, auto = false) => {
     if (gameState.phase !== 'ATTACK_DECISION' && gameState.phase !== 'SELECTING') return;
@@ -691,6 +717,14 @@ export function GamePlayPage() {
       markFirstGuideDone();
     }
     if (gameState.myHand) return;
+    const allowed = availableHands(banOpts());
+    if (!allowed.includes(hand)) {
+      if (auto) {
+        const fallback = pickRandomAvailable(banOpts());
+        handleHandSelect(fallback, true);
+      }
+      return;
+    }
     
     if (!auto) {
       triggerHaptic('medium');
@@ -719,7 +753,7 @@ export function GamePlayPage() {
       // Simulate opponent selection
       setTimeout(() => {
         audioManager.playSFX('opponent_ready');
-        updateState({ opponentHand: getRandomHand() });
+        updateState({ opponentHand: getOpponentRandomHand() });
         // Since state updates are async, we handle phase transition here
         updateState({ phase: 'REVEAL', roundMessage: '결과 공개' });
         triggerHaptic('light');
@@ -768,19 +802,34 @@ export function GamePlayPage() {
     const { myHand, opponentHand, attacker } = gameState;
     if (!myHand || !opponentHand) return;
 
+    const refreshSealForNextPick = () => {
+      if (!usesHandSeal(matchRules)) {
+        setSealedHand(null);
+        return null;
+      }
+      const next = pickSealedHand(sealedHand);
+      setSealedHand(next);
+      return next;
+    };
+
     if (gameState.phase === 'ATTACK_DECISION' || !attacker) {
       const rpsWinner = getRpsWinner(myHand, opponentHand);
       if (rpsWinner === null) {
         audioManager.playSFX('game_void');
         flashNearMiss();
         appendRoundLog('DRAW_RPS', null, null);
-        setRecommendHand(ALL_HANDS[Math.floor(Math.random() * 3)]);
-        updateState({ 
-          phase: 'ATTACK_DECISION', 
-          myHand: null, 
-          opponentHand: null, 
+        const nextSeal = refreshSealForNextPick();
+        const avail = availableHands({
+          sealed: nextSeal,
+          revengeBan: usesRevenge(matchRules) ? myRevengeBan : null,
+        });
+        setRecommendHand(avail[Math.floor(Math.random() * avail.length)] ?? 'ROCK');
+        updateState({
+          phase: 'ATTACK_DECISION',
+          myHand: null,
+          opponentHand: null,
           timeLeft: isBeginnerMode ? 10 : 5,
-          roundMessage: '다시 골라주세요' 
+          roundMessage: '다시 골라주세요',
         });
         updateDealer('surprise', '비겼어요. 다시 골라주세요.', true);
       } else {
@@ -792,16 +841,31 @@ export function GamePlayPage() {
           audioManager.playSFX('attack_fail');
           message = '상대 공격이에요. 다른 손을 내 막아보세요.';
         }
-        
+
         if (isBeginnerMode && gameSettings.options.beginnerHelpVoice && gameState.round === 1) {
           message += ' 아래에서 골라주세요.';
         }
-        
+
+        // 리벤지: 공격권 RPS에서 진 쪽 손 봉인
+        if (usesRevenge(matchRules)) {
+          if (rpsWinner === 'ME') setOppRevengeBan(opponentHand);
+          else setMyRevengeBan(myHand);
+        }
+
         updateDealer('ask_select', message, true);
         appendRoundLog('ATTACK_GAIN', null, rpsWinner);
-        setRecommendHand(rpsWinner === 'ME' ? 'ROCK' : 'PAPER');
+        const nextSeal = refreshSealForNextPick();
+        const avail = availableHands({
+          sealed: nextSeal,
+          revengeBan: usesRevenge(matchRules)
+            ? rpsWinner === 'ME'
+              ? myRevengeBan
+              : myHand
+            : null,
+        });
+        setRecommendHand(avail[0] ?? 'ROCK');
 
-        updateState({ 
+        updateState({
           attacker: rpsWinner,
           phase: 'SELECTING',
           myHand: null,
@@ -817,22 +881,37 @@ export function GamePlayPage() {
       if (attacker === 'ME') {
         audioManager.playSFX('round_win');
         appendRoundLog('POINT_ME', attacker, attacker);
-        const nextScore = gameState.myScore + 1;
+        const scored = applyPointGain(matchRules, gameState.myScore, gameState.opponentScore, 'ME');
         const nextCombo = comboHits + 1;
+        const nextMyStreak = myPointStreak + 1;
         setComboHits(nextCombo);
+        setMyPointStreak(nextMyStreak);
+        setOppPointStreak(0);
+        if (usesRevenge(matchRules)) {
+          setOppRevengeBan(opponentHand);
+          setMyRevengeBan(null);
+        }
         if (nextCombo >= 2) audioManager.playSFX('streak_up');
-        if (nextScore >= 2) {
+        const wouldWin =
+          hasWonMatch(matchRules, scored.myScore, scored.opponentScore, nextMyStreak, 0) === 'ME';
+        if (wouldWin) {
           setScreenCrack(true);
           window.setTimeout(() => setScreenCrack(false), 1200);
         }
         showCutIn({
           role: 'victory',
-          title: nextScore >= 2 ? 'FINISH!' : 'POINT!',
-          subtitle: nextScore >= 2 ? '결정타!' : nextCombo >= 2 ? `${nextCombo} HIT COMBO` : '승점 획득',
+          title: wouldWin ? 'FINISH!' : scored.awarded >= 2 ? 'DOUBLE!' : 'POINT!',
+          subtitle: wouldWin
+            ? '결정타!'
+            : scored.awarded >= 2
+              ? '더블 승점!'
+              : nextCombo >= 2
+                ? `${nextCombo} HIT COMBO`
+                : '승점 획득',
           tone: 'gold',
         });
         updateState({
-          myScore: nextScore,
+          myScore: scored.myScore,
           phase: 'ROUND_RESULT',
           roundMessage: '이겼어요!',
         });
@@ -841,15 +920,26 @@ export function GamePlayPage() {
       } else {
         audioManager.playSFX('round_lose');
         appendRoundLog('POINT_OPPONENT', attacker, attacker);
+        const scored = applyPointGain(matchRules, gameState.myScore, gameState.opponentScore, 'OPPONENT');
+        const nextOppStreak = oppPointStreak + 1;
         setComboHits(0);
+        setMyPointStreak(0);
+        setOppPointStreak(nextOppStreak);
+        if (usesRevenge(matchRules)) {
+          setMyRevengeBan(myHand);
+          setOppRevengeBan(null);
+        }
         showCutIn({
           role: 'comfort',
-          title: 'HIT',
-          subtitle: '상대 승점 · 다음 라운드에 만회해요',
+          title: scored.awarded >= 2 ? 'DOUBLE' : 'HIT',
+          subtitle:
+            scored.awarded >= 2
+              ? '상대 더블 승점'
+              : '상대 승점 · 다음 라운드에 만회해요',
           tone: 'red',
         });
         updateState({
-          opponentScore: gameState.opponentScore + 1,
+          opponentScore: scored.opponentScore,
           phase: 'ROUND_RESULT',
           roundMessage: '아쉬워요',
         });
@@ -859,6 +949,16 @@ export function GamePlayPage() {
     } else {
       const rpsWinner = getRpsWinner(myHand, opponentHand);
       flashNearMiss();
+      if (usesRevenge(matchRules)) {
+        // 공격권 탈취 시: 진 쪽 손 다음 턴 금지
+        if (rpsWinner === 'ME') {
+          setOppRevengeBan(opponentHand);
+          setMyRevengeBan(null);
+        } else {
+          setMyRevengeBan(myHand);
+          setOppRevengeBan(null);
+        }
+      }
       if (rpsWinner === 'ME') {
         audioManager.playSFX('attack_move', { pan: -1 });
         const nextCombo = comboHits + 1;
@@ -885,7 +985,17 @@ export function GamePlayPage() {
     }
   };
 
-  const isLastRound = gameState.myScore === 1 && gameState.opponentScore === 1;
+  const isLastRound = isMatchPoint(
+    matchRules,
+    gameState.myScore,
+    gameState.opponentScore,
+    myPointStreak,
+    oppPointStreak,
+  );
+  const isHandBanned = (hand: Hand) =>
+    (usesHandSeal(matchRules) && sealedHand === hand) ||
+    (usesRevenge(matchRules) && myRevengeBan === hand);
+
   const canPickNow =
     !gameState.myHand &&
     (gameState.phase === 'ATTACK_DECISION' || gameState.phase === 'SELECTING');
@@ -979,18 +1089,19 @@ export function GamePlayPage() {
           tableShake={tableShake}
           isSpinning={isSpinning}
           isLastRound={!!isLastRound}
+          ruleShortLabel={matchRules.shortLabel}
+          lifeBarMax={matchRules.lifeBarMax}
+          bannedHands={[
+            ...(usesHandSeal(matchRules) && sealedHand ? [sealedHand] : []),
+            ...(usesRevenge(matchRules) && myRevengeBan ? [myRevengeBan] : []),
+          ]}
           onExit={() => setShowExitModal(true)}
           onToggleMute={toggleMute}
           onInfo={() => { triggerHaptic('light'); setShowInfo(true); }}
           onSettings={() => { triggerHaptic('light'); navigate('/settings'); }}
           onSelectHand={(hand) => handleHandSelect(hand)}
           onToggleLayout={toggleBattleLayout}
-          onSendEmote={handleSendReaction}
-          emoteCooldownMs={reactionCooldown}
-          floatingEmotes={floatingEmotes}
           habitHint={habitHint}
-          myReaction={myReaction}
-          opponentReaction={opponentReaction}
           tier={getTableTier(matchTable)}
           comboHits={comboHits}
           handSkinId={gameSettings.options.handSkinId}
@@ -1002,7 +1113,7 @@ export function GamePlayPage() {
       <>
       {/* Background Ambience */}
       <div className={`absolute inset-0 z-0 transition-colors duration-1000 ${
-        gameState.myScore === 1 && gameState.opponentScore === 1 
+        isLastRound
           ? 'bg-[radial-gradient(circle_at_center,_rgba(40,0,0,1)_0%,_rgba(0,0,0,1)_100%)]' 
           : 'bg-[radial-gradient(circle_at_center,_rgba(24,24,27,1)_0%,_rgba(0,0,0,1)_100%)]'
       }`} />
@@ -1023,7 +1134,7 @@ export function GamePlayPage() {
         </div>
       )}
 
-      <LastRoundNeon active={gameState.myScore === 1 && gameState.opponentScore === 1} />
+      <LastRoundNeon active={!!isLastRound} />
       <StreakScreenFrame streak={DEMO_USER.streak + gameState.myScore} />
       <StreakFlameGrowth streak={DEMO_USER.streak + gameState.myScore} />
       <RevealTension active={isSpinning || gameState.phase === 'REVEAL'} />
@@ -1055,9 +1166,10 @@ export function GamePlayPage() {
         <div className="flex flex-col items-center gap-1">
           <ConnectionBadge status={connStatus} />
           <div className="flex gap-2">
+            {/* 정보 버튼은 모바일에서 숨김 — 데스크톱에서만 노출 */}
             <button 
               onClick={() => { triggerHaptic('light'); setShowInfo(true); }}
-              className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-full text-xs font-bold text-gray-400 hover:text-white transition-colors"
+              className="hidden md:flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-full text-xs font-bold text-gray-400 hover:text-white transition-colors"
             >
               <Info className="w-3 h-3" /> INFO
             </button>
@@ -1086,9 +1198,6 @@ export function GamePlayPage() {
                  winner={gameState.winner} 
                  hand={gameState.myHand} 
                />
-               <AnimatePresence>
-                 {myReaction && <ReactionBubble reactionId={myReaction} isMe={true} />}
-               </AnimatePresence>
              </div>
              <div className="flex flex-col">
                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{DEMO_USER.grade}</span>
@@ -1110,7 +1219,7 @@ export function GamePlayPage() {
 
         {/* Timer */}
         <div className="flex-1 flex justify-center">
-           <div className={`relative w-20 h-20 flex items-center justify-center ${gameState.myScore === 1 && gameState.opponentScore === 1 ? 'scale-110 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]' : ''} transition-all`}>
+           <div className={`relative w-20 h-20 flex items-center justify-center ${isLastRound ? 'scale-110 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]' : ''} transition-all`}>
               <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 44 44">
                  <circle cx="22" cy="22" r="20" className="stroke-gray-800" strokeWidth="4" fill="none" />
                  <motion.circle 
@@ -1161,9 +1270,6 @@ export function GamePlayPage() {
                  winner={gameState.winner} 
                  hand={gameState.opponentHand} 
                />
-               <AnimatePresence>
-                 {opponentReaction && <ReactionBubble reactionId={opponentReaction} isMe={false} />}
-               </AnimatePresence>
              </div>
              <div className="flex flex-col items-end">
                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{activeOpponent.grade}</span>
@@ -1191,6 +1297,21 @@ export function GamePlayPage() {
       </div>
 
       <ActionCue text={actionText} highlight={canPickNow} tip={actionTip} />
+      <div className="relative z-20 w-full flex flex-wrap justify-center gap-1.5 px-4 -mt-1 mb-1">
+        <span className="text-[10px] font-black tracking-wide px-2 py-0.5 rounded-full bg-white/10 text-white/80 border border-white/15">
+          {matchRules.shortLabel}
+        </span>
+        {usesHandSeal(matchRules) && sealedHand && (
+          <span className="text-[10px] font-black tracking-wide px-2 py-0.5 rounded-full bg-violet-500/90 text-white border border-black/30">
+            봉인 {handKo(sealedHand)}
+          </span>
+        )}
+        {usesRevenge(matchRules) && myRevengeBan && (
+          <span className="text-[10px] font-black tracking-wide px-2 py-0.5 rounded-full bg-rose-500/90 text-white border border-black/30">
+            리벤지 금지 {handKo(myRevengeBan)}
+          </span>
+        )}
+      </div>
 
       {/* Main Reels Area */}
       <div className="flex-1 flex flex-col justify-center items-center relative z-10 w-full max-w-md mx-auto">
@@ -1220,7 +1341,7 @@ export function GamePlayPage() {
           animate={tableShake ? { x: [-10, 10, -10, 10, 0], y: [-5, 5, -5, 5, 0] } : { x: 0, y: 0 }}
           transition={{ duration: 0.3 }}
           className={`flex items-center gap-3 md:gap-5 p-5 bg-gradient-to-b from-gray-800 to-gray-900 rounded-[2rem] border-[8px] border-gray-800 shadow-[0_15px_40px_rgba(0,0,0,0.9)] relative transition-all duration-1000 ${
-           gameState.myScore === 1 && gameState.opponentScore === 1 ? 'shadow-[0_0_50px_rgba(220,38,38,0.3)] border-red-900/40' : ''
+           isLastRound ? 'shadow-[0_0_50px_rgba(220,38,38,0.3)] border-red-900/40' : ''
         }`}>
           {isLastRound && (
             <div className="absolute -top-10 inset-x-0 text-center font-black text-red-500 tracking-widest text-sm animate-pulse drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">
@@ -1331,17 +1452,6 @@ export function GamePlayPage() {
            </div>
         </div>
 
-        {/* 이모트 퀵바 — 손 선택 카드와 겹치지 않도록 패널 안 상단에 배치 */}
-        <div className="flex justify-center mb-2.5">
-          <div className="px-2 py-1 rounded-xl bg-black/40 border border-white/10">
-            <EmoteQuickBar
-              onSend={handleSendReaction}
-              cooldownRemaining={reactionCooldown}
-              className="gap-1 [&_button]:w-9 [&_button]:h-9"
-            />
-          </div>
-        </div>
-
         <div className="flex justify-between gap-2.5 sm:gap-3 relative">
           <FirstPlayCoach
             visible={showCoach && canPickNow}
@@ -1352,7 +1462,8 @@ export function GamePlayPage() {
           />
           {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand) => {
             const isSelected = gameState.myHand === hand;
-            const canSelect = canPickNow;
+            const banned = isHandBanned(hand);
+            const canSelect = canPickNow && !banned;
             const isRecommend =
               canSelect &&
               (isBeginnerMode || showCoach) &&
@@ -1381,6 +1492,7 @@ export function GamePlayPage() {
                   ease: 'easeInOut',
                 }}
                 className={`flex-1 min-h-[7.5rem] sm:min-h-0 aspect-auto sm:aspect-square rounded-2xl flex flex-col items-center justify-center relative overflow-hidden touch-manipulation ${
+                  banned ? 'bg-gray-900 opacity-40 grayscale border-b-8 border-gray-950' :
                   isSelected ? 'bg-gradient-to-b from-gray-700 to-gray-800 border-b-4 border-gray-900 shadow-inner' :
                   !canSelect ? 'bg-gray-800 opacity-35 grayscale border-b-8 border-gray-900' :
                   'bg-gradient-to-b from-gray-600 to-gray-700 border-b-8 border-gray-900 hover:brightness-110 shadow-lg'
@@ -1392,6 +1504,11 @@ export function GamePlayPage() {
                       : ''
                 }`}
               >
+                {banned && (
+                  <span className="absolute top-1.5 left-1/2 -translate-x-1/2 z-30 text-[9px] font-black bg-arena-error text-white px-1.5 py-0.5 rounded-full">
+                    {usesHandSeal(matchRules) && sealedHand === hand ? '봉인' : '리벤지'}
+                  </span>
+                )}
                 <motion.img
                   src={hostessForHand(hand)}
                   alt=""
@@ -1712,14 +1829,17 @@ export function GamePlayPage() {
           </div>
         )}
       </AnimatePresence>
-      <HostessCutIn cut={cutIn} />
+      {/* 승부 영상 중에는 컷인을 숨겨 심플·듀얼 모두 영상이 가려지지 않게 */}
+      {!victoryClash && <HostessCutIn cut={cutIn} />}
       {victoryClash && (
         <HandVictoryClash
+          key={victoryClash.key}
           playKey={victoryClash.key}
           leftHand={victoryClash.left}
           rightHand={victoryClash.right}
           winnerSide={victoryClash.winnerSide}
           skinId={gameSettings.options.handSkinId}
+          onComplete={() => setVictoryClash(null)}
         />
       )}
       {/* Duel layout also needs global dopamine overlays (mounted above for both) */}
@@ -1741,18 +1861,12 @@ export function GamePlayPage() {
           />
         </>
       )}
-      {/* 이모트 퀵바가 양 레이아웃에 있어 플로팅 반응 버튼은 미사용 */}
-      {!isDuelLayout && (
-        <>
-          <FloatingEmotesLayer emotes={floatingEmotes} />
-          {habitHint && canPickNow && (
-            <div className="overlay-gutter fixed top-20 inset-x-0 z-30 flex justify-center pointer-events-none px-4">
-              <p className="text-[11px] font-bold text-arena-cyan bg-black/60 border border-arena-cyan/25 rounded-full px-3 py-1.5">
-                힌트 · {habitHint}
-              </p>
-            </div>
-          )}
-        </>
+      {!isDuelLayout && habitHint && canPickNow && (
+        <div className="overlay-gutter fixed top-20 inset-x-0 z-30 flex justify-center pointer-events-none px-4">
+          <p className="text-[11px] font-bold text-arena-cyan bg-black/60 border border-arena-cyan/25 rounded-full px-3 py-1.5">
+            힌트 · {habitHint}
+          </p>
+        </div>
       )}
     </div>
   );

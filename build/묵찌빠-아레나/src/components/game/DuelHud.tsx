@@ -8,7 +8,7 @@ type PlayerId = 'ME' | 'OPPONENT';
 
 function LifeBar({ score, max = 2, side }: { score: number; max?: number; side: 'left' | 'right' }) {
   const filled = Math.min(max, Math.max(0, score));
-  const segments = Array.from({ length: max }, (_, i) => i < filled);
+  const segments = Array.from({ length: Math.max(1, max) }, (_, i) => i < filled);
   return (
     <div
       className={`flex-1 h-4 md:h-5 rounded-sm border-2 border-white/90 overflow-hidden flex bg-red-700/90 ${
@@ -44,6 +44,8 @@ export function DuelHud({
   comboHits,
   onFire,
   jackpot,
+  ruleShortLabel = '3판2승',
+  lifeBarMax = 2,
   onExit,
   onToggleMute,
   onInfo,
@@ -66,6 +68,8 @@ export function DuelHud({
   comboHits: number;
   onFire: boolean;
   jackpot: boolean;
+  ruleShortLabel?: string;
+  lifeBarMax?: number;
   onExit: () => void;
   onToggleMute: () => void;
   onInfo: () => void;
@@ -100,15 +104,17 @@ export function DuelHud({
 
         <div className="flex-1 flex items-center gap-2 md:gap-3 min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-md bg-red-600 border-2 border-black flex items-center justify-center font-black text-white text-lg shadow-[2px_2px_0_#000]">
+            <div className="hidden sm:flex w-8 h-8 md:w-10 md:h-10 rounded-md bg-red-600 border-2 border-black items-center justify-center font-black text-white text-lg shadow-[2px_2px_0_#000]">
               1
             </div>
-            <div className="hidden sm:block min-w-0">
-              <div className="text-[10px] font-black text-amber-300 leading-none">1P</div>
-              <div className="text-xs font-black text-white truncate max-w-[72px]">{myName}</div>
+            <div className="min-w-0">
+              <div className="text-[9px] md:text-[10px] font-black text-amber-300 leading-none">나</div>
+              <div className="text-[11px] md:text-xs font-black text-white truncate max-w-[56px] sm:max-w-[72px]">
+                {myName}
+              </div>
             </div>
           </div>
-          <LifeBar score={myScore} side="left" />
+          <LifeBar score={myScore} max={lifeBarMax} side="left" />
 
           <div className="flex flex-col items-center shrink-0 px-1">
             <ConnectionBadge status={connStatus} />
@@ -118,7 +124,7 @@ export function DuelHud({
                   isLastRound ? 'bg-red-500/25 border-red-400/50 text-red-200' : theme.badge
                 }`}
               >
-                {isLastRound ? 'FINAL' : theme.label}
+                {isLastRound ? 'MATCH' : ruleShortLabel}
               </div>
               <div
                 className={`text-xl md:text-2xl font-black tabular-nums leading-none mt-0.5 ${
@@ -142,14 +148,16 @@ export function DuelHud({
             </div>
           </div>
 
-          <LifeBar score={opponentScore} side="right" />
+          <LifeBar score={opponentScore} max={lifeBarMax} side="right" />
           <div className="flex items-center gap-1.5 min-w-0 flex-row-reverse">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-md bg-red-600 border-2 border-black flex items-center justify-center font-black text-white text-lg shadow-[2px_2px_0_#000]">
+            <div className="hidden sm:flex w-8 h-8 md:w-10 md:h-10 rounded-md bg-red-600 border-2 border-black items-center justify-center font-black text-white text-lg shadow-[2px_2px_0_#000]">
               2
             </div>
-            <div className="hidden sm:block min-w-0 text-right">
-              <div className="text-[10px] font-black text-amber-300 leading-none">2P</div>
-              <div className="text-xs font-black text-white truncate max-w-[72px]">{oppName}</div>
+            <div className="min-w-0 text-right">
+              <div className="text-[9px] md:text-[10px] font-black text-amber-300 leading-none">상대</div>
+              <div className="text-[11px] md:text-xs font-black text-white truncate max-w-[56px] sm:max-w-[72px]">
+                {oppName}
+              </div>
             </div>
           </div>
         </div>
@@ -172,7 +180,7 @@ export function DuelHud({
           <button
             type="button"
             onClick={onInfo}
-            className="w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 flex items-center justify-center text-white/80"
+            className="hidden md:flex w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 items-center justify-center text-white/80"
           >
             <Info className="w-4 h-4" />
           </button>
@@ -181,7 +189,7 @@ export function DuelHud({
               type="button"
               onClick={onSettings}
               title="게임 설정"
-              className="w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 flex items-center justify-center text-white/80"
+              className="hidden md:flex w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 items-center justify-center text-white/80"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -196,7 +204,6 @@ export function DuelHud({
         </div>
       </div>
 
-      {/* 상태 스트립 — 배지 한 줄, 손 위 겹침 방지 */}
       {(comboHits >= 2 || onFire || jackpot) && (
         <div className="flex justify-center gap-1.5 pointer-events-none">
           {jackpot && (

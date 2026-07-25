@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { HandGlyph } from '@/components/game/HandGlyph';
 import { audioManager } from '@/utils/audio';
 import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings } from '@/utils/gameSettings';
@@ -13,259 +13,52 @@ import {
   type RpsHand,
 } from '@/game/rpsMatchup';
 
+import cutWebm from '@/assets/clash/cut.webm';
+import cutMp4 from '@/assets/clash/cut.mp4';
+import wrapWebm from '@/assets/clash/wrap.webm';
+import wrapMp4 from '@/assets/clash/wrap.mp4';
+import crushWebm from '@/assets/clash/crush.webm';
+import crushMp4 from '@/assets/clash/crush.mp4';
+
 const reduce = () =>
   gameSettings.options.reduceAnimations || gameSettings.options.performanceMode === 'low';
 
 type Side = 'left' | 'right';
 
-function ShredBits({ active }: { active: boolean }) {
-  if (!active) return null;
-  return (
-    <>
-      {Array.from({ length: 8 }, (_, i) => (
-        <motion.span
-          key={i}
-          className="absolute w-2 h-2.5 rounded-[1px] bg-amber-200/90 border border-black/40"
-          style={{ left: '52%', top: '42%' }}
-          initial={{ opacity: 0, x: 0, y: 0, rotate: 0 }}
-          animate={{
-            opacity: [0, 1, 0],
-            x: (i % 2 === 0 ? -1 : 1) * (18 + (i % 4) * 14),
-            y: -12 - (i % 5) * 16,
-            rotate: (i - 4) * 40,
-          }}
-          transition={{ duration: 0.7, delay: 0.45 + i * 0.03, ease: 'easeOut' }}
-        />
-      ))}
-    </>
-  );
-}
+const CLASH_VIDEO: Record<MatchupKind, { webm: string; mp4: string }> = {
+  cut: { webm: cutWebm, mp4: cutMp4 },
+  wrap: { webm: wrapWebm, mp4: wrapMp4 },
+  crush: { webm: crushWebm, mp4: crushMp4 },
+};
 
-function CrackSparks({ active }: { active: boolean }) {
-  if (!active) return null;
-  return (
-    <>
-      {Array.from({ length: 6 }, (_, i) => (
-        <motion.span
-          key={i}
-          className="absolute w-1.5 h-1.5 rounded-full bg-orange-300"
-          style={{ left: '48%', top: '48%' }}
-          initial={{ opacity: 0, scale: 0.4 }}
-          animate={{
-            opacity: [0, 1, 0],
-            x: Math.cos((i / 6) * Math.PI * 2) * (28 + i * 4),
-            y: Math.sin((i / 6) * Math.PI * 2) * (22 + i * 3),
-            scale: [0.4, 1.2, 0.2],
-          }}
-          transition={{ duration: 0.55, delay: 0.4 + i * 0.02 }}
-        />
-      ))}
-    </>
-  );
-}
-
-function CutScene({
-  winnerSide,
-  skinId,
-}: {
-  winnerSide: Side;
-  skinId: string;
-}) {
-  const scissorsOnLeft = winnerSide === 'left';
-  return (
-    <div className="relative flex items-center justify-center w-[min(92vw,22rem)] h-36">
-      {/* Paper splits after snip */}
-      <motion.div
-        className={`absolute ${scissorsOnLeft ? 'right-[10%]' : 'left-[10%]'} top-1/2 -translate-y-1/2 flex`}
-        initial={{ opacity: 1 }}
-      >
-        <motion.div
-          className="overflow-hidden w-9"
-          initial={{ opacity: 1 }}
-          animate={{ x: scissorsOnLeft ? -6 : 6, y: -8, rotate: scissorsOnLeft ? -24 : 24, opacity: 0.75 }}
-          transition={{ duration: 0.5, delay: 0.48 }}
-        >
-          <span className={`inline-block ${scissorsOnLeft ? '' : 'scale-x-[-1]'}`} style={{ marginRight: -36 }}>
-            <HandGlyph hand="PAPER" theme={skinId} size={72} />
-          </span>
-        </motion.div>
-        <motion.div
-          className="overflow-hidden w-9"
-          initial={{ opacity: 1 }}
-          animate={{ x: scissorsOnLeft ? 14 : -14, y: 10, rotate: scissorsOnLeft ? 28 : -28, opacity: 0.7 }}
-          transition={{ duration: 0.5, delay: 0.48 }}
-        >
-          <span className={`inline-block ${scissorsOnLeft ? '' : 'scale-x-[-1]'}`} style={{ marginLeft: -36 }}>
-            <HandGlyph hand="PAPER" theme={skinId} size={72} />
-          </span>
-        </motion.div>
-      </motion.div>
-      {/* Scissors snips */}
-      <motion.div
-        className={`absolute z-10 ${scissorsOnLeft ? 'left-[8%]' : 'right-[8%]'} top-1/2 -translate-y-1/2`}
-        initial={{ x: scissorsOnLeft ? -48 : 48, rotate: scissorsOnLeft ? -35 : 35, scale: 0.85 }}
-        animate={{
-          x: [scissorsOnLeft ? -48 : 48, 0, scissorsOnLeft ? 10 : -10, 0],
-          rotate: scissorsOnLeft ? [-35, 0, -16, 14, -6, 0] : [35, 0, 16, -14, 6, 0],
-          scale: [0.85, 1.15, 1.22, 1.1],
-        }}
-        transition={{ duration: 0.95, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <span className={scissorsOnLeft ? '' : 'inline-block scale-x-[-1]'}>
-          <HandGlyph hand="SCISSORS" theme={skinId} size={80} comboBoost={2} />
-        </span>
-      </motion.div>
-      <ShredBits active />
-    </div>
-  );
-}
-
-function WrapScene({
-  winnerSide,
-  skinId,
-}: {
-  winnerSide: Side;
-  skinId: string;
-}) {
-  const paperOnLeft = winnerSide === 'left';
-  return (
-    <div className="relative flex items-center justify-center w-[min(92vw,22rem)] h-36">
-      {/* Rock underneath */}
-      <motion.div
-        className="absolute z-[1] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-        initial={{ scale: 1, opacity: 1 }}
-        animate={{
-          scale: [1, 0.92, 0.78],
-          x: [0, -3, 3, -2, 0],
-          opacity: [1, 1, 0.75],
-        }}
-        transition={{ duration: 0.9, delay: 0.25 }}
-      >
-        <span className={paperOnLeft ? 'inline-block scale-x-[-1]' : ''}>
-          <HandGlyph hand="ROCK" theme={skinId} size={64} />
-        </span>
-      </motion.div>
-      {/* Paper wraps over */}
-      <motion.div
-        className={`absolute z-10 ${paperOnLeft ? 'left-[6%]' : 'right-[6%]'} top-1/2 -translate-y-1/2`}
-        initial={{
-          x: paperOnLeft ? -56 : 56,
-          scale: 0.7,
-          rotate: paperOnLeft ? -20 : 20,
-          opacity: 0.85,
-        }}
-        animate={{
-          x: paperOnLeft ? 28 : -28,
-          scale: [0.7, 1.05, 1.35],
-          rotate: [paperOnLeft ? -20 : 20, 0, 0],
-          opacity: 1,
-        }}
-        transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
-      >
-        <span className={paperOnLeft ? '' : 'inline-block scale-x-[-1]'}>
-          <HandGlyph hand="PAPER" theme={skinId} size={88} comboBoost={2} />
-        </span>
-      </motion.div>
-      {/* Squeeze ring */}
-      <motion.div
-        className="absolute z-[5] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full border-2 border-amber-300/50"
-        initial={{ scale: 1.4, opacity: 0 }}
-        animate={{ scale: [1.4, 0.85, 0.7], opacity: [0, 0.7, 0] }}
-        transition={{ duration: 0.7, delay: 0.35 }}
-      />
-    </div>
-  );
-}
-
-function CrushScene({
-  winnerSide,
-  skinId,
-}: {
-  winnerSide: Side;
-  skinId: string;
-}) {
-  const rockOnLeft = winnerSide === 'left';
-  return (
-    <div className="relative flex items-center justify-center w-[min(92vw,22rem)] h-36">
-      {/* Scissors (loser) flattens */}
-      <motion.div
-        className={`absolute z-[1] ${rockOnLeft ? 'right-[18%]' : 'left-[18%]'} top-1/2 -translate-y-1/2`}
-        initial={{ scale: 1, y: 0, rotate: 0 }}
-        animate={{
-          scaleY: [1, 1, 0.35, 0.28],
-          scaleX: [1, 1.05, 1.25, 1.3],
-          y: [0, 0, 10, 12],
-          rotate: rockOnLeft ? [0, -8, 12, 0] : [0, 8, -12, 0],
-          opacity: [1, 1, 0.85, 0.7],
-        }}
-        transition={{ duration: 0.85, times: [0, 0.35, 0.55, 1] }}
-      >
-        <span className={rockOnLeft ? 'inline-block scale-x-[-1]' : ''}>
-          <HandGlyph hand="SCISSORS" theme={skinId} size={70} />
-        </span>
-      </motion.div>
-      {/* Rock drops */}
-      <motion.div
-        className={`absolute z-10 ${rockOnLeft ? 'left-[14%]' : 'right-[14%]'} top-1/2 -translate-y-1/2`}
-        initial={{ y: -64, scale: 0.9, rotate: rockOnLeft ? -15 : 15 }}
-        animate={{
-          y: [-64, -8, 6, 0],
-          scale: [0.9, 1.2, 1.05, 1.12],
-          rotate: rockOnLeft ? [-15, 8, -4, 0] : [15, -8, 4, 0],
-        }}
-        transition={{ duration: 0.75, ease: [0.34, 1.4, 0.64, 1] }}
-      >
-        <span className={rockOnLeft ? '' : 'inline-block scale-x-[-1]'}>
-          <HandGlyph hand="ROCK" theme={skinId} size={84} comboBoost={2} />
-        </span>
-      </motion.div>
-      <CrackSparks active />
-      {/* Impact flash */}
-      <motion.div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-amber-200/40 blur-md"
-        initial={{ opacity: 0, scale: 0.4 }}
-        animate={{ opacity: [0, 0.9, 0], scale: [0.4, 1.6, 2] }}
-        transition={{ duration: 0.45, delay: 0.38 }}
-      />
-    </div>
-  );
-}
-
-function MatchupStage({
-  kind,
-  winnerSide,
-  skinId,
-}: {
-  kind: MatchupKind;
-  winnerSide: Side;
-  skinId: string;
-}) {
-  if (kind === 'cut') return <CutScene winnerSide={winnerSide} skinId={skinId} />;
-  if (kind === 'wrap') return <WrapScene winnerSide={winnerSide} skinId={skinId} />;
-  return <CrushScene winnerSide={winnerSide} skinId={skinId} />;
-}
+const SUBTITLE: Record<MatchupKind, string> = {
+  cut: '찌가 빠를 가위질!',
+  wrap: '빠가 묵을 감싸버림!',
+  crush: '묵이 찌를 부숴버림!',
+};
 
 /**
- * Standard 패키지 — 찌>빠 가위질 / 빠>묵 감싸기 / 묵>찌 부수기
- * playKey가 바뀌고 양손이 다른 승부일 때 중앙 오버레이로 재생
+ * 전체화면 승부 영상 연출 — 찌>빠 / 빠>묵 / 묵>찌
+ * 듀얼·심플 공통 (body 포털, 사이드바 제외 콘텐츠 영역)
  */
 export function HandVictoryClash({
   playKey,
   leftHand,
   rightHand,
   winnerSide,
-  skinId = 'classic',
+  onComplete,
 }: {
   playKey: number;
   leftHand: RpsHand | null;
   rightHand: RpsHand | null;
-  /** 내가 이기면 'left', 상대가 이기면 'right' — 없으면 손 규칙으로 추론 */
   winnerSide?: Side | null;
   skinId?: string;
+  onComplete?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<MatchupKind | null>(null);
-  const [side, setSide] = useState<Side>('left');
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const doneRef = useRef(false);
 
   useEffect(() => {
     if (!playKey || !leftHand || !rightHand || reduce()) return;
@@ -275,63 +68,132 @@ export function HandVictoryClash({
     const matchup = getMatchupKind(winHand, loseHand);
     if (!matchup) return;
 
-    const resolvedSide: Side =
-      winnerSide ?? (winHand === leftHand ? 'left' : 'right');
-
+    void winnerSide;
+    doneRef.current = false;
     setKind(matchup);
-    setSide(resolvedSide);
     setOpen(true);
 
     if (matchup === 'cut') audioManager.playSFX('scissors_btn');
     else if (matchup === 'wrap') audioManager.playSFX('paper_btn');
     else audioManager.playSFX('rock_btn');
     triggerHaptic('heavy');
+    window.setTimeout(() => triggerHaptic('medium'), 480);
 
-    const t = window.setTimeout(() => setOpen(false), VICTORY_CLASH_MS);
+    const t = window.setTimeout(() => {
+      setOpen(false);
+      if (!doneRef.current) {
+        doneRef.current = true;
+        window.setTimeout(() => onComplete?.(), 280);
+      }
+    }, VICTORY_CLASH_MS);
     return () => clearTimeout(t);
-    // playKey 기준으로만 스냅샷 — 이후 손 초기화에 연출이 끊기지 않게
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playKey]);
 
-  return (
+  useEffect(() => {
+    if (!open || !kind || !videoRef.current) return;
+    const v = videoRef.current;
+    v.muted = true;
+    v.playsInline = true;
+    v.currentTime = 0;
+    const play = v.play();
+    if (play && typeof play.catch === 'function') {
+      play.catch(() => {
+        /* autoplay 거부 시에도 오버레이는 유지 */
+      });
+    }
+  }, [open, kind, playKey]);
+
+  if (typeof document === 'undefined') return null;
+
+  const sources = kind ? CLASH_VIDEO[kind] : null;
+
+  return createPortal(
     <AnimatePresence>
-      {open && kind && (
+      {open && kind && sources && (
         <motion.div
-          key={`clash-${playKey}`}
-          className="pointer-events-none absolute inset-0 z-[48] flex flex-col items-center justify-center"
+          key={`clash-vid-${playKey}`}
+          className="overlay-area pointer-events-none z-[110] flex flex-col items-center justify-center overflow-hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+          exit={{ opacity: 0, transition: { duration: 0.28 } }}
+          transition={{ duration: 0.2 }}
           aria-hidden
         >
           <motion.div
-            className="absolute inset-0 bg-black/55"
+            className="absolute inset-0 bg-black/85 backdrop-blur-lg"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.22)_0%,transparent_58%)]" />
+
           <motion.div
-            className="relative z-10 flex flex-col items-center"
-            initial={{ scale: 0.88, y: 16 }}
+            className="relative z-10 w-full max-w-4xl flex flex-col items-center px-3 sm:px-6"
+            initial={{ scale: 0.9, y: 24 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 1.04, opacity: 0 }}
-            transition={{ type: 'spring', bounce: 0.35, duration: 0.45 }}
+            transition={{ type: 'spring', bounce: 0.28, duration: 0.5 }}
           >
-            <motion.div
-              className="mb-2 px-3 py-0.5 rounded-full bg-arena-gold text-black text-[10px] font-black tracking-[0.2em] border-2 border-black shadow-[2px_2px_0_#000]"
-              initial={{ y: -12, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.05 }}
+            <motion.p
+              className="font-display text-[11px] sm:text-xs font-black tracking-[0.35em] text-arena-gold mb-1.5"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              CLASH
+            </motion.p>
+            <motion.h2
+              className="font-display text-4xl sm:text-6xl md:text-7xl font-black text-white tracking-tight mb-1 text-center"
+              style={{
+                WebkitTextStroke: '2px #000',
+                textShadow: '0 4px 0 #000, 0 0 40px rgba(245,158,11,0.45)',
+              }}
+              initial={{ opacity: 0, scale: 0.75 }}
+              animate={{ opacity: 1, scale: [0.75, 1.1, 1] }}
+              transition={{ duration: 0.45 }}
             >
               {MATCHUP_LABEL[kind]}
+            </motion.h2>
+            <motion.p
+              className="text-sm sm:text-base font-bold text-white/75 mb-4 sm:mb-5 text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.12 }}
+            >
+              {SUBTITLE[kind]}
+            </motion.p>
+
+            <motion.div
+              className="relative w-full aspect-video max-h-[min(58vh,520px)] overflow-hidden"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.08, duration: 0.35 }}
+            >
+              <video
+                ref={videoRef}
+                className="w-full h-full object-contain bg-transparent"
+                muted
+                playsInline
+                autoPlay
+                preload="auto"
+                disablePictureInPicture
+              >
+                <source src={sources.webm} type="video/webm" />
+                <source src={sources.mp4} type="video/mp4" />
+              </video>
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.55)_100%)]" />
             </motion.div>
-            <div className="rounded-2xl border-[3px] border-black bg-gradient-to-b from-[#1a2030] to-[#0a0c12] shadow-[4px_6px_0_#000] px-2 py-3">
-              <MatchupStage kind={kind} winnerSide={side} skinId={skinId} />
-            </div>
           </motion.div>
+
+          <motion.div
+            className="absolute inset-0 bg-white pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0, 0.35, 0] }}
+            transition={{ duration: 1.0, times: [0, 0.35, 0.42, 0.55] }}
+          />
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

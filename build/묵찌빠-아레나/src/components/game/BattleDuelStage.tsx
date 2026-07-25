@@ -5,13 +5,6 @@ import type { ConnectionStatus } from '@/realtime/types';
 import { gameSettings } from '@/utils/gameSettings';
 import { getTierTheme } from '@/utils/tierTheme';
 import type { AmbienceTier } from '@/utils/audio';
-import {
-  EmoteQuickBar,
-  FloatingEmotesLayer,
-  ReactionBubble,
-  type FloatingEmote,
-  type ReactionType,
-} from '@/components/game/GameReactions';
 import { HandGlyph } from '@/components/game/HandGlyph';
 import { DuelHud } from '@/components/game/DuelHud';
 import {
@@ -416,18 +409,16 @@ export function BattleDuelStage({
   onSettings,
   onSelectHand,
   onToggleLayout,
-  onSendEmote,
-  emoteCooldownMs = 0,
-  floatingEmotes = [],
   habitHint = null,
-  myReaction = null,
-  opponentReaction = null,
   tier = 'normal',
   comboHits = 0,
   handSkinId,
   onFire = false,
   jackpot = false,
   winner = null,
+  ruleShortLabel = '3판2승',
+  lifeBarMax = 2,
+  bannedHands = [],
 }: {
   myName: string;
   myGrade: string;
@@ -455,18 +446,16 @@ export function BattleDuelStage({
   onSettings?: () => void;
   onSelectHand: (hand: Hand) => void;
   onToggleLayout: () => void;
-  onSendEmote?: (id: ReactionType) => void;
-  emoteCooldownMs?: number;
-  floatingEmotes?: FloatingEmote[];
   habitHint?: string | null;
-  myReaction?: ReactionType | null;
-  opponentReaction?: ReactionType | null;
   tier?: AmbienceTier;
   comboHits?: number;
   handSkinId?: string;
   onFire?: boolean;
   jackpot?: boolean;
   winner?: PlayerId | null;
+  ruleShortLabel?: string;
+  lifeBarMax?: number;
+  bannedHands?: Hand[];
 }) {
   const skinId = handSkinId || gameSettings.options.handSkinId || 'classic';
   const [showKeyGuide, setShowKeyGuide] = useState<boolean>(
@@ -599,6 +588,8 @@ export function BattleDuelStage({
         comboHits={comboHits}
         onFire={onFire}
         jackpot={jackpot}
+        ruleShortLabel={ruleShortLabel}
+        lifeBarMax={lifeBarMax}
         onExit={onExit}
         onToggleMute={onToggleMute}
         onInfo={onInfo}
@@ -635,8 +626,6 @@ export function BattleDuelStage({
           </p>
         )}
 
-        <FloatingEmotesLayer emotes={floatingEmotes} />
-
         {/* Result banner overlay */}
         <AnimatePresence>
           {resultBanner && (
@@ -671,9 +660,6 @@ export function BattleDuelStage({
               highlight={attacker === 'ME' ? 'gold' : null}
               pose={myPose}
             />
-            <AnimatePresence>
-              {myReaction && <ReactionBubble key={myReaction} reactionId={myReaction} isMe />}
-            </AnimatePresence>
           </div>
 
           <div className="relative z-10 flex-1 min-w-0 max-w-xl md:max-w-2xl">
@@ -697,41 +683,44 @@ export function BattleDuelStage({
               highlight={attacker === 'OPPONENT' ? 'red' : null}
               pose={oppPose}
             />
-            <AnimatePresence>
-              {opponentReaction && (
-                <ReactionBubble key={opponentReaction} reactionId={opponentReaction} isMe={false} />
-              )}
-            </AnimatePresence>
           </div>
         </div>
       </motion.div>
 
       {/* Controls — arcade style · 모바일 터치 우선 */}
       <div className="relative z-30 shrink-0 px-2.5 sm:px-3 pt-2 pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.85rem))] bg-gradient-to-t from-black via-black/95 to-black/70 border-t border-white/10 shadow-[0_-12px_40px_rgba(0,0,0,0.65)]">
-        {onSendEmote && (
-          <div className="max-w-lg mx-auto mb-2">
-            <EmoteQuickBar
-              onSend={onSendEmote}
-              cooldownRemaining={emoteCooldownMs}
-              className="gap-1 sm:gap-1.5 [&_button]:w-9 [&_button]:h-9 sm:[&_button]:w-10 sm:[&_button]:h-10 md:[&_button]:w-11 md:[&_button]:h-11"
-            />
+        {(bannedHands.length > 0 || ruleShortLabel) && (
+          <div className="max-w-lg mx-auto mb-1.5 flex flex-wrap justify-center gap-1">
+            <span className="text-[9px] font-black tracking-wide px-2 py-0.5 rounded-full bg-white/10 text-white/80 border border-white/15">
+              {ruleShortLabel}
+            </span>
+            {bannedHands.map((h) => (
+              <span
+                key={h}
+                className="text-[9px] font-black tracking-wide px-2 py-0.5 rounded-full bg-violet-500/90 text-white border border-black/30"
+              >
+                {h === 'ROCK' ? '묵' : h === 'SCISSORS' ? '찌' : '빠'} 사용불가
+              </span>
+            ))}
           </div>
         )}
         <div className="max-w-lg mx-auto grid grid-cols-3 gap-2 sm:gap-2.5 md:gap-3">
           {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand) => {
             const selected = myHand === hand;
-            const recommend = canPickNow && hand === recommendHand;
+            const banned = bannedHands.includes(hand);
+            const recommend = canPickNow && !banned && hand === recommendHand;
             const reduceMotion = gameSettings.options.performanceMode === 'low';
-            const dimmed = !!myHand && !selected;
+            const dimmed = (!!myHand && !selected) || banned;
+            const canPress = canPickNow && !banned;
             return (
               <motion.button
                 key={hand}
                 type="button"
-                disabled={!canPickNow}
+                disabled={!canPress}
                 onClick={() => onSelectHand(hand)}
-                whileTap={canPickNow && !reduceMotion ? { scale: 0.92, y: 4 } : undefined}
+                whileTap={canPress && !reduceMotion ? { scale: 0.92, y: 4 } : undefined}
                 animate={
-                  !reduceMotion && canPickNow
+                  !reduceMotion && canPress
                     ? selected
                       ? { scale: [1, 1.05, 1], y: [0, -4, 0] }
                       : recommend
@@ -779,6 +768,11 @@ export function BattleDuelStage({
                 {hasKeyboard && (
                   <span className="absolute top-1.5 left-1.5 z-10 text-[10px] font-black bg-black/55 text-white px-1.5 py-0.5 rounded">
                     {KEY_HINT[hand]}
+                  </span>
+                )}
+                {banned && (
+                  <span className="absolute top-1.5 right-1.5 z-10 text-[9px] font-black bg-arena-error text-white px-1.5 py-0.5 rounded">
+                    금지
                   </span>
                 )}
                 {selected && (

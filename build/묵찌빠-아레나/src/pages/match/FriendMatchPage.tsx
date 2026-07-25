@@ -9,6 +9,11 @@ import {
 import { PrimaryButton, SecondaryButton } from '@/components/common/Buttons';
 import { triggerHaptic } from '@/utils/haptics';
 import { DEMO_USER } from '@/data/demoData';
+import {
+  getMatchRules,
+  SELECTABLE_RULE_IDS,
+  type MatchRuleId,
+} from '@/game/matchRules';
 import { trackMission } from '@/services/mission';
 import { copyText } from '@/game/shareCard';
 import {
@@ -50,7 +55,7 @@ export function FriendMatchPage() {
   const [isPrivate, setIsPrivate] = useState(true);
   const [roomTitle, setRoomTitle] = useState(`${DEMO_USER.nickname}님의 방`);
   const [entryPoint, setEntryPoint] = useState(1000);
-  const [bestOf, setBestOf] = useState<3 | 5>(3);
+  const [ruleId, setRuleId] = useState<MatchRuleId>('classic_bo3');
   const [timeLimit, setTimeLimit] = useState(7);
   const [allowSpectator, setAllowSpectator] = useState(false);
   const [allowChat, setAllowChat] = useState(true);
@@ -123,11 +128,13 @@ export function FriendMatchPage() {
     if (myReady && opponentReady) {
       const timer = setTimeout(() => {
         triggerHaptic('success');
-        navigate(`/game/${roomCode || 'friend-1234'}`);
+        navigate(`/game/${roomCode || 'friend-1234'}`, {
+          state: { ruleId, timeLimit },
+        });
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [myReady, opponentReady, navigate, roomCode]);
+  }, [myReady, opponentReady, navigate, roomCode, ruleId, timeLimit]);
 
   const handleCreateRoom = () => {
     triggerHaptic('medium');
@@ -410,18 +417,31 @@ export function FriendMatchPage() {
                 </h3>
                 
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
+                  <div className="space-y-2">
                     <span className="text-sm font-medium text-white/90">게임 방식</span>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => setBestOf(3)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${bestOf === 3 ? 'bg-arena-cyan text-black' : 'bg-white/5 text-arena-text-muted'}`}
-                      >3판 2선승</button>
-                      <button 
-                        onClick={() => setBestOf(5)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${bestOf === 5 ? 'bg-arena-cyan text-black' : 'bg-white/5 text-arena-text-muted'}`}
-                      >5판 3선승</button>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {SELECTABLE_RULE_IDS.map((id) => {
+                        const rule = getMatchRules(id);
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => setRuleId(id)}
+                            className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
+                              ruleId === id
+                                ? 'bg-arena-cyan text-black'
+                                : 'bg-white/5 text-arena-text-muted'
+                            }`}
+                            title={rule.description}
+                          >
+                            {rule.shortLabel}
+                          </button>
+                        );
+                      })}
                     </div>
+                    <p className="text-[10px] text-arena-text-muted leading-snug">
+                      {getMatchRules(ruleId).description}
+                    </p>
                   </div>
 
                   <div className="flex justify-between items-center">
@@ -496,7 +516,7 @@ export function FriendMatchPage() {
                 <div className="flex items-center justify-center gap-6 text-sm">
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-xs text-arena-text-muted">게임 방식</span>
-                    <span className="font-bold text-white">{bestOf}판 {Math.floor(bestOf/2)+1}선승</span>
+                    <span className="font-bold text-white">{getMatchRules(ruleId).shortLabel}</span>
                   </div>
                   <div className="w-px h-8 bg-white/10" />
                   <div className="flex flex-col items-center gap-1">

@@ -1,3 +1,5 @@
+import { VICTORY_CLASH_MS } from '@/game/rpsMatchup';
+
 /** 전투 연출 시간 토큰 — 선택→잠금→긴장→공개→판정→다음 */
 
 export const COMBAT_TIMING = {
@@ -9,13 +11,13 @@ export const COMBAT_TIMING = {
   revealSpinMs: 900,
   /** 스냅 플래시 */
   snapMs: 160,
-  /** 충돌 후 판정까지 홀드 — 매치업 연출과 겹치도록 여유 */
-  clashHoldMs: 950,
+  /** 충돌 후 판정까지 홀드 — 전체화면 승부 영상(VICTORY_CLASH_MS)이 끝난 뒤 판정 */
+  clashHoldMs: VICTORY_CLASH_MS + 120,
   /** 미니 리플레이 / 승부 연출 지연(스냅 후) */
-  replayDelayMs: 220,
+  replayDelayMs: 180,
   /** 판정 문구 읽는 시간 */
-  resultReadMs: 1100,
-  beginnerResultReadMs: 2200,
+  resultReadMs: 1400,
+  beginnerResultReadMs: 2400,
   /** 카메라 줌 펀치 */
   cameraPunchMs: 420,
 } as const;
