@@ -1,5 +1,5 @@
-import React from "react";
-import { Link } from 'react-router-dom';
+import React, { useEffect } from "react";
+import { Link, useNavigate } from 'react-router-dom';
 import { GameCard } from '@/components/common/Cards';
 import { PrimaryButton, SecondaryButton } from '@/components/common/Buttons';
 
@@ -30,7 +30,13 @@ export * from './user/DecorationPage';
 
 export const TermsPage = () => <PageTemplate title="이용 안내" description="서비스 이용약관 및 성인 이용 안내" />;
 
-export const QuickMatchPage = () => <PageTemplate title="빠른 대전" description="최적의 상대를 찾고 있습니다..." />;
+export const QuickMatchPage = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate('/match/tables', { replace: true });
+  }, [navigate]);
+  return <PageTemplate title="빠른 대전" description="테이블을 선택하는 중…" />;
+};
 export const RematchPage = () => <PageTemplate title="재대결 제안" description="같은 상대와 다시 한번 승부합니다." />;
 export { RankingPage } from './ranking/RankingPage';
 export const NotificationsPage = () => <PageTemplate title="알림" description="시스템 안내 및 게임 초대" />;

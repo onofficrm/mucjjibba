@@ -2,7 +2,7 @@ const LAST_PATH_KEY = 'arena_last_play_path';
 const GUIDE_DONE_KEY = 'arena_first_guide_done';
 const GAMES_PLAYED_KEY = 'arena_games_played_count';
 
-const DEFAULT_QUICK = '/game/quick-start';
+const DEFAULT_QUICK = '/match/tables';
 const FIRST_PLAY = '/game/beginner-ai';
 
 function storage(): Storage | null {

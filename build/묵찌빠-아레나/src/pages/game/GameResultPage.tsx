@@ -24,6 +24,10 @@ import { VegasSpotlight, ChaseLightTitle } from '@/components/casino/VegasSpotli
 import { StreakAura } from '@/components/casino/StreakAura';
 import { NearMissOverlay } from '@/components/casino/NearMissOverlay';
 import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
+import { useDemoWallet } from '@/hooks/useDemoWallet';
+import { settleMatchPoints, getDemoPoints } from '@/utils/demoWallet';
+import { loadMatchSession, updateMatchSession, clearMatchSession, hasSettledGame, markSettledGame } from '@/services/match/matchSession';
+import type { MatchTable } from '@/types/match';
 
 type RematchState = 'idle' | 'requesting' | 'accepted' | 'declined' | 'timeout' | 'disconnected';
 
@@ -31,7 +35,10 @@ export function GameResultPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams();
+  const wallet = useDemoWallet();
   const isBeginnerMode = id === 'beginner-ai';
+  const matchSession = loadMatchSession();
+  const tableFromState = (location.state?.table as MatchTable | undefined) ?? matchSession?.table;
   
   const winner = location.state?.winner || 'ME';
   const myScore = location.state?.myScore || 2;
@@ -45,11 +52,11 @@ export function GameResultPage() {
         myScore,
         opponentScore,
         winner: winner === 'ME' ? 'ME' : 'OPPONENT',
-        mode: isBeginnerMode ? 'PRACTICE' : 'LIVE',
+        mode: isBeginnerMode || tableFromState?.isFree ? 'PRACTICE' : 'LIVE',
       });
     }
     return createSampleGameLog({ gameId: id || 'demo-result' });
-  }, [location.state, id, myScore, opponentScore, winner, isBeginnerMode]);
+  }, [location.state, id, myScore, opponentScore, winner, isBeginnerMode, tableFromState?.isFree]);
   
   const isWin = winner === 'ME';
   const highlights = analyzeHighlights(gameLog);
@@ -71,6 +78,66 @@ export function GameResultPage() {
   const [showShare, setShowShare] = useState(false);
   const [rankLabel, setRankLabel] = useState('랭킹 반영 중…');
   const [showNearMiss, setShowNearMiss] = useState(nearMiss);
+  const [settledOnce] = useState(() => {
+    const session = loadMatchSession();
+    const table = (location.state?.table as MatchTable | undefined) ?? session?.table;
+    const gameId = session?.gameId ?? id ?? 'demo-result';
+    const isFree = id === 'beginner-ai' || !!table?.isFree;
+    const won = (location.state?.winner || 'ME') === 'ME';
+    const pointsNow = getDemoPoints();
+    const pointsBefore =
+      session?.pointsBeforeDeposit ??
+      pointsNow + (session?.deposited && table && !table.isFree ? table.entryPoint : 0);
+
+    const tableInfo = table
+      ? {
+          name: table.name,
+          entryPoint: table.entryPoint,
+          fee: table.fee,
+          winnerPoint: table.winnerPoint,
+          isFree: table.isFree,
+        }
+      : {
+          name: isFree ? '초보자 연습장' : '골드 테이블',
+          entryPoint: isFree ? 0 : 10000,
+          fee: isFree ? 0 : 1000,
+          winnerPoint: isFree ? 0 : 19000,
+          isFree,
+        };
+
+    if (hasSettledGame(gameId) || session?.settled) {
+      return {
+        pointsBefore: session?.pointsBeforeDeposit ?? pointsBefore,
+        pointsAfter: pointsNow,
+        table: tableInfo,
+      };
+    }
+
+    const after = settleMatchPoints({
+      isFree: tableInfo.isFree,
+      winnerPoint: tableInfo.winnerPoint,
+      won,
+      alreadyDeposited: !!session?.deposited,
+      entryPoint: tableInfo.entryPoint,
+    });
+
+    markSettledGame(gameId);
+    if (session) updateMatchSession({ settled: true });
+    window.setTimeout(() => {
+      const cur = loadMatchSession();
+      if (cur?.settled) clearMatchSession();
+    }, 60_000);
+
+    return {
+      pointsBefore,
+      pointsAfter: after.points,
+      table: tableInfo,
+    };
+  });
+
+  const tableInfo = settledOnce.table;
+  const pointsBefore = settledOnce.pointsBefore;
+  const pointsAfter = settledOnce.pointsAfter;
   const verification = buildPublicVerification(gameLog);
 
   useEffect(() => {
@@ -81,16 +148,6 @@ export function GameResultPage() {
       setRankLabel(`${board.me.entry.rank}위 (${arrow}) · 주간 ${board.me.entry.weeklyPoints.toLocaleString()} WP`);
     });
   }, [gameLog.gameId]);
-
-  const tableInfo = {
-    name: isBeginnerMode ? '초보자 연습장' : '골드 테이블',
-    entryPoint: isBeginnerMode ? 0 : 10000,
-    fee: isBeginnerMode ? 0 : 1000,
-    winnerPoint: isBeginnerMode ? 0 : 19000,
-  };
-
-  const pointsBefore = DEMO_USER.points;
-  const pointsAfter = isWin ? pointsBefore + tableInfo.winnerPoint - tableInfo.entryPoint : pointsBefore - tableInfo.entryPoint;
 
   useEffect(() => {
     if (isWin) {

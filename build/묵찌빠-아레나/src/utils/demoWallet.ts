@@ -66,6 +66,40 @@ export function creditDemoPoints(amount: number): DemoWallet {
   return wallet;
 }
 
+/** 참가 포인트 예치 — 부족하면 null */
+export function depositMatchPoints(entryPoint: number): DemoWallet | null {
+  const wallet = loadDemoWallet();
+  if (entryPoint <= 0) return wallet;
+  if (wallet.points < entryPoint) return null;
+  wallet.points -= entryPoint;
+  save(wallet);
+  return wallet;
+}
+
+/**
+ * 경기 정산 (이미 예치된 경우)
+ * - 승리: winnerPoint 지급 (수수료는 테이블 설계에 이미 반영)
+ * - 패배: 예치금 소멸 (추가 차감 없음)
+ * - 연습: 변동 없음
+ */
+export function settleMatchPoints(opts: {
+  isFree: boolean;
+  winnerPoint: number;
+  won: boolean;
+  alreadyDeposited: boolean;
+  entryPoint: number;
+}): DemoWallet {
+  if (opts.isFree) return loadDemoWallet();
+  if (opts.won) {
+    return creditDemoPoints(opts.winnerPoint);
+  }
+  // 패배: 예치 안 됐으면 참가비 차감, 예치됐으면 이미 반영됨
+  if (!opts.alreadyDeposited && opts.entryPoint > 0) {
+    return creditDemoPoints(-opts.entryPoint);
+  }
+  return loadDemoWallet();
+}
+
 export function creditSkinFragment(count = 1): DemoWallet {
   const wallet = loadDemoWallet();
   wallet.skinFragments += count;

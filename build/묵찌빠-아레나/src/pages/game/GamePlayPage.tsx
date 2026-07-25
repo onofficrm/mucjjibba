@@ -37,6 +37,9 @@ import {
   easyStatusMessage,
   easyRoundLabel,
 } from '@/utils/playEase';
+import { useDemoWallet } from '@/hooks/useDemoWallet';
+import { loadMatchSession } from '@/services/match/matchSession';
+import type { MatchOpponent, MatchTable } from '@/types/match';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type PlayerId = 'ME' | 'OPPONENT';
@@ -142,8 +145,15 @@ export function GamePlayPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
+  const wallet = useDemoWallet();
+  const matchSession = loadMatchSession();
+  const tableFromState = (location.state?.table as MatchTable | undefined) ?? matchSession?.table;
+  const opponentFromState =
+    (location.state?.opponent as MatchOpponent | undefined) ?? matchSession?.opponent ?? null;
   const isTournament = new URLSearchParams(location.search).get('tournament') === 'true';
-  const isBeginnerMode = id === 'beginner-ai';
+  const isBeginnerMode = id === 'beginner-ai' || !!tableFromState?.isFree;
+  const matchTable = tableFromState;
+  const activeOpponent = opponentFromState ?? DEMO_OPPONENT;
   
   const myHandEmojis = getHandSkinEmojis(gameSettings.options.handSkinId);
   const opponentHandEmojis = getHandSkinEmojis('classic');
@@ -185,9 +195,9 @@ export function GamePlayPage() {
         characterId: gameSettings.options.characterId,
       },
       opponent: {
-        nickname: DEMO_OPPONENT.nickname,
-        grade: DEMO_OPPONENT.grade,
-        avatar: '👻',
+        nickname: activeOpponent.nickname,
+        grade: activeOpponent.grade,
+        avatar: activeOpponent.avatar,
       },
     });
   }
@@ -358,6 +368,9 @@ export function GamePlayPage() {
               myScore: gameState.myScore,
               opponentScore: gameState.opponentScore,
               gameLog,
+              table: matchTable ?? null,
+              opponent: activeOpponent,
+              matchSession: loadMatchSession(),
             },
           });
         }, 1600);
@@ -716,11 +729,11 @@ export function GamePlayPage() {
               handSkinId: gameSettings.options.handSkinId,
             }}
             opponentInfo={{
-              nickname: DEMO_OPPONENT.nickname,
-              grade: DEMO_OPPONENT.grade,
+              nickname: activeOpponent.nickname,
+              grade: activeOpponent.grade,
               winStreak: 3,
               playStyle: '공격형',
-              avatar: DEMO_OPPONENT.avatar,
+              avatar: activeOpponent.avatar,
               characterId: 'classic_dealer',
               handSkinId: 'classic',
             }}
@@ -862,7 +875,7 @@ export function GamePlayPage() {
              <div className="relative">
                <CharacterAvatar 
                  characterId="classic_dealer" 
-                 emojiFallback={DEMO_OPPONENT.avatar}
+                 emojiFallback={activeOpponent.avatar}
                  isMe={false} 
                  phase={gameState.phase} 
                  attacker={gameState.attacker} 
@@ -874,8 +887,8 @@ export function GamePlayPage() {
                </AnimatePresence>
              </div>
              <div className="flex flex-col items-end">
-               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{DEMO_OPPONENT.grade}</span>
-               <span className="text-sm font-black truncate max-w-[70px] text-white">{DEMO_OPPONENT.nickname}</span>
+               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{activeOpponent.grade}</span>
+               <span className="text-sm font-black truncate max-w-[70px] text-white">{activeOpponent.nickname}</span>
              </div>
           </div>
           <div className="flex items-center gap-2 flex-row-reverse">
@@ -1011,11 +1024,17 @@ export function GamePlayPage() {
         <div className="flex justify-between items-center mb-4 px-4">
            <div className="flex flex-col">
               <span className="text-[10px] text-gray-500 font-bold">{isBeginnerMode ? '연습 비용' : '이번 판 참가'}</span>
-              <span className="font-bold text-white text-sm">{isBeginnerMode ? '무료 · 차감 없음' : '데모 1,000 P'}</span>
+              <span className="font-bold text-white text-sm">
+                {isBeginnerMode
+                  ? '무료 · 차감 없음'
+                  : matchTable
+                    ? `${matchTable.entryPoint.toLocaleString()} P 예치`
+                    : '데모 매치'}
+              </span>
            </div>
            <div className="flex flex-col items-end">
               <span className="text-[10px] text-gray-500 font-bold">내 보유 (데모)</span>
-              <span className="font-bold text-arena-gold text-sm">{DEMO_USER.points.toLocaleString()} P</span>
+              <span className="font-bold text-arena-gold text-sm">{wallet.points.toLocaleString()} P</span>
            </div>
         </div>
 
