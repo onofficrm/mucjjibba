@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Gamepad2, Trophy, User, MoreVertical, Menu, X, Swords, Zap, Users, Play, ChevronDown, Bell, Settings, History, CreditCard, Shield, HelpCircle, FileText, LogOut, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -21,6 +21,53 @@ export function Layout() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isGameSelectOpen, setIsGameSelectOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+
+  // 게임 플레이 화면에서 하단 내비 자동 숨김 (위로 스와이프하면 다시 표시)
+  const isGamePlayScreen = /^\/game\/[^/]+$/.test(location.pathname);
+  const [isNavHidden, setIsNavHidden] = useState(false);
+  const navHideTimer = useRef<number | null>(null);
+
+  const scheduleNavHide = useCallback((delay: number) => {
+    if (navHideTimer.current !== null) window.clearTimeout(navHideTimer.current);
+    navHideTimer.current = window.setTimeout(() => setIsNavHidden(true), delay);
+  }, []);
+
+  const revealNav = useCallback(() => {
+    triggerHaptic('light');
+    setIsNavHidden(false);
+    scheduleNavHide(3500);
+  }, [scheduleNavHide]);
+
+  useEffect(() => {
+    if (!isGamePlayScreen) {
+      if (navHideTimer.current !== null) window.clearTimeout(navHideTimer.current);
+      setIsNavHidden(false);
+      return;
+    }
+    scheduleNavHide(1200);
+    return () => {
+      if (navHideTimer.current !== null) window.clearTimeout(navHideTimer.current);
+    };
+  }, [isGamePlayScreen, location.pathname, scheduleNavHide]);
+
+  useEffect(() => {
+    if (!isGamePlayScreen) return;
+    let startY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const deltaY = e.changedTouches[0].clientY - startY;
+      const fromBottom = startY > window.innerHeight * 0.65;
+      if (fromBottom && deltaY < -40) revealNav();
+    };
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isGamePlayScreen, revealNav]);
 
   // Listen for custom event from LobbyPage to open the game select bottom sheet
   useEffect(() => {
@@ -164,8 +211,13 @@ export function Layout() {
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-arena-card/95 backdrop-blur-xl border-t border-white/5 pb-safe z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      {/* Mobile Bottom Navigation — 게임 중에는 아래로 스르륵 숨김 */}
+      <nav
+        className={`md:hidden fixed bottom-0 left-0 right-0 bg-arena-card/95 backdrop-blur-xl border-t border-white/5 pb-safe z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] transition-transform duration-500 ease-in-out ${
+          isNavHidden ? 'translate-y-[110%]' : 'translate-y-0'
+        }`}
+        aria-hidden={isNavHidden}
+      >
         <div className="flex justify-around items-center h-16 px-2">
           {navItems.map((item, idx) => {
             const isActive = location.pathname.startsWith(item.path) && item.path !== '#game';
@@ -188,6 +240,24 @@ export function Layout() {
           })}
         </div>
       </nav>
+
+      {/* 숨김 상태 핸들 — 탭하거나 위로 쓸어올리면 내비 표시 */}
+      <AnimatePresence>
+        {isGamePlayScreen && isNavHidden && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ delay: 0.4 }}
+            onClick={revealNav}
+            className="md:hidden fixed bottom-0 left-1/2 -translate-x-1/2 z-30 px-8 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+            aria-label="메뉴 열기"
+          >
+            <span className="block w-12 h-1.5 rounded-full bg-white/30" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Game Select Bottom Sheet */}
       <AnimatePresence>
