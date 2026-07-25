@@ -118,11 +118,19 @@ export function Layout() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#121826] via-[#0c111b] to-[#070a10]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.12)_0%,_transparent_55%)] pointer-events-none" />
         <div className="absolute bottom-0 inset-x-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
-        {/* Hostess wing — 하단 실루엣 */}
+        {/* Hostess wing — 하단 실루엣, 좌·상 페이드로 프로필/내비와 겹침 방지 */}
         <img
           src={HOSTESS.lobby}
           alt=""
-          className="absolute -bottom-2 -right-4 h-[48%] w-auto max-w-none object-cover object-top opacity-[0.18] pointer-events-none select-none [mask-image:linear-gradient(to_top,black_20%,transparent_85%)]"
+          className="absolute -bottom-4 -right-6 h-[42%] w-auto max-w-[90%] object-cover object-[center_10%] opacity-[0.16] pointer-events-none select-none"
+          style={{
+            WebkitMaskImage:
+              'linear-gradient(to top, black 15%, transparent 88%), linear-gradient(to left, black 45%, transparent 100%)',
+            maskImage:
+              'linear-gradient(to top, black 15%, transparent 88%), linear-gradient(to left, black 45%, transparent 100%)',
+            WebkitMaskComposite: 'source-in',
+            maskComposite: 'intersect',
+          }}
           draggable={false}
         />
         {/* Gold hairline — 우측 엣지 */}
@@ -315,7 +323,16 @@ export function Layout() {
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="relative w-full max-w-md bg-arena-card border border-white/10 rounded-3xl p-6 shadow-2xl pb-8 overflow-hidden"
             >
-              <img src={hostessByIndex(8)} alt="" className="absolute right-0 top-0 h-40 w-28 object-cover object-top opacity-25 pointer-events-none" draggable={false} />
+              <img
+                src={hostessByIndex(8)}
+                alt=""
+                className="absolute right-0 top-0 h-36 w-24 object-cover object-[center_10%] opacity-20 pointer-events-none select-none"
+                style={{
+                  WebkitMaskImage: 'linear-gradient(to left, black 40%, transparent 100%)',
+                  maskImage: 'linear-gradient(to left, black 40%, transparent 100%)',
+                }}
+                draggable={false}
+              />
               <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6 sm:hidden" />
               <div className="flex justify-between items-center mb-6 relative z-10">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">

@@ -90,15 +90,19 @@ export function GameSelectCard({
       }}
       className={`group relative w-full h-24 rounded-2xl overflow-hidden ring-2 ${t.ring} ${t.glow} bg-zinc-900`}
     >
-      {/* Hostess hero cut */}
+      {/* Hostess hero cut — soft left fade, face kept in clear zone */}
       <img
         src={hostessByIndex(hostessIndex)}
         alt=""
-        className="absolute right-0 top-0 h-full w-1/2 object-cover object-[center_18%] pointer-events-none"
+        className="absolute right-0 top-0 h-full w-[48%] object-cover object-[68%_12%] pointer-events-none select-none"
+        style={{
+          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 38%)',
+          maskImage: 'linear-gradient(to right, transparent 0%, black 38%)',
+        }}
         draggable={false}
       />
       {/* Gradient overlay: readable left, faded right */}
-      <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/85 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/90 to-zinc-950/25" />
       <div className={`absolute inset-0 bg-gradient-to-br ${t.grad} opacity-70`} />
 
       {/* Sheen sweep on hover */}

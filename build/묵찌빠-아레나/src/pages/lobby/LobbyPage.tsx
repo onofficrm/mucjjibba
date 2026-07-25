@@ -205,13 +205,9 @@ function PlayActions({
       >
         <div className="absolute inset-0 bg-gradient-to-r from-arena-gold via-yellow-200 to-arena-gold opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         <div className="relative bg-black rounded-[calc(1.75rem-3px)] md:rounded-[calc(1rem-1px)] px-5 py-4 md:py-5 flex items-center justify-center gap-3 transition-transform duration-200 group-active:scale-[0.98] overflow-hidden">
-          <img
-            src={HOSTESS.play}
-            alt=""
-            className="absolute left-0 top-0 h-full w-24 object-cover object-top opacity-40"
-            draggable={false}
-          />
-          <HostessAvatar role="play" size="md" pulse />
+          {/* Soft gold wash — no full hostess crop (avoids double-face / logo clip) */}
+          <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-arena-gold/15 via-arena-gold/5 to-transparent pointer-events-none" />
+          <HostessAvatar role="icon" size="md" pulse className="relative z-10" />
           <div className="relative z-10 text-left min-w-0">
             <span className="block text-lg md:text-xl font-black text-white tracking-wide">바로 게임 시작</span>
             <span className="block text-[11px] md:text-xs text-arena-gold font-bold">원탭 · 자동 매칭</span>
@@ -365,19 +361,30 @@ export function LobbyPage() {
                 }}
                 className="w-full bg-gray-900 border border-gray-800 rounded-3xl p-4 md:p-6 relative overflow-hidden shadow-2xl cursor-pointer group hover:border-arena-gold/35 transition-colors"
               >
+                {/* Hostess wing — face shifted off avatar zone, soft left fade (no hard seam) */}
                 <img
                   src={HOSTESS.dealer}
                   alt=""
-                  className="absolute right-0 top-0 h-full w-1/2 md:w-[42%] object-cover object-top opacity-20 md:opacity-30 pointer-events-none"
+                  className="absolute -right-2 top-0 h-[78%] w-[46%] md:w-[38%] object-cover object-[72%_8%] opacity-30 md:opacity-40 pointer-events-none select-none"
+                  style={{
+                    WebkitMaskImage:
+                      'linear-gradient(to right, transparent 0%, black 42%), linear-gradient(to bottom, black 70%, transparent 100%)',
+                    maskImage:
+                      'linear-gradient(to right, transparent 0%, black 42%), linear-gradient(to bottom, black 70%, transparent 100%)',
+                    WebkitMaskComposite: 'source-in',
+                    maskComposite: 'intersect',
+                  }}
                   draggable={false}
                 />
+                <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/90 to-transparent pointer-events-none" />
+                <div className="absolute inset-y-0 right-0 w-[42%] bg-gradient-to-l from-black/55 via-black/20 to-transparent pointer-events-none" />
                 {gameSettings.options.performanceMode !== 'low' && (
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.15)_0%,_transparent_70%)] pointer-events-none" />
                 )}
 
                 <div className="flex justify-between items-center mb-4 md:mb-6 relative z-10">
                   <GameTypeBadge type={FEATURED_GAME.type} />
-                  <div className="flex items-center text-xs md:text-sm text-gray-300 font-bold bg-black/50 px-2.5 py-1 rounded-full border border-white/10">
+                  <div className="flex items-center text-xs md:text-sm text-gray-300 font-bold bg-black/60 px-2.5 py-1 rounded-full border border-white/10 backdrop-blur-sm">
                     <Eye className="w-3.5 h-3.5 mr-1.5" />
                     {FEATURED_GAME.spectators.toLocaleString()}명 관전
                   </div>
@@ -440,7 +447,7 @@ export function LobbyPage() {
                   </div>
 
                   <div className="flex flex-col items-center gap-2 w-[30%] min-w-0">
-                    <div className="relative">
+                    <div className="relative rounded-2xl bg-black/45 p-1 backdrop-blur-[2px]">
                       <div
                         className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gray-800 border-2 flex items-center justify-center text-2xl md:text-3xl shadow-lg ${
                           FEATURED_GAME.attacker === 'P2'
@@ -451,12 +458,12 @@ export function LobbyPage() {
                         {FEATURED_GAME.player2.avatar}
                       </div>
                       {FEATURED_GAME.attacker === 'P2' && (
-                        <div className="absolute -top-3 -right-3 bg-arena-error text-white rounded-full p-1 shadow-lg">
+                        <div className="absolute -top-2 -right-2 bg-arena-error text-white rounded-full p-1 shadow-lg">
                           <Zap className="w-3 h-3" />
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-col items-center min-w-0 w-full">
+                    <div className="flex flex-col items-center min-w-0 w-full rounded-lg bg-black/40 px-1.5 py-0.5 backdrop-blur-[2px]">
                       <span className="text-[10px] md:text-xs text-gray-400 font-bold">
                         {FEATURED_GAME.player2.grade}
                       </span>
@@ -467,7 +474,7 @@ export function LobbyPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center pt-3 md:pt-4 border-t border-gray-800 relative z-10">
+                <div className="flex items-center justify-center pt-3 md:pt-4 border-t border-gray-800/80 relative z-10 bg-gray-900/80 -mx-4 md:-mx-6 px-4 md:px-6 -mb-4 md:-mb-6 pb-3 md:pb-4">
                   <span className="text-sm md:text-base font-bold text-arena-gold group-hover:text-yellow-400 transition-colors flex items-center">
                     관전하기 <PlayCircle className="w-4 h-4 md:w-5 md:h-5 ml-1.5" />
                   </span>

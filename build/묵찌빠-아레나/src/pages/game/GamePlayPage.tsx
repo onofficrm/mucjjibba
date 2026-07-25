@@ -898,7 +898,7 @@ export function GamePlayPage() {
           ? 'bg-[radial-gradient(circle_at_center,_rgba(40,0,0,1)_0%,_rgba(0,0,0,1)_100%)]' 
           : 'bg-[radial-gradient(circle_at_center,_rgba(24,24,27,1)_0%,_rgba(0,0,0,1)_100%)]'
       }`} />
-      <HostessBackdrop role="arena" opacity={0.16} />
+      <HostessBackdrop role="arena" opacity={0.12} />
       
       {/* Background Particles (Fancy only) */}
       {gameSettings.options.performanceMode === 'fancy' && (
@@ -1219,12 +1219,12 @@ export function GamePlayPage() {
                 <img
                   src={hostessForHand(hand)}
                   alt=""
-                  className={`absolute inset-0 w-full h-full object-cover object-top pointer-events-none ${
-                    canSelect ? 'opacity-45' : 'opacity-15'
+                  className={`absolute inset-0 w-full h-full object-cover object-[center_12%] pointer-events-none scale-110 ${
+                    canSelect ? 'opacity-40' : 'opacity-12'
                   }`}
                   draggable={false}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/15 pointer-events-none" />
                 {isRecommend && (
                   <span className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 text-[9px] font-black bg-arena-gold text-black px-1.5 py-0.5 rounded-full">
                     추천

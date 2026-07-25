@@ -45,7 +45,7 @@ export function HostessAvatar({
   );
 }
 
-/** 화면 배경용 반투명 호스티스 */
+/** 화면 배경용 반투명 호스티스 — 우측 윙, 하단·좌측 페이드로 UI와 겹치지 않게 */
 export function HostessBackdrop({
   role = 'lobby',
   className = '',
@@ -63,12 +63,21 @@ export function HostessBackdrop({
       <img
         src={resolveAssetUrl(HOSTESS[role])}
         alt=""
-        className="absolute right-[-8%] bottom-0 h-[78%] w-auto max-w-none object-cover object-top select-none"
-        style={{ opacity }}
+        className="absolute right-0 top-[8%] h-[72%] w-auto max-w-[46%] object-cover object-[center_12%] select-none"
+        style={{
+          opacity,
+          WebkitMaskImage:
+            'linear-gradient(to left, black 35%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 18%, black 55%, transparent 100%)',
+          maskImage:
+            'linear-gradient(to left, black 35%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 18%, black 55%, transparent 100%)',
+          WebkitMaskComposite: 'source-in',
+          maskComposite: 'intersect',
+        }}
         draggable={false}
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/50" />
+      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black to-transparent" />
     </div>
   );
 }
@@ -88,10 +97,11 @@ export function HostessBanner({
       <img
         src={resolveAssetUrl(HOSTESS[role])}
         alt=""
-        className="absolute inset-0 w-full h-full object-cover object-[center_20%]"
+        className="absolute inset-0 w-full h-full object-cover object-[center_18%] scale-[1.08]"
         draggable={false}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/30" />
     </div>
   );
 }

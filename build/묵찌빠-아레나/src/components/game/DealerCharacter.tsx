@@ -52,14 +52,14 @@ export function DealerCharacter({ state, message, reducedAnimations = false }: D
       };
 
   return (
-    <div className="fixed bottom-[240px] right-4 z-40 flex flex-col items-end pointer-events-none">
+    <div className="fixed bottom-[min(42vh,320px)] right-3 z-40 flex flex-col items-end pointer-events-none max-md:bottom-[min(48vh,360px)]">
       <AnimatePresence>
         {showBubble && message && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
-            className="mb-3 bg-white text-black px-4 py-2 rounded-2xl rounded-br-sm shadow-lg max-w-[200px] text-sm font-bold border-2 border-arena-gold/40"
+            className="mb-2 bg-white text-black px-3 py-1.5 rounded-2xl rounded-br-sm shadow-lg max-w-[160px] text-xs font-bold border-2 border-arena-gold/40"
           >
             {message}
           </motion.div>
@@ -68,15 +68,15 @@ export function DealerCharacter({ state, message, reducedAnimations = false }: D
 
       <motion.div
         animate={state === 'surprise' ? surpriseAnimation : bounceAnimation}
-        className="relative w-20 h-20 rounded-full border-4 border-arena-gold shadow-[0_0_20px_rgba(245,158,11,0.55)] overflow-hidden bg-zinc-900"
+        className="relative w-14 h-14 md:w-16 md:h-16 rounded-full border-[3px] border-arena-gold shadow-[0_0_16px_rgba(245,158,11,0.45)] overflow-hidden bg-zinc-900 ring-2 ring-black/60"
       >
         <img
           src={HOSTESS[STATE_ROLE[state]]}
           alt="딜러 호스티스"
-          className="w-full h-full object-cover object-top"
+          className="w-full h-full object-cover object-[center_12%]"
           draggable={false}
         />
-        <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-gray-900" />
+        <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-gray-900" />
       </motion.div>
     </div>
   );
