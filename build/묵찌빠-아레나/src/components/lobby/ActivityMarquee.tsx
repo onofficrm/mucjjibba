@@ -16,12 +16,12 @@ export function ActivityMarquee() {
   const line = items.join('   ·   ');
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-arena-gold/25 bg-gradient-to-r from-black via-zinc-900 to-black py-2.5 mb-3">
-      <div className="absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
-      <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
+    <div className="relative overflow-hidden rounded-xl border border-arena-gold/25 bg-gradient-to-r from-black via-zinc-900 to-black py-2.5 md:py-3.5 mb-1 md:mb-0">
+      <div className="absolute left-0 top-0 bottom-0 w-10 md:w-16 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
+      <div className="absolute right-0 top-0 bottom-0 w-10 md:w-16 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
       <div className="flex whitespace-nowrap animate-marquee will-change-transform">
-        <span className="text-xs font-bold text-arena-gold/90 px-4">{line}</span>
-        <span className="text-xs font-bold text-arena-gold/90 px-4" aria-hidden>
+        <span className="text-xs md:text-sm font-bold text-arena-gold/90 px-4">{line}</span>
+        <span className="text-xs md:text-sm font-bold text-arena-gold/90 px-4" aria-hidden>
           {line}
         </span>
       </div>

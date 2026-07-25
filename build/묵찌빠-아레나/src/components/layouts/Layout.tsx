@@ -103,62 +103,53 @@ export function Layout() {
 
   return (
     <div className="flex h-screen bg-arena-bg text-arena-text overflow-hidden font-sans">
-      {/* Desktop/Tablet Collapsible Sidebar */}
-      <aside 
+      {/* Desktop sidebar — PC(lg+)에서는 라벨 상시 표시 */}
+      <aside
         className={`hidden md:flex flex-col bg-arena-card border-r border-white/5 z-30 shadow-xl transition-all duration-300 ${
-          isSidebarExpanded ? 'w-64' : 'w-20'
+          isSidebarExpanded ? 'w-64' : 'w-20 lg:w-56'
         }`}
         onMouseEnter={() => setIsSidebarExpanded(true)}
         onMouseLeave={() => setIsSidebarExpanded(false)}
       >
         <div className="p-6 flex items-center justify-center h-20">
-          <Link to="/" className="text-2xl font-black text-white tracking-tight flex items-center space-x-2 whitespace-nowrap overflow-hidden">
+          <Link
+            to="/lobby"
+            className="text-2xl font-black text-white tracking-tight flex items-center space-x-2 whitespace-nowrap overflow-hidden"
+          >
             <span className="text-arena-gold shrink-0">✊</span>
-            <AnimatePresence>
-              {isSidebarExpanded && (
-                <motion.span 
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: 'auto' }}
-                  exit={{ opacity: 0, width: 0 }}
-                >
-                  묵찌빠 아레나
-                </motion.span>
-              )}
-            </AnimatePresence>
+            <span className={`${isSidebarExpanded ? 'inline' : 'hidden lg:inline'} truncate`}>
+              묵찌빠 아레나
+            </span>
           </Link>
         </div>
-        <nav className="flex-1 px-3 space-y-2 overflow-y-auto mt-4">
+        <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto mt-2">
           {navItems.map((item) => {
-            const isActive = location.pathname.startsWith(item.path);
+            const isActive = item.path !== '#game' && location.pathname.startsWith(item.path);
+            const showLabel = isSidebarExpanded;
             return (
               <Link
                 key={item.name}
-                to={item.path}
+                to={item.path === '#game' ? '#' : item.path}
                 onClick={(e) => handleNavClick(item, e)}
-                className={`flex items-center space-x-4 px-3 py-4 rounded-2xl transition-all font-bold overflow-hidden ${
+                className={`relative flex items-center gap-3 px-3 py-3.5 rounded-2xl transition-all font-bold overflow-hidden ${
                   isActive
                     ? 'bg-white/10 text-white shadow-sm'
                     : 'text-arena-text-muted hover:bg-white/5 hover:text-white'
                 }`}
               >
-                <item.icon className={`w-6 h-6 shrink-0 ${isActive ? 'text-arena-gold' : ''}`} />
-                <AnimatePresence>
-                  {isSidebarExpanded && (
-                    <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: 'auto' }}
-                      exit={{ opacity: 0, width: 0 }}
-                      className="whitespace-nowrap"
-                    >
-                      {item.name}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-                {isActive && isSidebarExpanded && (
-                  <motion.div layoutId="sidebar-active" className="absolute left-0 w-1 h-8 bg-arena-gold rounded-r-full" />
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-arena-gold rounded-r-full" />
                 )}
+                <item.icon className={`w-6 h-6 shrink-0 ${isActive ? 'text-arena-gold' : ''}`} />
+                <span
+                  className={`whitespace-nowrap text-sm ${
+                    showLabel ? 'inline' : 'hidden lg:inline'
+                  }`}
+                >
+                  {item.name}
+                </span>
               </Link>
-            )
+            );
           })}
         </nav>
       </aside>
@@ -174,16 +165,16 @@ export function Layout() {
               <div className="hidden md:block w-8" />
           </div>
           
-          <div className="absolute left-1/2 -translate-x-1/2 font-bold text-white flex items-center gap-2">
+          <div className="absolute left-1/2 -translate-x-1/2 font-bold text-white text-sm md:text-base flex items-center gap-2">
             <HostessAvatar role="dealer" size="xs" ring={false} className="hidden sm:inline-flex ring-1 ring-arena-gold/40" />
             {getPageTitle()}
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="bg-black/30 px-3 py-1.5 rounded-full border border-white/5 flex items-center gap-1.5">
+            <div className="bg-black/30 px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-white/5 flex items-center gap-1.5">
               <HostessAvatar role="icon" size="xs" ring={false} />
               <span className="text-xs font-bold text-arena-gold">P</span>
-              <span className="text-sm font-bold text-white">{DEMO_USER.points.toLocaleString()}</span>
+              <span className="text-sm md:text-base font-bold text-white">{DEMO_USER.points.toLocaleString()}</span>
             </div>
             <button 
               onClick={() => { triggerHaptic('light'); setIsMoreMenuOpen(true); }}
