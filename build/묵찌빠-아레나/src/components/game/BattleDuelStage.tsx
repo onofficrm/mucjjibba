@@ -71,16 +71,31 @@ function Fighter({
   flip,
   shake,
   highlight,
+  idle = true,
 }: {
   src: string;
   flip?: boolean;
   shake?: boolean;
   highlight?: 'gold' | 'red' | null;
+  idle?: boolean;
 }) {
+  const reduceMotion = gameSettings.options.performanceMode === 'low';
   return (
     <motion.div
-      animate={shake ? { x: [-6, 6, -4, 4, 0], rotate: [-2, 2, 0] } : { x: 0, rotate: 0 }}
-      transition={{ duration: 0.35 }}
+      animate={
+        shake
+          ? { x: [-6, 6, -4, 4, 0], rotate: [-2, 2, 0] }
+          : idle && !reduceMotion
+            ? { y: [0, -5, 0], scale: [1, 1.015, 1] }
+            : { x: 0, rotate: 0, y: 0 }
+      }
+      transition={
+        shake
+          ? { duration: 0.35 }
+          : idle && !reduceMotion
+            ? { duration: 2.8, repeat: Infinity, ease: 'easeInOut' }
+            : { duration: 0.2 }
+      }
       className={`relative w-[38%] max-w-[160px] md:max-w-[200px] aspect-[3/4] ${
         highlight === 'gold'
           ? 'drop-shadow-[0_0_18px_rgba(245,158,11,0.7)]'
@@ -89,14 +104,14 @@ function Fighter({
             : ''
       }`}
     >
-      <div className="absolute inset-0 rounded-[2rem] overflow-hidden border-[3px] border-black bg-gradient-to-b from-[#1e3a5f] to-[#0b1220] shadow-[4px_6px_0_#000]">
+      <div className="absolute inset-0 rounded-[2rem] overflow-hidden border-[3px] border-black bg-gradient-to-b from-[#1a1420] to-[#0a0c12] shadow-[4px_6px_0_#000]">
         <img
           src={src}
           alt=""
-          className={`w-full h-full object-cover object-top ${flip ? 'scale-x-[-1]' : ''}`}
+          className={`w-full h-full object-cover object-[center_12%] ${flip ? 'scale-x-[-1]' : ''}`}
           draggable={false}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
       </div>
     </motion.div>
   );
@@ -229,39 +244,37 @@ export function BattleDuelStage({
         className={`absolute inset-1.5 md:inset-2.5 rounded-2xl border z-30 pointer-events-none ${theme.frame}`}
       />
 
-      {/* Night stage background */}
-      <div className="absolute inset-0 -z-10 overflow-hidden bg-[#071428]">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a1f3d] via-[#0b1830] to-[#050a12]" />
-        {/* Moon */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 w-20 h-20 md:w-28 md:h-28 rounded-full bg-[#f5f7ff] shadow-[0_0_40px_rgba(255,255,255,0.55)]" />
-        {/* Stars */}
-        {[...Array(18)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-white/70 rounded-full"
-            style={{
-              top: `${8 + ((i * 37) % 40)}%`,
-              left: `${5 + ((i * 53) % 90)}%`,
-              opacity: 0.35 + (i % 5) * 0.1,
-            }}
-          />
-        ))}
-        {/* Cloud / tree silhouettes */}
-        <svg className="absolute left-0 bottom-[18%] w-[42%] h-40 text-[#06101f]" viewBox="0 0 200 100" fill="currentColor">
-          <ellipse cx="40" cy="70" rx="50" ry="28" />
-          <ellipse cx="90" cy="60" rx="40" ry="22" />
-          <path d="M120 100 L135 30 L150 100 Z" />
-          <path d="M145 100 L160 45 L175 100 Z" />
-        </svg>
-        <svg className="absolute right-0 bottom-[16%] w-[48%] h-48 text-[#06101f]" viewBox="0 0 220 120" fill="currentColor">
-          <rect x="130" y="40" width="50" height="80" />
-          <rect x="120" y="25" width="70" height="18" />
-          <rect x="125" y="10" width="60" height="16" />
-          <rect x="135" y="0" width="40" height="12" />
-          <ellipse cx="40" cy="90" rx="55" ry="25" />
-        </svg>
-        <div className="absolute bottom-0 inset-x-0 h-[22%] bg-gradient-to-t from-[#03060c] via-[#071018] to-transparent" />
-        <div className="absolute bottom-0 inset-x-0 h-8 bg-[#02040a]" />
+      {/* Casino stage background — no moon (HUD readability) */}
+      <div className="absolute inset-0 -z-10 overflow-hidden bg-[#07090f]">
+        <div
+          className={`absolute inset-0 transition-colors duration-700 ${
+            isLastRound
+              ? 'bg-[radial-gradient(ellipse_at_50%_20%,rgba(127,29,29,0.45)_0%,transparent_55%),linear-gradient(180deg,#1a0c10_0%,#0a0c12_45%,#050608_100%)]'
+              : 'bg-[radial-gradient(ellipse_at_50%_18%,rgba(245,158,11,0.16)_0%,transparent_50%),linear-gradient(180deg,#121826_0%,#0a0e17_48%,#05070c_100%)]'
+          }`}
+        />
+        {/* Spotlight cones */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[70%] h-[42%] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.08)_0%,transparent_70%)] pointer-events-none" />
+        <div className="absolute top-[12%] left-[18%] w-40 h-40 md:w-56 md:h-56 rounded-full bg-arena-gold/10 blur-3xl pointer-events-none" />
+        <div className="absolute top-[10%] right-[16%] w-36 h-36 md:w-52 md:h-52 rounded-full bg-rose-500/10 blur-3xl pointer-events-none" />
+        {/* Dust particles */}
+        {gameSettings.options.performanceMode === 'fancy' &&
+          [...Array(14)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-0.5 h-0.5 rounded-full bg-amber-100/50"
+              style={{
+                top: `${12 + ((i * 41) % 55)}%`,
+                left: `${8 + ((i * 57) % 84)}%`,
+              }}
+              animate={{ y: [0, -18, 0], opacity: [0.15, 0.55, 0.15] }}
+              transition={{ duration: 4 + (i % 4), repeat: Infinity, ease: 'easeInOut', delay: i * 0.2 }}
+            />
+          ))}
+        {/* Stage floor wash */}
+        <div className="absolute bottom-0 inset-x-0 h-[28%] bg-gradient-to-t from-black via-black/80 to-transparent" />
+        <div className="absolute bottom-[14%] inset-x-[10%] h-px bg-gradient-to-r from-transparent via-arena-gold/35 to-transparent" />
+        <div className="absolute bottom-0 inset-x-0 h-6 bg-[#03050a]" />
       </div>
 
       {/* Top HUD */}
@@ -297,12 +310,25 @@ export function BattleDuelStage({
 
           <div className="flex flex-col items-center shrink-0 px-1">
             <ConnectionBadge status={connStatus} />
-            <div
-              className={`font-display text-[9px] md:text-[10px] font-bold tracking-[0.2em] px-2 py-0.5 rounded-full border ${theme.badge}`}
-            >
-              {isLastRound ? 'FINAL' : theme.label}
+            <div className="mt-0.5 flex flex-col items-center rounded-xl bg-black/75 border border-white/15 px-2.5 py-1 shadow-[0_0_20px_rgba(0,0,0,0.55)] backdrop-blur-sm">
+              <div
+                className={`font-display text-[9px] md:text-[10px] font-bold tracking-[0.2em] px-2 py-0.5 rounded-full border ${
+                  isLastRound
+                    ? 'bg-red-500/25 border-red-400/50 text-red-200'
+                    : theme.badge
+                }`}
+              >
+                {isLastRound ? 'FINAL' : theme.label}
+              </div>
+              <div
+                className={`text-xl md:text-2xl font-black tabular-nums leading-none mt-0.5 ${
+                  timeLeft <= 3 ? 'text-arena-error' : 'text-arena-gold'
+                }`}
+                style={{ textShadow: '0 1px 0 #000, 0 0 12px rgba(0,0,0,0.8)' }}
+              >
+                {timeLeft}
+              </div>
             </div>
-            <div className="text-lg md:text-xl font-black text-white tabular-nums drop-shadow">{timeLeft}</div>
           </div>
 
           <LifeBar score={opponentScore} side="right" />
@@ -504,13 +530,29 @@ export function BattleDuelStage({
           {(['ROCK', 'SCISSORS', 'PAPER'] as Hand[]).map((hand) => {
             const selected = myHand === hand;
             const recommend = canPickNow && hand === recommendHand;
+            const reduceMotion = gameSettings.options.performanceMode === 'low';
             return (
-              <button
+              <motion.button
                 key={hand}
                 type="button"
                 disabled={!canPickNow}
                 onClick={() => onSelectHand(hand)}
-                className={`relative rounded-2xl border-[3px] border-black px-2 py-3 md:py-4 flex flex-col items-center gap-1 shadow-[3px_4px_0_#000] active:translate-y-0.5 active:shadow-[1px_2px_0_#000] transition-all overflow-hidden ${
+                whileTap={canPickNow && !reduceMotion ? { scale: 0.94, y: 2 } : undefined}
+                animate={
+                  !reduceMotion && canPickNow
+                    ? selected
+                      ? { scale: [1, 1.04, 1], y: [0, -2, 0] }
+                      : recommend
+                        ? { scale: [1, 1.03, 1] }
+                        : { y: [0, -2, 0] }
+                    : undefined
+                }
+                transition={
+                  selected || recommend
+                    ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' }
+                    : { duration: 2.6, repeat: Infinity, ease: 'easeInOut', delay: hand === 'SCISSORS' ? 0.2 : hand === 'PAPER' ? 0.4 : 0 }
+                }
+                className={`relative rounded-2xl border-[3px] border-black px-2 py-3 md:py-4 flex flex-col items-center gap-1 shadow-[3px_4px_0_#000] transition-colors overflow-hidden ${
                   !canPickNow
                     ? 'bg-slate-700/80 opacity-50'
                     : selected
@@ -520,20 +562,56 @@ export function BattleDuelStage({
                         : 'bg-red-500 hover:bg-red-400'
                 }`}
               >
-                <img
+                {/* 1) Hostess idle breath */}
+                <motion.img
                   src={hostessForHand(hand)}
                   alt=""
-                  className="absolute inset-0 w-full h-full object-cover object-top opacity-35 pointer-events-none"
+                  className="absolute inset-0 w-full h-full object-cover object-[center_12%] pointer-events-none"
+                  animate={
+                    !reduceMotion && canPickNow
+                      ? { scale: [1.05, 1.1, 1.05], opacity: selected ? [0.45, 0.55, 0.45] : [0.32, 0.4, 0.32] }
+                      : { opacity: canPickNow ? 0.35 : 0.15 }
+                  }
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                   draggable={false}
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent pointer-events-none" />
+                {recommend && !reduceMotion && (
+                  <motion.span
+                    className="absolute inset-0 rounded-[0.9rem] ring-2 ring-white/80 pointer-events-none"
+                    animate={{ opacity: [0.35, 0.9, 0.35] }}
+                    transition={{ duration: 1.1, repeat: Infinity }}
+                  />
+                )}
                 <span className="relative z-10 text-[10px] font-black bg-black/50 text-white px-1.5 py-0.5 rounded">
                   {KEY_HINT[hand]}
                 </span>
-                <span className="relative z-10 text-2xl md:text-3xl drop-shadow">{HAND_EMOJI[hand]}</span>
+                {/* 2) Hand emoji pop / 3) recommend shake */}
+                <motion.span
+                  key={`${hand}-${selected ? 'on' : 'off'}-${recommend ? 'rec' : ''}`}
+                  initial={reduceMotion ? false : { scale: 0.55, opacity: 0.4 }}
+                  animate={
+                    reduceMotion
+                      ? { scale: 1 }
+                      : selected
+                        ? { scale: [1, 1.18, 1], rotate: [0, -6, 6, 0] }
+                        : recommend
+                          ? { scale: [1, 1.12, 1], rotate: [0, -8, 8, 0] }
+                          : { scale: 1, rotate: 0, opacity: 1 }
+                  }
+                  transition={
+                    selected || recommend
+                      ? { duration: 0.85, repeat: Infinity, ease: 'easeInOut' }
+                      : { type: 'spring', bounce: 0.55, duration: 0.45 }
+                  }
+                  className="relative z-10 text-2xl md:text-3xl drop-shadow"
+                >
+                  {HAND_EMOJI[hand]}
+                </motion.span>
                 <span className="relative z-10 text-sm md:text-base font-black text-white drop-shadow-[0_1px_0_#000]">
                   {HAND_KO[hand]}
                 </span>
-              </button>
+              </motion.button>
             );
           })}
         </div>

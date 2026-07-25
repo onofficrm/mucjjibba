@@ -241,15 +241,21 @@ export function Layout() {
         </header>
 
         {/* Page Content with Transitions */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden relative bg-arena-bg pb-24 md:pb-8">
+        <div
+          className={`flex-1 overflow-x-hidden relative bg-arena-bg ${
+            isGamePlayScreen
+              ? 'overflow-hidden pb-0 md:pb-0'
+              : 'overflow-y-auto pb-24 md:pb-8'
+          }`}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: isGamePlayScreen ? 0 : 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              exit={{ opacity: 0, y: isGamePlayScreen ? 0 : -10 }}
               transition={{ duration: 0.2 }}
-              className="w-full h-full"
+              className={`w-full ${isGamePlayScreen ? 'h-full min-h-0' : 'h-full'}`}
             >
               <Outlet context={{ openGameSelect: () => setIsGameSelectOpen(true) }} />
             </motion.div>

@@ -266,6 +266,17 @@ export function GamePlayPage() {
   }, [id]);
 
   useEffect(() => {
+    const prevHtml = document.documentElement.style.overflow;
+    const prevBody = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = prevHtml;
+      document.body.style.overflow = prevBody;
+    };
+  }, []);
+
+  useEffect(() => {
     audioManager.setAmbienceTier(getTableTier(matchTable));
     return () => audioManager.setAmbienceTier('normal');
   }, [matchTable?.id]);
@@ -807,7 +818,7 @@ export function GamePlayPage() {
   const strokeDashoffset = circumference - ((gameState.timeLeft / 5) * circumference);
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col font-sans select-none overflow-hidden relative pb-safe">
+    <div className="h-full min-h-0 bg-black text-white flex flex-col font-sans select-none overflow-hidden relative">
       <AnimatePresence>
         {gameState.phase === 'VS_INTRO' && (
           <VsIntro
@@ -1198,30 +1209,51 @@ export function GamePlayPage() {
               canSelect &&
               (isBeginnerMode || showCoach) &&
               hand === recommendHand;
-            
+            const reduceMotion = gameSettings.options.performanceMode === 'low';
+
             return (
-              <button
+              <motion.button
                 key={hand}
+                type="button"
                 onClick={() => handleHandSelect(hand)}
                 disabled={!canSelect}
-                className={`flex-1 aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all duration-150 transform active:scale-95 overflow-hidden ${
+                whileTap={canSelect && !reduceMotion ? { scale: 0.94 } : undefined}
+                animate={
+                  !reduceMotion && canSelect
+                    ? isSelected
+                      ? { scale: [1, 1.04, 1] }
+                      : isRecommend
+                        ? { scale: [1, 1.03, 1] }
+                        : { y: [0, -2, 0] }
+                    : undefined
+                }
+                transition={{
+                  duration: isSelected || isRecommend ? 0.9 : 2.6,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+                className={`flex-1 aspect-square rounded-2xl flex flex-col items-center justify-center relative overflow-hidden ${
                   isSelected ? 'bg-gradient-to-b from-gray-700 to-gray-800 border-b-4 border-gray-900 shadow-inner' :
                   !canSelect ? 'bg-gray-800 opacity-35 grayscale border-b-8 border-gray-900' :
                   'bg-gradient-to-b from-gray-600 to-gray-700 border-b-8 border-gray-900 hover:brightness-110 shadow-lg'
                 } ${
                   isRecommend
-                    ? 'ring-2 ring-arena-gold ring-offset-2 ring-offset-gray-900 scale-[1.03] z-10'
+                    ? 'ring-2 ring-arena-gold ring-offset-2 ring-offset-gray-900 z-10'
                     : canSelect
                       ? 'opacity-100'
                       : ''
                 }`}
               >
-                <img
+                <motion.img
                   src={hostessForHand(hand)}
                   alt=""
-                  className={`absolute inset-0 w-full h-full object-cover object-[center_12%] pointer-events-none scale-110 ${
-                    canSelect ? 'opacity-40' : 'opacity-12'
-                  }`}
+                  className="absolute inset-0 w-full h-full object-cover object-[center_12%] pointer-events-none scale-110"
+                  animate={
+                    !reduceMotion && canSelect
+                      ? { opacity: isSelected ? [0.42, 0.55, 0.42] : [0.32, 0.42, 0.32] }
+                      : { opacity: canSelect ? 0.4 : 0.12 }
+                  }
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                   draggable={false}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/15 pointer-events-none" />
@@ -1231,14 +1263,32 @@ export function GamePlayPage() {
                   </span>
                 )}
                 {isSelected && <div className="absolute inset-0 rounded-2xl shadow-[inset_0_0_20px_rgba(34,211,238,0.5)] border-2 border-arena-cyan pointer-events-none z-10" />}
-                <span className={`relative z-10 text-4xl drop-shadow-lg mb-1 ${!canSelect && !isSelected ? 'opacity-40' : ''}`}>
+                <motion.span
+                  key={`${hand}-${isSelected}-${isRecommend}`}
+                  initial={reduceMotion ? false : { scale: 0.6, opacity: 0.5 }}
+                  animate={
+                    reduceMotion
+                      ? { scale: 1 }
+                      : isSelected
+                        ? { scale: [1, 1.16, 1], rotate: [0, -6, 6, 0] }
+                        : isRecommend
+                          ? { scale: [1, 1.12, 1], rotate: [0, -8, 8, 0] }
+                          : { scale: 1, rotate: 0, opacity: 1 }
+                  }
+                  transition={
+                    isSelected || isRecommend
+                      ? { duration: 0.85, repeat: Infinity, ease: 'easeInOut' }
+                      : { type: 'spring', bounce: 0.55, duration: 0.45 }
+                  }
+                  className={`relative z-10 text-4xl drop-shadow-lg mb-1 ${!canSelect && !isSelected ? 'opacity-40' : ''}`}
+                >
                   {myHandEmojis[hand]}
-                </span>
+                </motion.span>
                 <span className={`relative z-10 text-xs font-black ${isSelected ? 'text-arena-cyan' : 'text-gray-200'}`}>
                   {hand === 'ROCK' ? '묵' : hand === 'SCISSORS' ? '찌' : '빠'}
                 </span>
-              </button>
-            )
+              </motion.button>
+            );
           })}
         </div>
         {canPickNow && (
