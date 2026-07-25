@@ -437,8 +437,8 @@ export function SpectatePage() {
       {/* End Game Modal */}
       <AnimatePresence>
         {phase === 'END' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          <div className="overlay-area z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm" />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
               className="relative w-full max-w-sm bg-gray-900 border border-gray-700 rounded-3xl p-6 shadow-2xl"
@@ -467,10 +467,10 @@ export function SpectatePage() {
       {/* Join Game Modal (나도 도전하기) */}
       <AnimatePresence>
         {showJoinModal && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
+          <div className="overlay-area z-50 flex items-end justify-center sm:items-center p-4">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowJoinModal(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowJoinModal(false)}
             />
             <motion.div 
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
@@ -521,10 +521,10 @@ export function SpectatePage() {
       {/* More Menu Modal */}
       <AnimatePresence>
         {showMoreMenu && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
+          <div className="overlay-area z-50 flex items-end justify-center sm:items-center p-4">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMoreMenu(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMoreMenu(false)}
             />
             <motion.div 
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}

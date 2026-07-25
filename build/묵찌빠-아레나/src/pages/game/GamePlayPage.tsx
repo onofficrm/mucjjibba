@@ -1613,10 +1613,10 @@ export function GamePlayPage() {
       {/* Beginner Help Modal */}
       <AnimatePresence>
         {showBeginnerHelp && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
+          <div className="overlay-area z-50 flex items-end justify-center sm:items-center p-4">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setShowBeginnerHelp(false)}
             />
             <motion.div
@@ -1745,7 +1745,7 @@ export function GamePlayPage() {
         <>
           <FloatingEmotesLayer emotes={floatingEmotes} />
           {habitHint && canPickNow && (
-            <div className="fixed top-20 inset-x-0 z-30 flex justify-center pointer-events-none px-4">
+            <div className="overlay-gutter fixed top-20 inset-x-0 z-30 flex justify-center pointer-events-none px-4">
               <p className="text-[11px] font-bold text-arena-cyan bg-black/60 border border-arena-cyan/25 rounded-full px-3 py-1.5">
                 힌트 · {habitHint}
               </p>

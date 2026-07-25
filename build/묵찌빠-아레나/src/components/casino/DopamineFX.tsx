@@ -441,7 +441,7 @@ export function MissionFanfareToast({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-[80] w-[min(92vw,360px)]"
+          className="overlay-center-x fixed top-20 -translate-x-1/2 z-[80] w-[min(92vw,360px)]"
           initial={{ y: -30, opacity: 0, scale: 0.9 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: -20, opacity: 0 }}

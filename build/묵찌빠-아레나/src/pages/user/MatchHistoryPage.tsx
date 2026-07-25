@@ -127,12 +127,12 @@ export function MatchHistoryPage() {
 
       <AnimatePresence>
         {selected && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
+          <div className="overlay-area z-50 flex items-end justify-center sm:items-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm"
               onClick={() => setSelected(null)}
             />
             <motion.div

@@ -29,6 +29,12 @@ export function Layout() {
   const { fanfare, clear: clearFanfare } = useMissionFanfare();
   const { soundEnabled, toggleMuted } = useSoundMuted();
 
+  // 포털로 띄우는 팝업까지 사이드바 폭을 알 수 있도록 body에 표식
+  useEffect(() => {
+    document.body.classList.add('app-shell');
+    return () => document.body.classList.remove('app-shell');
+  }, []);
+
   // 게임 플레이 화면에서 하단 내비 자동 숨김 (위로 스와이프하면 다시 표시)
   const isGamePlayScreen = /^\/game\/[^/]+$/.test(location.pathname);
   const [isNavHidden, setIsNavHidden] = useState(false);
@@ -323,12 +329,12 @@ export function Layout() {
       {/* Game Select Bottom Sheet */}
       <AnimatePresence>
         {isGameSelectOpen && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
+          <div className="overlay-area z-50 flex items-end justify-center sm:items-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setIsGameSelectOpen(false)}
             />
             <motion.div 
@@ -418,12 +424,12 @@ export function Layout() {
       {/* Global More Menu (더보기) */}
       <AnimatePresence>
         {isMoreMenuOpen && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
+          <div className="overlay-area z-50 flex items-end justify-center sm:items-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setIsMoreMenuOpen(false)}
             />
             <motion.div 

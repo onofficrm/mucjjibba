@@ -435,7 +435,7 @@ export function TableSelectPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[90%] px-4 py-3 rounded-2xl bg-black/90 border border-arena-error/40 text-sm font-bold text-white text-center shadow-xl"
+            className="overlay-center-x fixed bottom-28 -translate-x-1/2 z-50 max-w-sm w-[90%] px-4 py-3 rounded-2xl bg-black/90 border border-arena-error/40 text-sm font-bold text-white text-center shadow-xl"
           >
             {toast}
           </motion.div>

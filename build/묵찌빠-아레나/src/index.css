@@ -27,6 +27,46 @@
 
 
 @layer utilities {
+  /* 좌측 사이드바 폭 — 팝업이 콘텐츠 영역 기준으로 정렬되도록 공유 */
+  .app-shell {
+    --shell-left: 0px;
+  }
+
+  @media (min-width: 768px) {
+    .app-shell {
+      --shell-left: 5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .app-shell {
+      --shell-left: 14rem;
+    }
+  }
+
+  /* 사이드바를 제외한 실제 콘텐츠 영역을 덮는 팝업 레이어.
+     선택자를 두 번 써서 Tailwind 유틸리티보다 우선순위를 확보 */
+  .overlay-area.overlay-area {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: var(--shell-left, 0px);
+  }
+
+  /* 배경을 직접 그리는 전체화면 오버레이 — 내용만 콘텐츠 영역 기준으로 */
+  @media (min-width: 768px) {
+    .overlay-gutter.overlay-gutter {
+      padding-left: calc(var(--shell-left, 0px) + 1rem);
+    }
+  }
+
+  /* 콘텐츠 영역 기준 수평 중앙 — 토스트처럼 한 요소만 띄울 때
+     (translate-x-1/2 와 함께 사용) */
+  .overlay-center-x.overlay-center-x {
+    left: calc(var(--shell-left, 0px) + (100% - var(--shell-left, 0px)) / 2);
+  }
+
   .glass-panel {
     @apply bg-arena-card-glass backdrop-blur-lg border border-white/10;
   }

@@ -691,7 +691,7 @@ export function FriendMatchPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-white text-black text-sm font-bold px-4 py-2.5 rounded-full shadow-lg"
+            className="overlay-center-x fixed bottom-24 -translate-x-1/2 z-50 bg-white text-black text-sm font-bold px-4 py-2.5 rounded-full shadow-lg"
           >
             {toast}
           </motion.div>

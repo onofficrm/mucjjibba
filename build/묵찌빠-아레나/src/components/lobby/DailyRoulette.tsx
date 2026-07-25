@@ -137,13 +137,13 @@ export function DailyRoulette() {
   const modal = createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4">
+        <div className="overlay-area z-[70] flex items-end sm:items-center justify-center p-4">
           <motion.div
             key="roulette-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => !spinning && setOpen(false)}
           />
           <motion.div

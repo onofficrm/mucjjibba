@@ -137,7 +137,7 @@ export function UsageLimitsPage() {
         </PrimaryButton>
 
         {showConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="overlay-gutter fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="bg-arena-card border border-arena-error/30 rounded-3xl p-6 w-full max-w-sm text-center space-y-6">
               <div className="w-16 h-16 rounded-full bg-arena-error/10 border-2 border-arena-error flex items-center justify-center mx-auto text-arena-error">
                 <ShieldAlert className="w-8 h-8" />

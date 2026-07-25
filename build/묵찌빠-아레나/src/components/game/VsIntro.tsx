@@ -145,7 +145,7 @@ export function VsIntro({
   );
 
   const ui = (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center pointer-events-none overflow-hidden px-3 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="overlay-gutter fixed inset-0 z-[100] flex flex-col items-center justify-center pointer-events-none overflow-hidden px-3 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

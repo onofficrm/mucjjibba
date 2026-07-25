@@ -16,7 +16,7 @@ export function NearMissOverlay({
 
   return (
     <motion.div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 backdrop-blur-md px-6"
+      className="overlay-gutter fixed inset-0 z-[80] flex items-center justify-center bg-black/85 backdrop-blur-md px-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

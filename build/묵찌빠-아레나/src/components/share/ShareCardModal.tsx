@@ -51,12 +51,12 @@ export function ShareCardModal({ open, log, settlement, onClose }: Props) {
   return (
     <AnimatePresence>
       {open && log && card && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center">
+        <div className="overlay-area z-[60] flex items-end md:items-center justify-center">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
             onClick={onClose}
           />
           <motion.div
