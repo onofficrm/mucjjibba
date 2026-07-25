@@ -6,6 +6,10 @@
 
 This contains everything you need to run your app locally.
 
+## 운영 문서
+
+- [하우스 수수료 정책](./docs/HOUSE_FEE_POLICY.md) — 요율·테이블·공격 프리미엄 (수정 시 `src/game/houseFeePolicy.ts` 동기화)
+
 View your app in AI Studio: https://ai.studio/apps/de310280-986d-4e9d-b480-9de26257348f
 
 ## Run Locally

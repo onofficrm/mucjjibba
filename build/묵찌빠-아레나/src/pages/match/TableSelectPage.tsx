@@ -18,6 +18,7 @@ import { DEMO_USER } from '@/data/demoData';
 import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { MATCH_TABLES, canEnterTable, type MatchTable } from '@/types/match';
 import { getMatchRules } from '@/game/matchRules';
+import { formatFeeRateLabel } from '@/game/houseFee';
 import { matchmakingService } from '@/services/matchmakingService';
 import { HOSTESS } from '@/data/hostessAssets';
 
@@ -72,12 +73,14 @@ export function TableSelectPage() {
         tone: 'text-white',
       },
       {
-        label: '룰',
-        value: getMatchRules(selectedTable.ruleId).shortLabel,
-        tone: 'text-arena-cyan',
+        label: '수수료',
+        value: isPractice
+          ? '없음'
+          : formatFeeRateLabel(selectedTable.id, selectedTable.isFree),
+        tone: 'text-rose-300',
       },
       {
-        label: '승리',
+        label: '승리시',
         value: isPractice ? '연습' : selectedTable.winnerPoint.toLocaleString(),
         tone: 'text-arena-gold',
       },
@@ -376,6 +379,15 @@ export function TableSelectPage() {
                   <p className="text-white/70 leading-relaxed">
                     {getMatchRules(selectedTable.ruleId).description}
                   </p>
+                  <div className="flex justify-between items-center">
+                    <span>하우스 수수료</span>
+                    <span className="font-bold text-rose-300">
+                      {formatFeeRateLabel(selectedTable.id, selectedTable.isFree)}
+                      {!selectedTable.isFree
+                        ? ` · ${selectedTable.fee.toLocaleString()} P`
+                        : ''}
+                    </span>
+                  </div>
                   <div className="flex justify-between items-center">
                     <span>최소 입장</span>
                     <span className="font-bold text-white">{selectedTable.minGrade} 이상</span>

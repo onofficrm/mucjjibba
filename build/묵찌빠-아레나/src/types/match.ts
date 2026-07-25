@@ -2,6 +2,7 @@
 
 import type { MatchRuleId } from '@/game/matchRules';
 import { TABLE_DEFAULT_RULE } from '@/game/matchRules';
+import { buildTableEconomy } from '@/game/houseFee';
 
 export interface MatchTable {
   id: string;
@@ -15,6 +16,18 @@ export interface MatchTable {
   color: string;
   /** 테이블 기본 경기 룰 (없으면 TABLE_DEFAULT_RULE 사용) */
   ruleId?: MatchRuleId;
+}
+
+function tableWithEconomy(
+  partial: Omit<MatchTable, 'totalPoint' | 'fee' | 'winnerPoint'> & { entryPoint: number },
+): MatchTable {
+  const eco = buildTableEconomy(partial.id, partial.entryPoint, partial.isFree);
+  return {
+    ...partial,
+    totalPoint: eco.totalPoint,
+    fee: eco.fee,
+    winnerPoint: eco.winnerPoint,
+  };
 }
 
 export interface MatchOpponent {
@@ -51,78 +64,60 @@ export interface MatchSession {
 }
 
 export const MATCH_TABLES: MatchTable[] = [
-  {
+  tableWithEconomy({
     id: 'practice',
     name: '연습 게임',
     entryPoint: 0,
-    totalPoint: 0,
-    fee: 0,
-    winnerPoint: 0,
     minGrade: '입문',
     isFree: true,
     color: 'border-white text-white',
     ruleId: TABLE_DEFAULT_RULE.practice,
-  },
-  {
+  }),
+  tableWithEconomy({
     id: 'bronze',
     name: '브론즈 테이블',
     entryPoint: 1000,
-    totalPoint: 2000,
-    fee: 100,
-    winnerPoint: 1900,
     minGrade: '브론즈',
     isFree: false,
     color: 'border-orange-400 text-orange-400 bg-orange-400/10',
     ruleId: TABLE_DEFAULT_RULE.bronze,
-  },
-  {
+  }),
+  tableWithEconomy({
     id: 'silver',
     name: '실버 테이블',
     entryPoint: 5000,
-    totalPoint: 10000,
-    fee: 500,
-    winnerPoint: 9500,
     minGrade: '실버',
     isFree: false,
     color: 'border-slate-300 text-slate-300 bg-slate-300/10',
     ruleId: TABLE_DEFAULT_RULE.silver,
-  },
-  {
+  }),
+  tableWithEconomy({
     id: 'gold',
     name: '골드 테이블',
     entryPoint: 10000,
-    totalPoint: 20000,
-    fee: 1000,
-    winnerPoint: 19000,
     minGrade: '골드',
     isFree: false,
     color: 'border-yellow-400 text-yellow-400 bg-yellow-400/10',
     ruleId: TABLE_DEFAULT_RULE.gold,
-  },
-  {
+  }),
+  tableWithEconomy({
     id: 'platinum',
     name: '플래티넘 테이블',
     entryPoint: 50000,
-    totalPoint: 100000,
-    fee: 5000,
-    winnerPoint: 95000,
     minGrade: '플래티넘',
     isFree: false,
     color: 'border-cyan-400 text-cyan-400 bg-cyan-400/10',
     ruleId: TABLE_DEFAULT_RULE.platinum,
-  },
-  {
+  }),
+  tableWithEconomy({
     id: 'vip',
     name: 'VIP 테이블',
     entryPoint: 100000,
-    totalPoint: 200000,
-    fee: 10000,
-    winnerPoint: 190000,
     minGrade: '다이아',
     isFree: false,
     color: 'border-purple-500 text-purple-400 bg-purple-500/10',
     ruleId: TABLE_DEFAULT_RULE.vip,
-  },
+  }),
 ];
 
 const GRADE_RANK: Record<string, number> = {

@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { audioManager } from '@/utils/audio';
 import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings } from '@/utils/gameSettings';
+import { resolveAssetUrl } from '@/utils/assetUrl';
+import { HandGlyph } from '@/components/game/HandGlyph';
 import {
   getMatchupKind,
   getWinningHand,
@@ -37,6 +39,60 @@ const SUBTITLE: Record<MatchupKind, string> = {
   crush: '묵이 찌를 부숴버림!',
 };
 
+/** 영상 실패 시 손 충돌 모션 폴백 */
+function ClashMotionFallback({
+  kind,
+  leftHand,
+  rightHand,
+}: {
+  kind: MatchupKind;
+  leftHand: RpsHand;
+  rightHand: RpsHand;
+}) {
+  return (
+    <div className="relative w-full aspect-video max-h-[min(58vh,520px)] flex items-center justify-center overflow-hidden bg-black">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.35)_0%,transparent_55%)]" />
+      <motion.div
+        className="absolute left-[8%] sm:left-[14%]"
+        initial={{ x: -120, rotate: -28, scale: 0.7, opacity: 0.5 }}
+        animate={{ x: 28, rotate: 0, scale: 1.15, opacity: 1 }}
+        transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <HandGlyph hand={leftHand} theme="classic" size={96} />
+      </motion.div>
+      <motion.span
+        className="relative z-10 font-display text-2xl sm:text-3xl font-black text-arena-gold"
+        initial={{ scale: 0.4, opacity: 0 }}
+        animate={{ scale: [0.4, 1.35, 1], opacity: [0, 1, 0.85] }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+      >
+        {MATCHUP_LABEL[kind]}
+      </motion.span>
+      <motion.div
+        className="absolute right-[8%] sm:right-[14%]"
+        initial={{ x: 120, rotate: 28, scale: 0.7, opacity: 0.5 }}
+        animate={{ x: -28, rotate: 0, scale: 1.15, opacity: 1 }}
+        transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
+        style={{ transform: 'scaleX(-1)' }}
+      >
+        <span className="inline-block" style={{ transform: 'scaleX(-1)' }}>
+          <HandGlyph hand={rightHand} theme="classic" size={96} />
+        </span>
+      </motion.div>
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0.55, 0] }}
+        transition={{ duration: 0.45, delay: 0.42 }}
+        style={{
+          background:
+            'radial-gradient(circle at center, rgba(255,200,80,0.85) 0%, transparent 45%)',
+        }}
+      />
+    </div>
+  );
+}
+
 /**
  * 전체화면 승부 영상 연출 — 찌>빠 / 빠>묵 / 묵>찌
  * 듀얼·심플 공통 (body 포털, 사이드바 제외 콘텐츠 영역)
@@ -57,8 +113,18 @@ export function HandVictoryClash({
 }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<MatchupKind | null>(null);
+  const [useFallback, setUseFallback] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const doneRef = useRef(false);
+
+  const sources = useMemo(() => {
+    if (!kind) return null;
+    const raw = CLASH_VIDEO[kind];
+    return {
+      webm: resolveAssetUrl(raw.webm),
+      mp4: resolveAssetUrl(raw.mp4),
+    };
+  }, [kind]);
 
   useEffect(() => {
     if (!playKey || !leftHand || !rightHand || reduce()) return;
@@ -70,6 +136,7 @@ export function HandVictoryClash({
 
     void winnerSide;
     doneRef.current = false;
+    setUseFallback(false);
     setKind(matchup);
     setOpen(true);
 
@@ -91,26 +158,52 @@ export function HandVictoryClash({
   }, [playKey]);
 
   useEffect(() => {
-    if (!open || !kind || !videoRef.current) return;
+    if (!open || !kind || !sources || useFallback) return;
     const v = videoRef.current;
+    if (!v) return;
+
+    const onError = () => setUseFallback(true);
+    v.addEventListener('error', onError);
+
+    // mp4 우선 (Safari/iOS) — source 태그 순서보다 src 직접 지정이 안정적
     v.muted = true;
+    v.defaultMuted = true;
     v.playsInline = true;
-    v.currentTime = 0;
+    v.setAttribute('playsinline', 'true');
+    v.setAttribute('webkit-playsinline', 'true');
+    v.preload = 'auto';
+    v.src = sources.mp4 || sources.webm;
+    v.load();
     const play = v.play();
     if (play && typeof play.catch === 'function') {
       play.catch(() => {
-        /* autoplay 거부 시에도 오버레이는 유지 */
+        // 자동재생 실패 시 webm 재시도 → 그래도 실패하면 모션 폴백
+        if (sources.webm && v.src !== sources.webm) {
+          v.src = sources.webm;
+          v.load();
+          v.play().catch(() => setUseFallback(true));
+        } else {
+          setUseFallback(true);
+        }
       });
     }
-  }, [open, kind, playKey]);
+
+    // 로딩이 너무 느리면 폴백 (빈 화면 방지)
+    const slow = window.setTimeout(() => {
+      if (v.readyState < 2) setUseFallback(true);
+    }, 900);
+
+    return () => {
+      v.removeEventListener('error', onError);
+      window.clearTimeout(slow);
+    };
+  }, [open, kind, playKey, sources, useFallback]);
 
   if (typeof document === 'undefined') return null;
 
-  const sources = kind ? CLASH_VIDEO[kind] : null;
-
   return createPortal(
     <AnimatePresence>
-      {open && kind && sources && (
+      {open && kind && leftHand && rightHand && (
         <motion.div
           key={`clash-vid-${playKey}`}
           className="overlay-area pointer-events-none z-[110] flex flex-col items-center justify-center overflow-hidden"
@@ -163,26 +256,28 @@ export function HandVictoryClash({
               {SUBTITLE[kind]}
             </motion.p>
 
-            <motion.div
-              className="relative w-full aspect-video max-h-[min(58vh,520px)] overflow-hidden"
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.08, duration: 0.35 }}
-            >
-              <video
-                ref={videoRef}
-                className="w-full h-full object-contain bg-transparent"
-                muted
-                playsInline
-                autoPlay
-                preload="auto"
-                disablePictureInPicture
+            {useFallback || !sources ? (
+              <ClashMotionFallback kind={kind} leftHand={leftHand} rightHand={rightHand} />
+            ) : (
+              <motion.div
+                className="relative w-full aspect-video max-h-[min(58vh,520px)] overflow-hidden bg-black"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.08, duration: 0.35 }}
               >
-                <source src={sources.webm} type="video/webm" />
-                <source src={sources.mp4} type="video/mp4" />
-              </video>
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.55)_100%)]" />
-            </motion.div>
+                <video
+                  key={`vid-${playKey}-${kind}`}
+                  ref={videoRef}
+                  className="w-full h-full object-contain bg-black"
+                  muted
+                  playsInline
+                  autoPlay
+                  preload="auto"
+                  disablePictureInPicture
+                />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.45)_100%)]" />
+              </motion.div>
+            )}
           </motion.div>
 
           <motion.div

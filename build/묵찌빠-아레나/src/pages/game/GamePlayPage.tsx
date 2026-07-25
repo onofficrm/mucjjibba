@@ -1697,16 +1697,33 @@ export function GamePlayPage() {
                 <div className="h-px bg-gray-800 my-2" />
                 <div className="flex justify-between">
                   <span>참가 포인트</span>
-                  <span className="text-white">1,000 P</span>
+                  <span className="text-white">
+                    {matchTable
+                      ? `${matchTable.entryPoint.toLocaleString()} P`
+                      : isBeginnerMode
+                        ? '무료'
+                        : '—'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>운영 수수료</span>
-                  <span className="text-arena-error">-100 P</span>
+                  <span className="text-arena-error">
+                    {matchTable && !matchTable.isFree
+                      ? `-${matchTable.fee.toLocaleString()} P`
+                      : '없음'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>승리 지급</span>
-                  <span className="text-arena-gold font-bold">+1,900 P</span>
+                  <span className="text-arena-gold font-bold">
+                    {matchTable && !matchTable.isFree
+                      ? `+${matchTable.winnerPoint.toLocaleString()} P`
+                      : '연습'}
+                  </span>
                 </div>
+                <p className="text-[10px] text-gray-500">
+                  ※ 공격권으로 승점을 딴 뒤 승리하면 팟의 1%가 추가 수수료로 붙을 수 있습니다.
+                </p>
                 <div className="h-px bg-gray-800 my-2" />
                 <p className="text-xs">
                   • {isBeginnerMode ? '10' : '5'}초 이내 미선택 시 자동 선택됩니다.<br/>

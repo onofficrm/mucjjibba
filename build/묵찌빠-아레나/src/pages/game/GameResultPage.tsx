@@ -35,6 +35,7 @@ import type { MatchTable } from '@/types/match';
 import { getTableTier } from '@/types/match';
 import { gameSettings } from '@/utils/gameSettings';
 import { isJackpotRoundActive, clearJackpotRound, jackpotPointMultiplier } from '@/utils/jackpotRound';
+import { computeHouseSettlement, type HouseSettlementBreakdown } from '@/game/houseFee';
 
 type RematchState = 'idle' | 'requesting' | 'accepted' | 'declined' | 'timeout' | 'disconnected';
 
@@ -113,46 +114,50 @@ export function GameResultPage() {
       session?.pointsBeforeDeposit ??
       pointsNow + (session?.deposited && table && !table.isFree ? table.entryPoint : 0);
 
-    const tableInfo = table
-      ? {
-          name: table.name,
-          entryPoint: table.entryPoint,
-          fee: table.fee,
-          winnerPoint: table.winnerPoint,
-          isFree: table.isFree,
-        }
-      : {
-          name: isFree ? '초보자 연습장' : '골드 테이블',
-          entryPoint: isFree ? 0 : 10000,
-          fee: isFree ? 0 : 1000,
-          winnerPoint: isFree ? 0 : 19000,
-          isFree,
-        };
+    const entryPoint = table?.entryPoint ?? (isFree ? 0 : 10000);
+    const tableId = table?.id ?? (isFree ? 'practice' : 'gold');
+    const logFromState = location.state?.gameLog as GameLog | undefined;
 
     const jackpot = isJackpotRoundActive();
-    const mult = jackpotPointMultiplier();
-    const winnerPoint = tableInfo.winnerPoint * (won && jackpot ? mult : 1);
-    const tableWithJackpot = { ...tableInfo, winnerPoint };
+    const mult = jackpot && won ? jackpotPointMultiplier() : 1;
+
+    const breakdown: HouseSettlementBreakdown = computeHouseSettlement({
+      entryPoint,
+      tableId,
+      isFree,
+      won,
+      gameLog: logFromState ?? null,
+      jackpotMultiplier: mult,
+    });
+
+    const tableInfo = {
+      name: table?.name ?? (isFree ? '초보자 연습장' : '골드 테이블'),
+      entryPoint,
+      fee: breakdown.houseFee,
+      winnerPoint: breakdown.winnerCredit,
+      isFree,
+      id: tableId,
+    };
 
     if (hasSettledGame(gameId) || session?.settled) {
       clearJackpotRound();
       return {
         pointsBefore: session?.pointsBeforeDeposit ?? pointsBefore,
         pointsAfter: pointsNow,
-        table: tableWithJackpot,
+        table: tableInfo,
         jackpot,
+        breakdown,
       };
     }
 
     const after = settleMatchPoints({
-      isFree: tableInfo.isFree,
-      winnerPoint,
+      isFree,
+      winnerPoint: breakdown.winnerCredit,
       won,
       alreadyDeposited: !!session?.deposited,
-      entryPoint: tableInfo.entryPoint,
+      entryPoint,
     });
 
-    // settle already credits winnerPoint; if jackpot was applied via winnerPoint we're done
     markSettledGame(gameId);
     if (session) updateMatchSession({ settled: true });
     clearJackpotRound();
@@ -164,8 +169,9 @@ export function GameResultPage() {
     return {
       pointsBefore,
       pointsAfter: after.points,
-      table: tableWithJackpot,
+      table: tableInfo,
       jackpot,
+      breakdown,
     };
   });
 
@@ -173,6 +179,7 @@ export function GameResultPage() {
   const pointsBefore = settledOnce.pointsBefore;
   const pointsAfter = settledOnce.pointsAfter;
   const wasJackpot = settledOnce.jackpot;
+  const feeBreakdown = settledOnce.breakdown;
   const verification = buildPublicVerification(gameLog);
 
   useEffect(() => {
@@ -511,11 +518,55 @@ export function GameResultPage() {
 
                 {moreTab === 'settlement' && (
                   <div className="mt-3 p-4 rounded-2xl bg-gradient-to-br from-arena-gold/10 to-black/60 border border-arena-gold/25 text-sm space-y-2.5 shadow-inner">
-                    <p className="text-[10px] font-black text-arena-gold tracking-wider uppercase">Settlement</p>
-                    <div className="flex justify-between text-gray-400"><span>게임 전</span><span className="tabular-nums">{pointsBefore.toLocaleString()} P</span></div>
-                    <div className="flex justify-between text-gray-400"><span>수수료</span><span className="text-arena-error tabular-nums">-{tableInfo.fee.toLocaleString()} P</span></div>
-                    <div className="flex justify-between text-white font-bold"><span>게임 후</span><span className="text-arena-gold tabular-nums">{pointsAfter.toLocaleString()} P</span></div>
-                    <p className="text-[10px] text-gray-500 pt-1 border-t border-white/5">데모 가상 포인트 · 결제/출금/환전 없음</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black text-arena-gold tracking-wider uppercase">Settlement</p>
+                      <span className="text-[9px] font-bold text-white/45">{feeBreakdown.modelLabel}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>게임 전</span>
+                      <span className="tabular-nums">{pointsBefore.toLocaleString()} P</span>
+                    </div>
+                    {!tableInfo.isFree && (
+                      <>
+                        <div className="flex justify-between text-gray-400">
+                          <span>팟 (양쪽 합)</span>
+                          <span className="tabular-nums">{feeBreakdown.pot.toLocaleString()} P</span>
+                        </div>
+                        <div className="flex justify-between text-gray-400">
+                          <span>기본 수수료</span>
+                          <span className="text-arena-error tabular-nums">-{feeBreakdown.baseFee.toLocaleString()} P</span>
+                        </div>
+                        {feeBreakdown.attackPremiumApplied && (
+                          <div className="flex justify-between text-gray-400">
+                            <span>공격권 프리미엄</span>
+                            <span className="text-arena-error tabular-nums">
+                              -{feeBreakdown.attackPremiumFee.toLocaleString()} P
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-gray-400">
+                          <span>총 하우스 수수료</span>
+                          <span className="text-arena-error tabular-nums font-bold">
+                            -{feeBreakdown.houseFee.toLocaleString()} P
+                          </span>
+                        </div>
+                        {isWin && (
+                          <div className="flex justify-between text-gray-400">
+                            <span>승자 실지급</span>
+                            <span className="text-arena-gold tabular-nums font-bold">
+                              +{feeBreakdown.winnerCredit.toLocaleString()} P
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <div className="flex justify-between text-white font-bold border-t border-white/5 pt-2">
+                      <span>게임 후</span>
+                      <span className="text-arena-gold tabular-nums">{pointsAfter.toLocaleString()} P</span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 pt-1">
+                      정책 v{feeBreakdown.version} · 데모 가상 포인트 · 결제/출금/환전 없음
+                    </p>
                   </div>
                 )}
                 {moreTab === 'analysis' && (
