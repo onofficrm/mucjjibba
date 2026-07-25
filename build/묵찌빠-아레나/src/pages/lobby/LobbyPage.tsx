@@ -12,7 +12,8 @@ import { DailyMissions } from '@/components/lobby/DailyMissions';
 import { ActivityMarquee } from '@/components/lobby/ActivityMarquee';
 import { DailyRoulette } from '@/components/lobby/DailyRoulette';
 import { SeasonPassStrip } from '@/components/lobby/SeasonPassStrip';
-import { HostessAvatar, HostessBackdrop, HostessBanner } from '@/components/casino/HostessAvatar';
+import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
+import { CompactRoadStrip } from '@/components/stats/RoadmapPanel';
 import { DEMO_USER } from '@/data/demoData';
 import { HOSTESS } from '@/data/hostessAssets';
 import { getQuickStartPath, getResumePath } from '@/utils/playEase';
@@ -361,6 +362,8 @@ export function LobbyPage() {
               </div>
 
               <ActivityMarquee />
+
+              <CompactRoadStrip />
 
               <div
                 role="button"

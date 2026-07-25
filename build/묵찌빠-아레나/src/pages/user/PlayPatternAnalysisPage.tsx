@@ -18,6 +18,8 @@ import {
 } from 'recharts';
 import { listMatchHistory } from '@/services/history/matchHistoryStore';
 import { analyzeMyPatterns } from '@/game/patternStats';
+import { analyzeMyRoadmap } from '@/game/roadmap';
+import { BeadPlate, BigRoad, HandTendencyPanel } from '@/components/stats/RoadmapPanel';
 import { trackMission } from '@/services/mission';
 import type { Hand } from '@/types/gameLog';
 
@@ -46,6 +48,7 @@ export function PlayPatternAnalysisPage() {
   const navigate = useNavigate();
   const logs = useMemo(() => listMatchHistory(), []);
   const pattern = useMemo(() => analyzeMyPatterns(logs), [logs]);
+  const roadmap = useMemo(() => analyzeMyRoadmap(logs), [logs]);
 
   const wins = logs.filter((g) => g.winner === 'ME').length;
   const losses = logs.filter((g) => g.winner === 'OPPONENT').length;
@@ -185,6 +188,26 @@ export function PlayPatternAnalysisPage() {
               <span className="font-bold text-arena-cyan">{pattern.sampleRounds}회</span>
             </div>
           </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.15 }}
+          className="bg-arena-card border border-white/10 rounded-2xl p-5 space-y-5"
+        >
+          <h3 className="font-bold text-base text-white flex items-center">
+            <Crosshair className="w-5 h-5 mr-2 text-arena-gold" />
+            로드맵 · 기준 지표
+          </h3>
+          <p className="text-[11px] text-gray-500 font-bold -mt-3">
+            바카라식 구슬판/대로로 최근 흐름을 읽고, 손·공격권 승률을 기준으로 삼으세요
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <BeadPlate grid={roadmap.matchGrid} subtitle="최근 매치 승패" />
+            <BigRoad columns={roadmap.matchBigRoad} subtitle="연승·연패 열" />
+          </div>
+          <HandTendencyPanel metrics={roadmap.tendency} />
         </motion.div>
 
         <motion.div

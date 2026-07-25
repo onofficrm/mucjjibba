@@ -26,6 +26,8 @@ import { NearMissOverlay } from '@/components/casino/NearMissOverlay';
 import { ResultRevealSequence } from '@/components/casino/ResultRevealSequence';
 import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
 import { BonusCardFlip } from '@/components/casino/BonusCardFlip';
+import { MatchRoadmapPanel } from '@/components/stats/RoadmapPanel';
+import { analyzeMatchRoadmap } from '@/game/roadmap';
 import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { settleMatchPoints, getDemoPoints } from '@/utils/demoWallet';
 import { loadMatchSession, updateMatchSession, clearMatchSession, hasSettledGame, markSettledGame } from '@/services/match/matchSession';
@@ -72,6 +74,7 @@ export function GameResultPage() {
   );
   const streakAfter = gameLog.currentStreakAfter ?? (isWin ? DEMO_USER.streak + 1 : 0);
   const nearMiss = !isWin && isNearMissLoss(myScore, opponentScore, winner);
+  const matchRoad = useMemo(() => analyzeMatchRoadmap(gameLog), [gameLog]);
 
   const [rematchState, setRematchState] = useState<RematchState>('idle');
   const [rematchTimeLeft, setRematchTimeLeft] = useState(10);
@@ -516,11 +519,26 @@ export function GameResultPage() {
                   </div>
                 )}
                 {moreTab === 'analysis' && (
-                  <div className="mt-3 p-4 rounded-2xl bg-gradient-to-br from-arena-cyan/10 to-black/60 border border-arena-cyan/25 text-sm space-y-2.5">
-                    <p className="text-[10px] font-black text-arena-cyan tracking-wider uppercase">Analysis</p>
-                    <div className="flex justify-between text-gray-400"><span>스코어</span><span className="text-white font-bold">{myScore}:{opponentScore}</span></div>
-                    <div className="flex justify-between text-gray-400"><span>라운드 수</span><span className="text-white">{gameLog?.rounds.length ?? 0}</span></div>
-                    <div className="flex justify-between text-gray-400"><span>공격권 탈환</span><span className="text-white">{gameLog?.attackSteals ?? 0}</span></div>
+                  <div className="mt-3 p-4 rounded-2xl bg-gradient-to-br from-arena-cyan/10 to-black/60 border border-arena-cyan/25 text-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black text-arena-cyan tracking-wider uppercase">Analysis</p>
+                      <span className="text-[10px] font-bold text-gray-500">
+                        {myScore}:{opponentScore} · 탈환 {gameLog?.attackSteals ?? 0}
+                      </span>
+                    </div>
+                    <MatchRoadmapPanel
+                      grid={matchRoad.grid}
+                      bigRoad={matchRoad.bigRoad}
+                      attackRoad={matchRoad.attackRoad}
+                      metrics={matchRoad.tendency}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => navigate('/analysis')}
+                      className="w-full text-center text-[11px] font-black text-arena-gold/90 hover:text-arena-gold py-2 border-t border-white/5"
+                    >
+                      전체 로드맵 · 성향 분석 →
+                    </button>
                   </div>
                 )}
                 {moreTab === 'verify' && verification && (
