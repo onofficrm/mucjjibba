@@ -169,7 +169,7 @@ export function VsIntro({
                 <motion.div
                   initial={{ scale: 2.2, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="text-5xl sm:text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-500 drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]"
+                  className="text-5xl sm:text-7xl font-black italic tracking-tighter leading-none text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-500 drop-shadow-[0_0_20px_rgba(255,255,255,0.5)] px-4 pb-3 pt-1"
                 >
                   VS
                 </motion.div>
