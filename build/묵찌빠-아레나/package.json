@@ -21,7 +21,9 @@
     "test:house-fee": "tsx src/game/houseFee.test.ts",
     "test:audio": "tsx src/utils/audioEnhance.test.ts",
     "test:combat-timing": "tsx src/game/combatTiming.test.ts",
-    "test:steps": "npm run test:missions && npm run test:step33 && npm run test:step34 && npm run test:step35 && npm run test:step36 && npm run test:invite && npm run test:ranking && npm run test:match-rules && npm run test:house-fee && npm run test:audio && npm run test:combat-timing"
+    "test:debrief": "tsx src/game/matchDebrief.test.ts",
+    "test:series": "tsx src/services/match/rematchSeries.test.ts",
+    "test:steps": "npm run test:missions && npm run test:step33 && npm run test:step34 && npm run test:step35 && npm run test:step36 && npm run test:invite && npm run test:ranking && npm run test:match-rules && npm run test:house-fee && npm run test:audio && npm run test:combat-timing && npm run test:debrief && npm run test:series"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

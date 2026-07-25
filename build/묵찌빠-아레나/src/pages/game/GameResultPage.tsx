@@ -36,6 +36,18 @@ import { getTableTier, MATCH_TABLES } from '@/types/match';
 import { gameSettings } from '@/utils/gameSettings';
 import { isJackpotRoundActive, clearJackpotRound, jackpotPointMultiplier } from '@/utils/jackpotRound';
 import { computeHouseSettlement, type HouseSettlementBreakdown } from '@/game/houseFee';
+import { buildMatchDebrief } from '@/game/matchDebrief';
+import {
+  beginRematchSeries,
+  clearRematchSeries,
+  isSeriesComplete,
+  isSeriesInProgress,
+  loadRematchSeries,
+  recordSeriesGameResult,
+  seriesMatchesContext,
+  seriesScoreLabel,
+  type RematchSeries,
+} from '@/services/match/rematchSeries';
 
 type RematchState = 'idle' | 'requesting' | 'accepted' | 'declined' | 'timeout' | 'disconnected';
 
@@ -76,6 +88,46 @@ export function GameResultPage() {
   const streakAfter = gameLog.currentStreakAfter ?? (isWin ? DEMO_USER.streak + 1 : 0);
   const nearMiss = !isWin && isNearMissLoss(myScore, opponentScore, winner);
   const matchRoad = useMemo(() => analyzeMatchRoadmap(gameLog), [gameLog]);
+  const debrief = useMemo(() => buildMatchDebrief(gameLog), [gameLog]);
+
+  const [series, setSeries] = useState<RematchSeries | null>(() => loadRematchSeries());
+  const seriesRecordedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (seriesRecordedRef.current) return;
+    const table = (location.state?.table as MatchTable | undefined) ?? loadMatchSession()?.table;
+    const opp =
+      (location.state?.opponent as MatchOpponent | undefined) ??
+      loadMatchSession()?.opponent;
+    const cur = loadRematchSeries();
+    const fromSeriesNav = !!(location.state as { series?: boolean } | null)?.series;
+
+    if (!cur) {
+      setSeries(null);
+      return;
+    }
+
+    if (
+      !seriesMatchesContext(cur, {
+        opponentNickname: opp?.nickname,
+        tableId: table?.id,
+      })
+    ) {
+      clearRematchSeries();
+      setSeries(null);
+      return;
+    }
+
+    // 시리즈 네비게이션으로 들어온 경기만 스코어 반영 (히스토리 재조회 등 제외)
+    if (isSeriesInProgress(cur) && fromSeriesNav) {
+      seriesRecordedRef.current = true;
+      const next = recordSeriesGameResult(isWin, gameLog.gameId);
+      setSeries(next);
+      return;
+    }
+
+    setSeries(cur);
+  }, [isWin, location.state, gameLog.gameId]);
 
   const [rematchState, setRematchState] = useState<RematchState>('idle');
   const [rematchTimeLeft, setRematchTimeLeft] = useState(10);
@@ -251,13 +303,35 @@ export function GameResultPage() {
     return MATCH_TABLES.find((t) => t.id === tableInfo.id) ?? null;
   };
 
-  const goRematch = () => {
+  const goRematch = (opts?: { series?: boolean; freshSeries?: boolean }) => {
     triggerHaptic('heavy');
     const table = resolveRematchTable();
     const opponent =
       (location.state?.opponent as MatchOpponent | undefined) ??
       matchSession?.opponent ??
       null;
+
+    if (opts?.freshSeries) {
+      if (!table && !isBeginnerMode && !tableInfo.isFree) {
+        window.alert('테이블 정보가 없습니다. 매칭 테이블에서 다시 참가해 주세요.');
+        navigate('/match/tables', { replace: true });
+        return;
+      }
+      beginRematchSeries({
+        opponentNickname: opponent?.nickname ?? '상대',
+        tableId: table?.id ?? (isBeginnerMode || tableInfo.isFree ? 'practice' : tableInfo.id),
+        ruleId: matchSession?.ruleId ?? table?.ruleId,
+      });
+      setSeries(loadRematchSeries());
+    } else if (opts?.series === false) {
+      clearRematchSeries();
+      setSeries(null);
+    } else if (isSeriesComplete(series)) {
+      // completed series — starting another game without freshSeries = single
+      clearRematchSeries();
+      setSeries(null);
+    }
+
     const result = startRematchSession({
       table,
       opponent,
@@ -280,13 +354,14 @@ export function GameResultPage() {
         table: table ?? undefined,
         opponent: opponent ?? undefined,
         rematch: true,
+        series: !!opts?.series || !!opts?.freshSeries || isSeriesInProgress(loadRematchSeries()),
       },
     });
   };
 
   const handleStartRematch = () => {
     setShowConfirmModal(false);
-    goRematch();
+    goRematch({ series: isSeriesInProgress(series) });
   };
 
   return (
@@ -407,6 +482,58 @@ export function GameResultPage() {
                 외 {highlights.length - 1}개 · {highlights.slice(1).map((h) => h.title).join(' · ')}
               </p>
             )}
+          </div>
+        )}
+
+        {/* 3전 시리즈 스코어보드 */}
+        {series && (series.active || series.winner || series.myWins + series.oppWins > 0) && (
+          <div className="w-full max-w-sm mb-4 rounded-2xl border border-arena-cyan/35 bg-arena-cyan/10 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black tracking-[0.3em] uppercase text-arena-cyan">
+                  3전 시리즈
+                </p>
+                <p className="text-xs text-gray-300 font-bold mt-1">
+                  {series.winner === 'ME'
+                    ? '시리즈 승리!'
+                    : series.winner === 'OPPONENT'
+                      ? '시리즈 패배'
+                      : `먼저 2승 · ${series.opponentNickname}`}
+                </p>
+              </div>
+              <p className="text-3xl font-black text-white tabular-nums">
+                {seriesScoreLabel(series)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* 경기 종료 분석 */}
+        {debrief && (
+          <div className="w-full max-w-sm mb-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5">
+            <p className="text-[10px] font-black tracking-[0.3em] uppercase text-arena-gold/80 mb-1">
+              이번 판 분석
+            </p>
+            <p className="text-base font-black text-white mb-2">{debrief.headline}</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {debrief.bullets.map((b) => (
+                <span
+                  key={b.label}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+                    b.tone === 'gold'
+                      ? 'border-arena-gold/40 bg-arena-gold/10 text-arena-gold'
+                      : b.tone === 'cyan'
+                        ? 'border-arena-cyan/40 bg-arena-cyan/10 text-arena-cyan'
+                        : b.tone === 'rose'
+                          ? 'border-rose-400/40 bg-rose-500/10 text-rose-300'
+                          : 'border-white/10 bg-white/5 text-gray-300'
+                  }`}
+                >
+                  {b.label} · {b.value}
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 leading-relaxed">{debrief.tip}</p>
           </div>
         )}
 
@@ -715,27 +842,58 @@ export function GameResultPage() {
             )}
           </AnimatePresence>
 
-          {/* Primary — 한 판 더 / 로비로 */}
+          {/* Primary — 시리즈 / 한 판 / 로비 */}
           {rematchState === 'idle' && (
-            <div className="flex gap-3">
-              <PrimaryButton
-                hostessIndex={11}
-                onClick={goRematch}
-                className={`flex-1 py-4 text-base tracking-wide min-w-0 ${
-                  isWin
-                    ? 'bg-gradient-to-r from-amber-300 via-arena-gold to-amber-500 text-black border border-amber-200/40 shadow-[0_0_28px_rgba(245,158,11,0.35)]'
-                    : 'shadow-[0_0_20px_rgba(245,158,11,0.2)]'
-                }`}
-              >
-                <RotateCcw className="w-5 h-5 shrink-0" /> 한 판 더
-              </PrimaryButton>
-              <SecondaryButton
-                hostessIndex={4}
-                onClick={() => navigate('/lobby')}
-                className="flex-1 py-4 text-base min-w-0 bg-gradient-to-b from-zinc-800 to-zinc-950 border border-white/15 hover:border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-              >
-                <Home className="w-5 h-5 shrink-0" /> 로비로
-              </SecondaryButton>
+            <div className="flex flex-col gap-2.5">
+              {isSeriesInProgress(series) ? (
+                <PrimaryButton
+                  hostessIndex={11}
+                  onClick={() => goRematch({ series: true })}
+                  className="w-full py-4 text-base tracking-wide bg-gradient-to-r from-cyan-300 via-arena-cyan to-sky-500 text-black border border-cyan-200/40"
+                >
+                  <RotateCcw className="w-5 h-5 shrink-0" />
+                  시리즈 계속 {series ? seriesScoreLabel(series) : ''}
+                </PrimaryButton>
+              ) : isSeriesComplete(series) ? (
+                <PrimaryButton
+                  hostessIndex={11}
+                  onClick={() => goRematch({ freshSeries: true, series: true })}
+                  className="w-full py-4 text-base tracking-wide bg-gradient-to-r from-amber-300 via-arena-gold to-amber-500 text-black border border-amber-200/40"
+                >
+                  <RotateCcw className="w-5 h-5 shrink-0" /> 새 3전 시리즈
+                </PrimaryButton>
+              ) : (
+                <PrimaryButton
+                  hostessIndex={11}
+                  onClick={() => goRematch({ freshSeries: true, series: true })}
+                  className={`w-full py-4 text-base tracking-wide min-w-0 ${
+                    isWin
+                      ? 'bg-gradient-to-r from-amber-300 via-arena-gold to-amber-500 text-black border border-amber-200/40 shadow-[0_0_28px_rgba(245,158,11,0.35)]'
+                      : 'shadow-[0_0_20px_rgba(245,158,11,0.2)]'
+                  }`}
+                >
+                  <RotateCcw className="w-5 h-5 shrink-0" /> 3전 시리즈 시작
+                </PrimaryButton>
+              )}
+              <div className="flex gap-3">
+                <SecondaryButton
+                  hostessIndex={11}
+                  onClick={() => goRematch({ series: false })}
+                  className="flex-1 py-3.5 text-sm min-w-0"
+                >
+                  한 판만
+                </SecondaryButton>
+                <SecondaryButton
+                  hostessIndex={4}
+                  onClick={() => {
+                    clearRematchSeries();
+                    navigate('/lobby');
+                  }}
+                  className="flex-1 py-3.5 text-sm min-w-0 bg-gradient-to-b from-zinc-800 to-zinc-950 border border-white/15"
+                >
+                  <Home className="w-4 h-4 shrink-0" /> 로비로
+                </SecondaryButton>
+              </div>
             </div>
           )}
 

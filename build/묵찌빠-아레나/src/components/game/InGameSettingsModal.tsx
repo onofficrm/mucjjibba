@@ -14,6 +14,7 @@ import { audioManager, AUDIO_SETTINGS_EVENT, type VolumeSettings } from '@/utils
 import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings, type GameOptions } from '@/utils/gameSettings';
 import { SOUND_PRESET_IDS, SOUND_PRESETS, type SoundPresetId } from '@/utils/soundPresets';
+import { TEMPO_PRESET_IDS, TEMPO_PRESET_META, type TempoPreset } from '@/game/combatTiming';
 
 interface Props {
   open: boolean;
@@ -79,6 +80,49 @@ export function InGameSettingsModal({ open, onClose }: Props) {
         </div>
 
         <div className="p-4 space-y-4 pb-8">
+          <section className="bg-arena-card/80 border border-white/10 rounded-2xl p-3 space-y-2">
+            <div className="text-xs font-bold uppercase tracking-wider text-arena-text-muted mb-1">
+              게임 템포
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {TEMPO_PRESET_IDS.map((id) => {
+                const p = TEMPO_PRESET_META[id];
+                const active = (options.combatTempo ?? 'default') === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => updateOption('combatTempo', id as TempoPreset)}
+                    className={`text-center px-2 py-2.5 rounded-xl border transition-colors ${
+                      active
+                        ? 'border-arena-cyan bg-arena-cyan/15 text-arena-cyan'
+                        : 'border-white/10 bg-white/5 text-gray-300'
+                    }`}
+                  >
+                    <div className="text-[11px] font-black">{p.label}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-gray-500 leading-snug">
+              {TEMPO_PRESET_META[options.combatTempo ?? 'default'].description}
+            </p>
+            <button
+              type="button"
+              onClick={() => updateOption('showRuleCard', !(options.showRuleCard !== false))}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm font-medium ${
+                options.showRuleCard !== false
+                  ? 'border-arena-gold/40 bg-arena-gold/10 text-arena-gold'
+                  : 'border-white/10 bg-white/5 text-gray-300'
+              }`}
+            >
+              <span>시작 전 룰 카드</span>
+              <span className="text-xs font-bold">
+                {options.showRuleCard !== false ? 'ON' : 'OFF'}
+              </span>
+            </button>
+          </section>
+
           <section className="bg-arena-card/80 border border-white/10 rounded-2xl p-3 space-y-2">
             <div className="text-xs font-bold uppercase tracking-wider text-arena-text-muted mb-1">
               사운드 프리셋

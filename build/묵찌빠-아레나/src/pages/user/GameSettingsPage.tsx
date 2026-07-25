@@ -6,6 +6,7 @@ import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings, GameOptions } from '@/utils/gameSettings';
 import { trackMission } from '@/services/mission';
 import { SOUND_PRESET_IDS, SOUND_PRESETS, type SoundPresetId } from '@/utils/soundPresets';
+import { TEMPO_PRESET_IDS, TEMPO_PRESET_META, type TempoPreset } from '@/game/combatTiming';
 
 export function GameSettingsPage() {
   const navigate = useNavigate();
@@ -62,6 +63,58 @@ export function GameSettingsPage() {
       </header>
 
       <div className="max-w-xl mx-auto p-4 space-y-6">
+
+        <section className="bg-arena-card border border-white/10 rounded-2xl p-4">
+          <div className="text-arena-text-muted text-xs font-bold uppercase tracking-wider mb-3">
+            게임 템포
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {TEMPO_PRESET_IDS.map((id) => {
+              const p = TEMPO_PRESET_META[id];
+              const active = (options.combatTempo ?? 'default') === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    gameSettings.updateOption('combatTempo', id as TempoPreset);
+                    setOptions({ ...gameSettings.options });
+                    audioManager.playSFX('btn_touch');
+                    triggerHaptic('light');
+                  }}
+                  className={`text-center px-2 py-3 rounded-xl border transition-colors ${
+                    active
+                      ? 'border-arena-cyan bg-arena-cyan/15 text-arena-cyan'
+                      : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="text-xs font-black">{p.label}</div>
+                  <div className="text-[10px] text-gray-500 mt-1 leading-snug">{p.description}</div>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !(options.showRuleCard !== false);
+              gameSettings.updateOption('showRuleCard', next);
+              setOptions({ ...gameSettings.options });
+              audioManager.playSFX('btn_touch');
+              triggerHaptic('light');
+            }}
+            className={`w-full flex items-center justify-between px-3 py-3 rounded-xl border text-sm font-medium ${
+              options.showRuleCard !== false
+                ? 'border-arena-gold/40 bg-arena-gold/10 text-arena-gold'
+                : 'border-white/10 bg-white/5 text-gray-300'
+            }`}
+          >
+            <span>시작 전 룰 카드 보기</span>
+            <span className="text-xs font-bold">
+              {options.showRuleCard !== false ? 'ON' : 'OFF'}
+            </span>
+          </button>
+        </section>
 
         <section className="bg-arena-card border border-white/10 rounded-2xl p-4">
           <div className="text-arena-text-muted text-xs font-bold uppercase tracking-wider mb-3">

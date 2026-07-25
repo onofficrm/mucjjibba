@@ -14,6 +14,10 @@ export interface GameOptions {
   reactionMute: boolean;
   /** PC 듀얼 모드 Q/W/E 단축키 가이드 오버레이 표시 */
   showKeyGuide: boolean;
+  /** 전투 연출·선택 시간 템포 */
+  combatTempo: 'comfortable' | 'default' | 'fast';
+  /** 경기 시작 전 룰 카드 표시 */
+  showRuleCard: boolean;
 }
 
 const defaultOptions: GameOptions = {
@@ -30,6 +34,8 @@ const defaultOptions: GameOptions = {
   introMute: false,
   reactionMute: false,
   showKeyGuide: true,
+  combatTempo: 'default',
+  showRuleCard: true,
 };
 
 class GameSettingsManager {

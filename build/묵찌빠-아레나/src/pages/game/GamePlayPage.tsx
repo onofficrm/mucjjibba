@@ -44,7 +44,12 @@ import {
 } from '@/components/casino/DopamineFX';
 import { HandGlyph } from '@/components/game/HandGlyph';
 import { HandVictoryClash } from '@/components/game/HandVictoryClash';
+import { MatchRuleCard } from '@/components/game/MatchRuleCard';
 import { InGameSettingsModal } from '@/components/game/InGameSettingsModal';
+import {
+  loadRematchSeries,
+  seriesMatchesContext,
+} from '@/services/match/rematchSeries';
 import { rollJackpotRound } from '@/utils/jackpotRound';
 import { analyzeOpponentPatterns, pickLiveHabitHint } from '@/game/patternStats';
 import {
@@ -89,6 +94,7 @@ type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type PlayerId = 'ME' | 'OPPONENT';
 type GamePhase = 
   | 'VS_INTRO'
+  | 'RULE_CARD'
   | 'INIT' 
   | 'ATTACK_DECISION' 
   | 'SELECTING' 
@@ -217,6 +223,16 @@ export function GamePlayPage() {
       tableFromState?.id,
     ],
   );
+  const combatTempo = gameSettings.options.combatTempo ?? 'default';
+  const rematchSeries = loadRematchSeries();
+  const seriesForCard =
+    rematchSeries &&
+    seriesMatchesContext(rematchSeries, {
+      opponentNickname: activeOpponent.nickname,
+      tableId: matchTable?.id,
+    })
+      ? rematchSeries
+      : null;
   
   const myHandEmojis = getHandSkinEmojis(gameSettings.options.handSkinId);
   const opponentHandEmojis = getHandSkinEmojis('classic');
@@ -271,11 +287,11 @@ export function GamePlayPage() {
     const { introMode } = gameSettings.options;
     
     if (introMode === 'skip') {
-      initialPhase = 'INIT';
+      initialPhase = gameSettings.options.showRuleCard !== false ? 'RULE_CARD' : 'INIT';
     } else if (introMode === 'first_only' && sessionStorage.getItem('arena_intro_played')) {
-      initialPhase = 'INIT';
+      initialPhase = gameSettings.options.showRuleCard !== false ? 'RULE_CARD' : 'INIT';
     } else if (introMode === 'tournament_only' && !isTournament) {
-      initialPhase = 'INIT';
+      initialPhase = gameSettings.options.showRuleCard !== false ? 'RULE_CARD' : 'INIT';
     }
 
     return {
@@ -286,7 +302,10 @@ export function GamePlayPage() {
       attacker: null,
       myHand: null,
       opponentHand: null,
-      timeLeft: getOpeningPickLimit(isBeginnerMode),
+      timeLeft: getOpeningPickLimit(
+        isBeginnerMode,
+        gameSettings.options.combatTempo ?? 'default',
+      ),
       winner: null,
       roundMessage: '준비',
     };
@@ -520,7 +539,9 @@ export function GamePlayPage() {
           resolveCombatPace({
             isSuddenDeath: matchRules.winMode === 'sudden_death',
             isMatchPoint: true,
+            tempo: combatTempo,
           }),
+          combatTempo,
         ));
       }
     } else if (
@@ -561,10 +582,10 @@ export function GamePlayPage() {
         updateState({ 
           phase: 'ATTACK_DECISION', 
           roundMessage: '아래에서 선택',
-          timeLeft: getPickTimeLimit(isBeginnerMode, 'calm'),
+          timeLeft: getPickTimeLimit(isBeginnerMode, 'calm', combatTempo),
         });
         updateDealer('ask_select', '아래에서 하나를 눌러주세요.');
-      }, getRoundStartDelayMs('calm'));
+      }, getRoundStartDelayMs('calm', combatTempo));
       return () => clearTimeout(timer);
     }
 
@@ -585,8 +606,9 @@ export function GamePlayPage() {
       const pace = resolveCombatPace({
         isMatchPoint: mpNow,
         isSuddenDeath: matchRules.winMode === 'sudden_death',
+        tempo: combatTempo,
       });
-      const schedule = getRevealSchedule(isBeginnerMode, pace);
+      const schedule = getRevealSchedule(isBeginnerMode, pace, combatTempo);
       audioManager.duckBgm(schedule.tensionMs + 200, 0.35);
       audioManager.playSFX('tension_before_reveal', {
         intensity: (pace === 'urgent' ? 1.3 : 1) * audioManager.getIntensityBoost(),
@@ -710,12 +732,13 @@ export function GamePlayPage() {
           const nextPace = resolveCombatPace({
             isMatchPoint: matchPoint,
             isSuddenDeath: matchRules.winMode === 'sudden_death',
+            tempo: combatTempo,
           });
           updateState({
             phase: 'SELECTING',
             myHand: null,
             opponentHand: null,
-            timeLeft: getPickTimeLimit(isBeginnerMode, nextPace),
+            timeLeft: getPickTimeLimit(isBeginnerMode, nextPace, combatTempo),
             roundMessage: matchPoint ? '매치포인트!' : '아래에서 선택',
             round: gameState.round + 1,
           });
@@ -739,7 +762,9 @@ export function GamePlayPage() {
             oppPointStreak,
           ),
           isSuddenDeath: matchRules.winMode === 'sudden_death',
+          tempo: combatTempo,
         }),
+        combatTempo,
       ));
       return () => clearTimeout(timer);
     }
@@ -802,7 +827,7 @@ export function GamePlayPage() {
       else if (hand === 'SCISSORS') void trackMission('SCISSORS_SELECTED');
       else void trackMission('PAPER_SELECTED');
 
-      const limit = getPickTimeLimit(isBeginnerMode, 'calm');
+      const limit = getPickTimeLimit(isBeginnerMode, 'calm', combatTempo);
       logBuilderRef.current?.markSelectStart(gameState.timeLeft, limit);
       pendingSelectMeta.current = logBuilderRef.current?.recordSelect(hand as LogHand) ?? null;
     }
@@ -833,7 +858,7 @@ export function GamePlayPage() {
         // Since state updates are async, we handle phase transition here
         updateState({ phase: 'REVEAL', roundMessage: '결과 공개' });
         triggerHaptic('light');
-      }, getOpponentThinkMs(thinkPace));
+      }, getOpponentThinkMs(thinkPace, combatTempo));
     }
   };
 
@@ -864,7 +889,7 @@ export function GamePlayPage() {
       attackerAfter,
       result,
       timeLeftOnSelect: meta?.timeLeftOnSelect ?? gameState.timeLeft,
-      timerLimit: meta?.timerLimit ?? getPickTimeLimit(isBeginnerMode, 'calm'),
+      timerLimit: meta?.timerLimit ?? getPickTimeLimit(isBeginnerMode, 'calm', combatTempo),
       selectDurationMs: meta?.selectDurationMs ?? 0,
       selectedAt: meta?.selectedAt ?? now,
       lockedAt: now,
@@ -904,7 +929,7 @@ export function GamePlayPage() {
           phase: 'ATTACK_DECISION',
           myHand: null,
           opponentHand: null,
-          timeLeft: getPickTimeLimit(isBeginnerMode, 'calm'),
+          timeLeft: getPickTimeLimit(isBeginnerMode, 'calm', combatTempo),
           roundMessage: '다시 골라주세요',
         });
         updateDealer('surprise', '비겼어요. 다시 골라주세요.', true);
@@ -947,7 +972,7 @@ export function GamePlayPage() {
           phase: 'SELECTING',
           myHand: null,
           opponentHand: null,
-          timeLeft: getPickTimeLimit(isBeginnerMode, 'calm'),
+          timeLeft: getPickTimeLimit(isBeginnerMode, 'calm', combatTempo),
           roundMessage: rpsWinner === 'ME' ? '내 공격 시작' : '상대 공격 시작',
         });
       }
@@ -1109,8 +1134,9 @@ export function GamePlayPage() {
   const pickPace = resolveCombatPace({
     isMatchPoint: !!isLastRound,
     isSuddenDeath: matchRules.winMode === 'sudden_death',
+    tempo: combatTempo,
   });
-  const pickTimerLimit = getPickTimeLimit(isBeginnerMode, pickPace);
+  const pickTimerLimit = getPickTimeLimit(isBeginnerMode, pickPace, combatTempo);
   const isHandBanned = (hand: Hand) =>
     (usesHandSeal(matchRules) && sealedHand === hand) ||
     (usesRevenge(matchRules) && myRevengeBan === hand);
@@ -1165,10 +1191,22 @@ export function GamePlayPage() {
             winningPoints={190}
             onComplete={() => {
               sessionStorage.setItem('arena_intro_played', 'true');
-              updateState({ phase: 'INIT' });
+              updateState({
+                phase: gameSettings.options.showRuleCard !== false ? 'RULE_CARD' : 'INIT',
+              });
             }}
             reduceAnimations={gameSettings.options.performanceMode === 'low'}
             muteAudio={gameSettings.options.introMute}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {gameState.phase === 'RULE_CARD' && (
+          <MatchRuleCard
+            rules={matchRules}
+            series={seriesForCard}
+            onContinue={() => updateState({ phase: 'INIT' })}
           />
         )}
       </AnimatePresence>
