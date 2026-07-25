@@ -43,9 +43,9 @@ export function SlowMoReveal({ active, snap }: { active: boolean; snap?: boolean
         <motion.div
           key="snap"
           className="pointer-events-none absolute inset-0 z-[27] bg-white"
-          initial={{ opacity: 0.55 }}
+          initial={{ opacity: 0.24 }}
           animate={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+          transition={{ duration: 0.14 }}
           aria-hidden
         />
       )}
@@ -318,27 +318,27 @@ export function MiniClashReplay({
       {open && myHand && opponentHand && (
         <motion.div
           key={playKey}
-          className="pointer-events-none absolute inset-x-0 top-[28%] z-[45] flex justify-center px-4"
+          className="pointer-events-none absolute top-[18%] right-3 md:right-6 z-[45]"
           initial={{ opacity: 0, y: 12, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 1.05 }}
           transition={{ duration: 0.25 }}
           aria-hidden
         >
-          <div className="relative rounded-2xl border-2 border-black bg-black/75 backdrop-blur-md px-5 py-3 shadow-[4px_6px_0_#000] min-w-[220px]">
+          <div className="relative rounded-xl border border-white/15 bg-black/80 backdrop-blur-md px-3 py-2 shadow-[3px_4px_0_#000] min-w-[154px]">
             <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-arena-gold text-black text-[9px] font-black tracking-[0.18em] border border-black">
               REPLAY
             </div>
-            <div className="flex items-center justify-center gap-3 mt-1">
+            <div className="flex items-center justify-center gap-2 mt-1">
               <motion.div
                 initial={{ x: -40, rotate: -25, scale: 0.6, opacity: 0.4 }}
                 animate={{ x: 0, rotate: 0, scale: 1.15, opacity: 1 }}
                 transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
               >
-                <HandGlyph hand={myHand} theme={skinId} size={56} comboBoost={comboBoost} />
+                <HandGlyph hand={myHand} theme={skinId} size={38} comboBoost={comboBoost} />
               </motion.div>
               <motion.span
-                className="font-display text-lg font-black text-white/50"
+                className="font-display text-[10px] font-black text-white/45"
                 animate={{ scale: [1, 1.35, 1], opacity: [0.4, 1, 0.6] }}
                 transition={{ duration: 0.75 }}
               >
@@ -350,7 +350,7 @@ export function MiniClashReplay({
                 transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1], delay: 0.06 }}
               >
                 <span className="inline-block" style={{ transform: 'scaleX(-1)' }}>
-                  <HandGlyph hand={opponentHand} theme={skinId} size={56} comboBoost={0} />
+                  <HandGlyph hand={opponentHand} theme={skinId} size={38} comboBoost={0} />
                 </span>
               </motion.div>
             </div>
@@ -360,7 +360,7 @@ export function MiniClashReplay({
               animate={{ opacity: [0, 1, 0], scale: [0.4, 1.3, 1.6] }}
               transition={{ duration: 0.55, delay: 0.45 }}
             >
-              <span className="text-3xl">💥</span>
+              <span className="text-xl">💥</span>
             </motion.div>
           </div>
         </motion.div>

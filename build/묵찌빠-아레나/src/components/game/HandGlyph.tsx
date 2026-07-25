@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useId, type CSSProperties } from 'react';
 
 export type GlyphHand = 'ROCK' | 'SCISSORS' | 'PAPER';
 export type GlyphTheme = 'classic' | 'gold' | 'neon' | 'fire' | 'ice' | 'comic' | string;
@@ -16,43 +16,49 @@ const THEME_FALLBACK_EMOJI: Record<string, Record<GlyphHand, string>> = {
 
 const SVG_THEMES = new Set(['classic', 'gold', 'neon', 'fire', 'ice', 'comic']);
 
-function themePaint(theme: GlyphTheme) {
+function themePaint(theme: GlyphTheme, id: string) {
   switch (theme) {
     case 'gold':
       return {
-        fill: 'url(#hg-gold)',
-        stroke: '#fbbf24',
-        glow: 'drop-shadow(0 0 14px rgba(245,158,11,0.85)) drop-shadow(0 4px 0 rgba(0,0,0,0.55))',
+        fill: `url(#${id}-gold)`,
+        stroke: '#fcd34d',
+        edge: '#78350f',
+        glow: 'drop-shadow(0 0 16px rgba(245,158,11,0.65)) drop-shadow(0 8px 3px rgba(0,0,0,0.7))',
       };
     case 'neon':
       return {
-        fill: 'url(#hg-neon)',
-        stroke: '#22d3ee',
-        glow: 'drop-shadow(0 0 16px rgba(34,211,238,0.95)) drop-shadow(0 0 8px rgba(217,70,239,0.7))',
+        fill: `url(#${id}-neon)`,
+        stroke: '#a5f3fc',
+        edge: '#164e63',
+        glow: 'drop-shadow(0 0 16px rgba(34,211,238,0.8)) drop-shadow(0 8px 3px rgba(0,0,0,0.7))',
       };
     case 'fire':
       return {
-        fill: 'url(#hg-fire)',
-        stroke: '#fb923c',
-        glow: 'drop-shadow(0 0 16px rgba(249,115,22,0.95)) drop-shadow(0 0 6px rgba(220,38,38,0.7))',
+        fill: `url(#${id}-fire)`,
+        stroke: '#fdba74',
+        edge: '#7f1d1d',
+        glow: 'drop-shadow(0 0 17px rgba(249,115,22,0.8)) drop-shadow(0 8px 3px rgba(0,0,0,0.7))',
       };
     case 'ice':
       return {
-        fill: 'url(#hg-ice)',
-        stroke: '#7dd3fc',
-        glow: 'drop-shadow(0 0 14px rgba(56,189,248,0.85))',
+        fill: `url(#${id}-ice)`,
+        stroke: '#e0f2fe',
+        edge: '#075985',
+        glow: 'drop-shadow(0 0 15px rgba(56,189,248,0.7)) drop-shadow(0 8px 3px rgba(0,0,0,0.65))',
       };
     case 'comic':
       return {
-        fill: '#fff7ed',
+        fill: `url(#${id}-comic)`,
         stroke: '#111827',
-        glow: 'drop-shadow(0 5px 0 #000) drop-shadow(3px 3px 0 #f59e0b)',
+        edge: '#030712',
+        glow: 'drop-shadow(0 7px 0 #000) drop-shadow(3px 3px 0 #f59e0b)',
       };
     default:
       return {
-        fill: 'url(#hg-classic)',
-        stroke: '#e5e7eb',
-        glow: 'drop-shadow(0 6px 0 rgba(0,0,0,0.75)) drop-shadow(0 0 10px rgba(255,255,255,0.15))',
+        fill: `url(#${id}-classic)`,
+        stroke: '#f8fafc',
+        edge: '#475569',
+        glow: 'drop-shadow(0 9px 3px rgba(0,0,0,0.75)) drop-shadow(0 0 10px rgba(255,255,255,0.12))',
       };
   }
 }
@@ -83,32 +89,54 @@ function HandPaths({ hand }: { hand: GlyphHand }) {
   );
 }
 
-function Defs() {
+function Defs({ id }: { id: string }) {
   return (
     <defs>
-      <linearGradient id="hg-classic" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#f8fafc" />
-        <stop offset="100%" stopColor="#cbd5e1" />
+      <linearGradient id={`${id}-classic`} x1="0" y1="0" x2="0.8" y2="1">
+        <stop offset="0%" stopColor="#ffffff" />
+        <stop offset="38%" stopColor="#e2e8f0" />
+        <stop offset="72%" stopColor="#94a3b8" />
+        <stop offset="100%" stopColor="#475569" />
       </linearGradient>
-      <linearGradient id="hg-gold" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#fde68a" />
-        <stop offset="45%" stopColor="#f59e0b" />
-        <stop offset="100%" stopColor="#b45309" />
+      <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="0.9" y2="1">
+        <stop offset="0%" stopColor="#fff7c2" />
+        <stop offset="25%" stopColor="#fcd34d" />
+        <stop offset="58%" stopColor="#d97706" />
+        <stop offset="82%" stopColor="#92400e" />
+        <stop offset="100%" stopColor="#451a03" />
       </linearGradient>
-      <linearGradient id="hg-neon" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#67e8f9" />
-        <stop offset="55%" stopColor="#a855f7" />
-        <stop offset="100%" stopColor="#22d3ee" />
+      <linearGradient id={`${id}-neon`} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#ecfeff" />
+        <stop offset="24%" stopColor="#67e8f9" />
+        <stop offset="60%" stopColor="#7e22ce" />
+        <stop offset="100%" stopColor="#164e63" />
       </linearGradient>
-      <linearGradient id="hg-fire" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#fde047" />
-        <stop offset="40%" stopColor="#f97316" />
-        <stop offset="100%" stopColor="#b91c1c" />
+      <linearGradient id={`${id}-fire`} x1="0" y1="0" x2="0.85" y2="1">
+        <stop offset="0%" stopColor="#fff7ad" />
+        <stop offset="28%" stopColor="#facc15" />
+        <stop offset="60%" stopColor="#ea580c" />
+        <stop offset="100%" stopColor="#7f1d1d" />
       </linearGradient>
-      <linearGradient id="hg-ice" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#e0f2fe" />
-        <stop offset="100%" stopColor="#38bdf8" />
+      <linearGradient id={`${id}-ice`} x1="0" y1="0" x2="0.85" y2="1">
+        <stop offset="0%" stopColor="#ffffff" />
+        <stop offset="32%" stopColor="#bae6fd" />
+        <stop offset="68%" stopColor="#38bdf8" />
+        <stop offset="100%" stopColor="#075985" />
       </linearGradient>
+      <linearGradient id={`${id}-comic`} x1="0" y1="0" x2="0.8" y2="1">
+        <stop offset="0%" stopColor="#ffffff" />
+        <stop offset="55%" stopColor="#ffedd5" />
+        <stop offset="100%" stopColor="#fdba74" />
+      </linearGradient>
+      <linearGradient id={`${id}-shine`} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+        <stop offset="34%" stopColor="#ffffff" stopOpacity="0.24" />
+        <stop offset="64%" stopColor="#ffffff" stopOpacity="0" />
+      </linearGradient>
+      <filter id={`${id}-depth`} x="-30%" y="-30%" width="160%" height="180%">
+        <feDropShadow dx="0" dy="5" stdDeviation="1.5" floodColor="#020617" floodOpacity="0.9" />
+        <feDropShadow dx="-1" dy="-1" stdDeviation="0.8" floodColor="#ffffff" floodOpacity="0.35" />
+      </filter>
     </defs>
   );
 }
@@ -135,11 +163,13 @@ export function HandGlyph({
   /** 콤보 HIT 수 — 2 이상이면 크기·글로우 강화 */
   comboBoost?: number;
 }) {
+  const rawId = useId();
+  const id = `hand-${rawId.replace(/:/g, '')}`;
   const t = resolveGlyphTheme(theme);
   const useSvg = SVG_THEMES.has(t);
   const boost = Math.max(0, Math.min(comboBoost, 5));
   const scale = 1 + boost * 0.1;
-  const paint = themePaint(t);
+  const paint = themePaint(t, id);
   const mergedStyle: CSSProperties = {
     ...style,
     transform: [style?.transform, `scale(${scale})`].filter(Boolean).join(' '),
@@ -182,13 +212,38 @@ export function HandGlyph({
         height="100%"
         className="overflow-visible"
       >
-        <Defs />
+        <Defs id={id} />
+        {/* Extruded lower edge gives the hand a substantial 3D silhouette. */}
+        <g
+          fill={paint.edge}
+          stroke="#020617"
+          strokeWidth={theme === 'comic' ? 6 : 4.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          transform="translate(0 5)"
+          opacity="0.95"
+        >
+          <HandPaths hand={hand} />
+        </g>
         <g
           fill={paint.fill}
           stroke={paint.stroke}
           strokeWidth={theme === 'comic' ? 5 : 3.5}
           strokeLinejoin="round"
           strokeLinecap="round"
+          filter={`url(#${id}-depth)`}
+        >
+          <HandPaths hand={hand} />
+        </g>
+        {/* Upper-left specular bevel; clipped by the same hand silhouette. */}
+        <g
+          fill={`url(#${id}-shine)`}
+          stroke="rgba(255,255,255,0.42)"
+          strokeWidth="1.2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          transform="translate(-1 -1)"
+          opacity="0.62"
         >
           <HandPaths hand={hand} />
         </g>

@@ -95,7 +95,7 @@ function Fighter({
       }
       className={`relative ${
         compact
-          ? 'w-[18%] max-w-[72px] sm:max-w-[88px] md:max-w-[110px] aspect-[3/4] opacity-80'
+          ? 'w-14 sm:w-16 md:w-24 aspect-[3/4] opacity-80'
           : 'w-[38%] max-w-[160px] md:max-w-[200px] aspect-[3/4]'
       } ${
         highlight === 'gold'
@@ -200,10 +200,10 @@ function StageHandDuel({
   };
 
   return (
-    <div className="relative w-full max-w-xl mx-auto flex items-center justify-center gap-1.5 sm:gap-3 md:gap-6 px-1 sm:px-2 min-h-[168px] sm:min-h-[160px] md:min-h-[200px]">
+    <div className="relative w-full max-w-3xl mx-auto grid grid-cols-[minmax(0,1fr)_3.5rem_minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_5rem_minmax(0,1fr)] items-center px-1 sm:px-3 min-h-[180px] md:min-h-[220px]">
       {/* Countdown ring behind hands when picking */}
       {canPickNow && (
-        <svg className="absolute w-40 h-40 sm:w-40 sm:h-40 md:w-48 md:h-48 -z-0 opacity-90" viewBox="0 0 100 100">
+        <svg className="absolute left-1/2 -translate-x-1/2 w-20 h-20 md:w-28 md:h-28 z-0 opacity-90" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
           <motion.circle
             cx="50"
@@ -232,7 +232,7 @@ function StageHandDuel({
             animate={{ opacity: [0, 1, 0], scale: [0.5, 1.4, 1.8] }}
             transition={{ duration: 0.45 }}
           >
-            <span className="text-5xl md:text-7xl font-black text-white" style={{ textShadow: '0 0 30px #fff' }}>
+            <span className="text-3xl md:text-5xl font-black text-white" style={{ textShadow: '0 0 24px #fff' }}>
               💥
             </span>
           </motion.div>
@@ -242,7 +242,7 @@ function StageHandDuel({
       {/* My giant hand */}
       <motion.div
         key={`my-${String(myDisplay)}-${phase}`}
-        className="relative z-10 flex flex-col items-center"
+        className="relative z-10 flex w-full flex-col items-end pr-2 sm:pr-4 md:pr-8"
         initial={reduceMotion ? false : { scale: 0.7, opacity: 0.5 }}
         animate={
           typeof myDisplay === 'string' && myDisplay !== '?' && myDisplay !== 'lock'
@@ -274,21 +274,19 @@ function StageHandDuel({
             <HandGlyph
               hand={myDisplay}
               theme={skinId}
-              size={120}
+              size={132}
               comboBoost={comboHits}
-              className="w-[6.75rem] h-[6.75rem] sm:w-[6.5rem] sm:h-[6.5rem] md:w-[8.25rem] md:h-[8.25rem]"
+              className="w-[7.25rem] h-[7.25rem] md:w-[8.75rem] md:h-[8.75rem]"
             />
           )}
         </span>
-        {myHand && (
-          <span className="mt-1 text-xs md:text-sm font-black text-sky-300 drop-shadow-[0_1px_0_#000]">
-            {HAND_KO[myHand]}
-          </span>
-        )}
+        <span className="mt-2 rounded-full border border-sky-300/30 bg-sky-950/65 px-2.5 py-1 text-[10px] md:text-xs font-black text-sky-200 shadow-[0_2px_0_#000]">
+          나 · {myHand ? HAND_KO[myHand] : '선택'}
+        </span>
       </motion.div>
 
       <motion.div
-        className="relative z-10 font-display text-xl md:text-2xl font-black text-white/40 px-1"
+        className="relative z-10 justify-self-center flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-full border border-white/20 bg-black/70 font-display text-sm md:text-lg font-black text-white/65 shadow-[0_0_24px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-sm"
         animate={clash && !reduceMotion ? { scale: [1, 1.6, 1], opacity: [0.4, 1, 0.5] } : {}}
         transition={{ duration: 0.4 }}
       >
@@ -298,7 +296,7 @@ function StageHandDuel({
       {/* Opponent giant hand */}
       <motion.div
         key={`opp-${String(oppDisplay)}-${phase}`}
-        className="relative z-10 flex flex-col items-center"
+        className="relative z-10 flex w-full flex-col items-start pl-2 sm:pl-4 md:pl-8"
         initial={reduceMotion ? false : { scale: 0.7, opacity: 0.5 }}
         animate={
           typeof oppDisplay === 'string' && oppDisplay !== '?' && oppDisplay !== 'lock'
@@ -331,18 +329,16 @@ function StageHandDuel({
             <HandGlyph
               hand={oppDisplay}
               theme={skinId}
-              size={120}
+              size={132}
               comboBoost={0}
-              className="w-[6.75rem] h-[6.75rem] sm:w-[6.5rem] sm:h-[6.5rem] md:w-[8.25rem] md:h-[8.25rem]"
+              className="w-[7.25rem] h-[7.25rem] md:w-[8.75rem] md:h-[8.75rem]"
               style={{ transform: 'scaleX(-1)' }}
             />
           )}
         </span>
-        {showOpp && opponentHand && (
-          <span className="mt-1 text-xs md:text-sm font-black text-rose-300 drop-shadow-[0_1px_0_#000]">
-            {HAND_KO[opponentHand]}
-          </span>
-        )}
+        <span className="mt-2 rounded-full border border-rose-300/30 bg-rose-950/65 px-2.5 py-1 text-[10px] md:text-xs font-black text-rose-200 shadow-[0_2px_0_#000]">
+          상대 · {showOpp && opponentHand ? HAND_KO[opponentHand] : '비공개'}
+        </span>
       </motion.div>
     </div>
   );
@@ -674,9 +670,9 @@ export function BattleDuelStage({
           )}
         </AnimatePresence>
 
-        {/* Side fighters (compact) + center giant hands */}
-        <div className="relative w-full max-w-2xl flex items-center justify-between gap-0.5 sm:gap-1 md:gap-2 mt-3 sm:mt-6 md:mt-8">
-          <div className="relative shrink-0">
+        {/* Fighters stay on the outer wings; hands get the full center width. */}
+        <div className="relative w-full max-w-5xl flex items-center justify-center mt-5 sm:mt-7 md:mt-10">
+          <div className="absolute left-0 sm:left-2 md:left-5 bottom-2 z-0 opacity-45 md:opacity-70">
             <Fighter
               compact
               src={myHand ? hostessForHand(myHand) : HOSTESS.play}
@@ -688,7 +684,7 @@ export function BattleDuelStage({
             </AnimatePresence>
           </div>
 
-          <div className="flex-1 min-w-0">
+          <div className="relative z-10 w-full px-5 sm:px-12 md:px-24">
             <StageHandDuel
               myHand={myHand}
               opponentHand={opponentHand}
@@ -702,7 +698,7 @@ export function BattleDuelStage({
             />
           </div>
 
-          <div className="relative shrink-0">
+          <div className="absolute right-0 sm:right-2 md:right-5 bottom-2 z-0 opacity-45 md:opacity-70">
             <Fighter
               compact
               src={
@@ -832,9 +828,9 @@ export function BattleDuelStage({
                   <HandGlyph
                     hand={hand}
                     theme={skinId}
-                    size={64}
+                    size={72}
                     comboBoost={selected ? Math.max(comboHits, 1) : 0}
-                    className="w-[3.75rem] h-[3.75rem] sm:w-14 sm:h-14 md:w-16 md:h-16"
+                    className="w-[4.25rem] h-[4.25rem] sm:w-16 sm:h-16 md:w-[4.5rem] md:h-[4.5rem]"
                   />
                 </motion.span>
                 <span className="relative z-10 text-base sm:text-sm md:text-base font-black text-white drop-shadow-[0_1px_0_#000] mt-1 tracking-wide">
