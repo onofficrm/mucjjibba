@@ -71,6 +71,36 @@ class GameSettingsManager {
     this.options[key] = value;
     this.saveSettings();
   }
+
+  /**
+   * 수동 설정 ON 이거나 OS `prefers-reduced-motion: reduce` 이면 true.
+   * 접근성 OS 설정이 수동 OFF보다 우선한다.
+   */
+  public shouldReduceAnimations(): boolean {
+    if (this.options.reduceAnimations) return true;
+    try {
+      return (
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /** OS가 동작 줄이기를 켜 둔 상태인지 (설정 UI 안내용) */
+  public isOsReduceMotion(): boolean {
+    try {
+      return (
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      );
+    } catch {
+      return false;
+    }
+  }
 }
 
 export const gameSettings = new GameSettingsManager();

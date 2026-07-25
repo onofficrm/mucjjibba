@@ -514,7 +514,7 @@ export function BattleDuelStage({
           : null;
 
   const theme = getTierTheme(tier);
-  const stageZoom = phase === 'REVEAL' && !isSpinning && !gameSettings.options.reduceAnimations;
+  const stageZoom = phase === 'REVEAL' && !isSpinning && !gameSettings.shouldReduceAnimations();
   const myPose = resolveFighterPose({
     side: 'me',
     phase,

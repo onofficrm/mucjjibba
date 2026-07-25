@@ -8,7 +8,7 @@ import { HandGlyph } from '@/components/game/HandGlyph';
 import { getWinningHand } from '@/game/rpsMatchup';
 
 const reduce = () =>
-  gameSettings.options.reduceAnimations || gameSettings.options.performanceMode === 'low';
+  gameSettings.shouldReduceAnimations() || gameSettings.options.performanceMode === 'low';
 
 /** Step1 — 슬로모션 리빌: 디밍 + 미세 줌 + 스냅 플래시 */
 export function SlowMoReveal({ active, snap }: { active: boolean; snap?: boolean }) {

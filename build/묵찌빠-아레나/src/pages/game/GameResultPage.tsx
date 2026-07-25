@@ -139,7 +139,7 @@ export function GameResultPage() {
   const [showShare, setShowShare] = useState(false);
   const [rankLabel, setRankLabel] = useState('랭킹 반영 중…');
   const [showNearMiss, setShowNearMiss] = useState(nearMiss);
-  const reduceAnim = gameSettings.options.reduceAnimations;
+  const reduceAnim = gameSettings.shouldReduceAnimations();
   const [revealDone, setRevealDone] = useState(() => reduceAnim || nearMiss);
 
   useEffect(() => {

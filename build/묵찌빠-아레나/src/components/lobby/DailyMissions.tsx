@@ -104,7 +104,7 @@ export function DailyMissions() {
               }`}
             >
               <AnimatePresence>
-                {particleMissionId === mission.id && !gameSettings.options.reduceAnimations && (
+                {particleMissionId === mission.id && !gameSettings.shouldReduceAnimations() && (
                   <motion.div
                     initial={{ opacity: 1, scale: 0.8 }}
                     animate={{ opacity: 0, scale: 1.5 }}

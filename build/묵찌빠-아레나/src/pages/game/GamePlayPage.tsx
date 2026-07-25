@@ -343,9 +343,18 @@ export function GamePlayPage() {
   };
 
   useEffect(() => {
-    const path = `/game/${id || 'quick-start'}`;
-    saveLastPlayPath(path);
-  }, [id]);
+    const gameId = id || 'quick-start';
+    const path = `/game/${gameId}`;
+    const label =
+      gameId.includes('beginner')
+        ? '무료 연습'
+        : isTournament
+          ? '대회'
+          : matchTable?.name
+            ? `${matchTable.name}`
+            : undefined;
+    saveLastPlayPath(path, label);
+  }, [id, isTournament, matchTable?.name]);
 
   useEffect(() => {
     const prevHtml = document.documentElement.style.overflow;
@@ -395,7 +404,7 @@ export function GamePlayPage() {
   }, []);
 
   const showCutIn = (partial: Omit<CutInEvent, 'id'>) => {
-    if (gameSettings.options.reduceAnimations || gameSettings.options.performanceMode === 'low') return;
+    if (gameSettings.shouldReduceAnimations() || gameSettings.options.performanceMode === 'low') return;
     const cid = ++cutIdRef.current;
     const rarity = rollCutInRarity();
     const hold = rarity === 'ultra' ? 1600 : rarity === 'rare' ? 1300 : 1050;
@@ -1295,7 +1304,9 @@ export function GamePlayPage() {
                 phase: gameSettings.options.showRuleCard !== false ? 'RULE_CARD' : 'INIT',
               });
             }}
-            reduceAnimations={gameSettings.options.performanceMode === 'low'}
+            reduceAnimations={
+              gameSettings.shouldReduceAnimations() || gameSettings.options.performanceMode === 'low'
+            }
             muteAudio={gameSettings.options.introMute}
           />
         )}
@@ -1490,7 +1501,7 @@ export function GamePlayPage() {
               <motion.div
                 key={gameState.timeLeft}
                 initial={
-                  gameState.timeLeft <= 3 && !gameSettings.options.reduceAnimations
+                  gameState.timeLeft <= 3 && !gameSettings.shouldReduceAnimations()
                     ? { scale: 1.5, opacity: 0.5 }
                     : false
                 }

@@ -49,7 +49,7 @@ export function BroadcastPage() {
     return <div className="min-h-screen bg-black text-white flex items-center justify-center">방송 준비 중…</div>;
   }
 
-  const reduce = gameSettings.options.reduceAnimations || gameSettings.options.performanceMode === 'low';
+  const reduce = gameSettings.shouldReduceAnimations() || gameSettings.options.performanceMode === 'low';
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-3 md:p-6 font-sans">

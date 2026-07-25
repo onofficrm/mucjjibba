@@ -21,7 +21,7 @@ export function ReconnectOverlay({
   onRetry?: () => void;
 }) {
   const visible = status === 'disconnected' || status === 'reconnecting' || status === 'restoring' || status === 'failed';
-  const reduce = gameSettings.options.reduceAnimations;
+  const reduce = gameSettings.shouldReduceAnimations();
 
   return (
     <AnimatePresence>

@@ -24,7 +24,9 @@
     "test:debrief": "tsx src/game/matchDebrief.test.ts",
     "test:series": "tsx src/services/match/rematchSeries.test.ts",
     "test:narration": "tsx src/game/narration/narration.test.ts",
-    "test:steps": "npm run test:missions && npm run test:step33 && npm run test:step34 && npm run test:step35 && npm run test:step36 && npm run test:invite && npm run test:ranking && npm run test:match-rules && npm run test:house-fee && npm run test:audio && npm run test:combat-timing && npm run test:debrief && npm run test:series && npm run test:narration"
+    "test:play-ease": "tsx src/utils/playEase.test.ts",
+    "test:smoke": "tsx src/smoke.test.ts",
+    "test:steps": "npm run test:missions && npm run test:step33 && npm run test:step34 && npm run test:step35 && npm run test:step36 && npm run test:invite && npm run test:ranking && npm run test:match-rules && npm run test:house-fee && npm run test:audio && npm run test:combat-timing && npm run test:debrief && npm run test:series && npm run test:narration && npm run test:play-ease && npm run test:smoke"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

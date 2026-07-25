@@ -61,7 +61,7 @@ export function ShareCardModal({ open, log, settlement, onClose }: Props) {
           />
           <motion.div
             initial={
-              gameSettings.options.reduceAnimations
+              gameSettings.shouldReduceAnimations()
                 ? { opacity: 0 }
                 : { y: 40, opacity: 0 }
             }

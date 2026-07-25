@@ -270,15 +270,24 @@ export function InGameSettingsModal({ open, onClose }: Props) {
               type="button"
               onClick={() => updateOption('reduceAnimations', !options.reduceAnimations)}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm font-medium ${
-                options.reduceAnimations
+                options.reduceAnimations || gameSettings.isOsReduceMotion()
                   ? 'border-arena-cyan/40 bg-arena-cyan/10 text-arena-cyan'
                   : 'border-white/10 bg-white/5 text-gray-300'
               }`}
             >
-              <span className="flex items-center gap-2">
-                <Zap className="w-4 h-4" /> 애니메이션 줄이기
+              <span className="flex flex-col items-start gap-0.5">
+                <span className="flex items-center gap-2">
+                  <Zap className="w-4 h-4" /> 애니메이션 줄이기
+                </span>
+                {gameSettings.isOsReduceMotion() && (
+                  <span className="text-[10px] text-arena-cyan/70 font-medium pl-6">
+                    OS 동작 줄이기 설정이 켜져 있어요
+                  </span>
+                )}
               </span>
-              <span className="text-xs font-bold">{options.reduceAnimations ? 'ON' : 'OFF'}</span>
+              <span className="text-xs font-bold">
+                {gameSettings.shouldReduceAnimations() ? 'ON' : 'OFF'}
+              </span>
             </button>
           </section>
 

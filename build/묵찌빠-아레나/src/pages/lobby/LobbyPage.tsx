@@ -16,7 +16,7 @@ import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvata
 import { CompactRoadStrip } from '@/components/stats/RoadmapPanel';
 import { DEMO_USER } from '@/data/demoData';
 import { HOSTESS } from '@/data/hostessAssets';
-import { getQuickStartPath, getResumePath } from '@/utils/playEase';
+import { getQuickStartPath, getResumePath, getResumeButtonCopy } from '@/utils/playEase';
 import { useDemoWallet } from '@/hooks/useDemoWallet';
 
 type GameType = 'LIVE' | 'TOURNAMENT' | 'ARENA' | 'REPLAY' | 'AI DEMO' | 'PRACTICE';
@@ -189,11 +189,13 @@ function LiveMatchCard({
 function PlayActions({
   onQuickStart,
   onResume,
+  resumeCopy,
   onPractice,
   onOtherModes,
 }: {
   onQuickStart: () => void;
   onResume: (() => void) | null;
+  resumeCopy: { title: string; hint: string } | null;
   onPractice: () => void;
   onOtherModes: () => void;
 }) {
@@ -217,13 +219,14 @@ function PlayActions({
         </div>
       </button>
 
-      {onResume && (
+      {onResume && resumeCopy && (
         <button
           type="button"
           onClick={onResume}
-          className="w-full rounded-2xl px-4 py-3 bg-arena-cyan/10 border border-arena-cyan/30 text-arena-cyan text-sm font-bold hover:bg-arena-cyan/15 transition-colors"
+          className="w-full rounded-2xl px-4 py-3 bg-arena-cyan/10 border border-arena-cyan/30 text-left hover:bg-arena-cyan/15 transition-colors"
         >
-          지난 모드로 이어하기
+          <span className="block text-sm font-bold text-arena-cyan">{resumeCopy.title}</span>
+          <span className="block text-[10px] font-medium text-arena-cyan/70 mt-0.5">{resumeCopy.hint}</span>
         </button>
       )}
 
@@ -284,6 +287,7 @@ export function LobbyPage() {
   };
 
   const resumePath = getResumePath();
+  const resumeCopy = getResumeButtonCopy();
   const quickPath = getQuickStartPath();
   const playProps = {
     onQuickStart: () => {
@@ -298,6 +302,7 @@ export function LobbyPage() {
             navigate(resumePath);
           }
         : null,
+    resumeCopy: resumePath && resumePath !== quickPath ? resumeCopy : null,
     onPractice: () => {
       triggerHaptic('medium');
       navigate('/game/beginner-ai');

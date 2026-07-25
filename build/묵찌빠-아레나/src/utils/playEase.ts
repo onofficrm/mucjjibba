@@ -1,4 +1,5 @@
 const LAST_PATH_KEY = 'arena_last_play_path';
+const LAST_LABEL_KEY = 'arena_last_play_label';
 const GUIDE_DONE_KEY = 'arena_first_guide_done';
 const GAMES_PLAYED_KEY = 'arena_games_played_count';
 
@@ -13,16 +14,37 @@ function storage(): Storage | null {
   }
 }
 
+/** URL → 사용자용 모드명 (진행 중 복구가 아닌 '같은 모드 재시작' 안내) */
+export function describePlayPath(path: string): string {
+  const p = path.split('?')[0];
+  if (p.includes('beginner')) return '무료 연습';
+  if (p.includes('tournament')) return '대회';
+  if (p.includes('arena') || p.includes('streak')) return '연승 아레나';
+  if (p.includes('friend')) return '친구 대전';
+  if (p.includes('quick') || p.includes('match')) return '빠른 대전';
+  if (p.startsWith('/game/')) return '최근 대전';
+  return '최근 모드';
+}
+
 export function getLastPlayPath(): string | null {
   const v = storage()?.getItem(LAST_PATH_KEY);
   return v && v.startsWith('/game/') ? v : null;
 }
 
-export function saveLastPlayPath(path: string) {
+export function getLastPlayLabel(): string | null {
+  const saved = storage()?.getItem(LAST_LABEL_KEY);
+  if (saved) return saved;
+  const path = getLastPlayPath();
+  return path ? describePlayPath(path) : null;
+}
+
+export function saveLastPlayPath(path: string, label?: string) {
   if (!path.startsWith('/game/')) return;
   // result/replay 경로는 저장하지 않음
   if (path.includes('/result') || path.includes('/rematch') || path.startsWith('/replay')) return;
-  storage()?.setItem(LAST_PATH_KEY, path.split('?')[0]);
+  const clean = path.split('?')[0];
+  storage()?.setItem(LAST_PATH_KEY, clean);
+  storage()?.setItem(LAST_LABEL_KEY, label || describePlayPath(clean));
 }
 
 export function isFirstGuideDone(): boolean {
@@ -50,8 +72,23 @@ export function getQuickStartPath(): string {
   return getLastPlayPath() || DEFAULT_QUICK;
 }
 
+/**
+ * 최근 플레이한 게임 경로.
+ * ※ 진행 중 판 상태 복구가 아니라, 같은 모드로 새 판을 시작하는 용도.
+ */
 export function getResumePath(): string | null {
   return getLastPlayPath();
+}
+
+/** 로비 버튼용 짧은 안내 문구 */
+export function getResumeButtonCopy(): { title: string; hint: string } | null {
+  const path = getResumePath();
+  if (!path) return null;
+  const label = getLastPlayLabel() || describePlayPath(path);
+  return {
+    title: `${label} 다시 시작`,
+    hint: '새 판으로 시작해요 · 진행 중 복구 아님',
+  };
 }
 
 /** 상태 문구 — 영어/전문 용어 대신 쉬운 한국어 */

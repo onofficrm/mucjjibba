@@ -23,7 +23,7 @@ import crushWebm from '@/assets/clash/crush.webm';
 import crushMp4 from '@/assets/clash/crush.mp4';
 
 const reduce = () =>
-  gameSettings.options.reduceAnimations || gameSettings.options.performanceMode === 'low';
+  gameSettings.shouldReduceAnimations() || gameSettings.options.performanceMode === 'low';
 
 type Side = 'left' | 'right';
 
