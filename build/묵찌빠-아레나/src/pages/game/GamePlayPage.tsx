@@ -1157,9 +1157,9 @@ export function GamePlayPage() {
       </div>
 
       {/* Bottom Area: Points and Action Buttons */}
-      <div className="relative z-20 w-full max-w-md mx-auto bg-gray-900 border-t border-gray-800 rounded-t-[2rem] pt-6 pb-6 px-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      <div className="relative z-20 w-full max-w-md mx-auto bg-gray-900 border-t border-gray-800 rounded-t-[2rem] pt-5 pb-6 px-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         
-        <div className="flex justify-between items-center mb-4 px-4">
+        <div className="flex justify-between items-center mb-3 px-4">
            <div className="flex flex-col">
               <span className="text-[10px] text-gray-500 font-bold">{isBeginnerMode ? '연습 비용' : '이번 판 참가'}</span>
               <span className="font-bold text-white text-sm">
@@ -1174,6 +1174,13 @@ export function GamePlayPage() {
               <span className="text-[10px] text-gray-500 font-bold">내 보유 (데모)</span>
               <span className="font-bold text-arena-gold text-sm">{wallet.points.toLocaleString()} P</span>
            </div>
+        </div>
+
+        {/* 이모트 퀵바 — 손 선택 카드와 겹치지 않도록 패널 안 상단에 배치 */}
+        <div className="flex justify-center mb-3">
+          <div className="px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10">
+            <EmoteQuickBar onSend={handleSendReaction} cooldownRemaining={reactionCooldown} />
+          </div>
         </div>
 
         <div className="flex justify-between gap-3 relative">
@@ -1506,11 +1513,6 @@ export function GamePlayPage() {
       {!isDuelLayout && (
         <>
           <FloatingEmotesLayer emotes={floatingEmotes} />
-          <div className="fixed bottom-[max(5.5rem,env(safe-area-inset-bottom))] inset-x-0 z-40 flex justify-center pointer-events-none">
-            <div className="pointer-events-auto px-3 py-2 rounded-2xl bg-black/55 border border-white/10 backdrop-blur-sm">
-              <EmoteQuickBar onSend={handleSendReaction} cooldownRemaining={reactionCooldown} />
-            </div>
-          </div>
           {habitHint && canPickNow && (
             <div className="fixed top-20 inset-x-0 z-30 flex justify-center pointer-events-none px-4">
               <p className="text-[11px] font-bold text-arena-cyan bg-black/60 border border-arena-cyan/25 rounded-full px-3 py-1.5">
