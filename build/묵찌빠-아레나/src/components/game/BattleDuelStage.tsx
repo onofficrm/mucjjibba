@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogOut, Volume2, VolumeX, Info, Keyboard } from 'lucide-react';
-import { HOSTESS, hostessForHand } from '@/data/hostessAssets';
-import { ConnectionBadge } from '@/components/game/ReconnectOverlay';
+import { hostessForHand } from '@/data/hostessAssets';
 import type { ConnectionStatus } from '@/realtime/types';
 import { gameSettings } from '@/utils/gameSettings';
 import { getTierTheme } from '@/utils/tierTheme';
@@ -15,6 +13,13 @@ import {
   type ReactionType,
 } from '@/components/game/GameReactions';
 import { HandGlyph } from '@/components/game/HandGlyph';
+import { DuelHud } from '@/components/game/DuelHud';
+import {
+  resolveFighterPose,
+  hostessForPose,
+  poseToMotionKey,
+  type FighterPose,
+} from '@/game/fighterPose';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type PlayerId = 'ME' | 'OPPONENT';
@@ -40,97 +45,110 @@ const KEY_HINT: Record<Hand, string> = {
   PAPER: 'E',
 };
 
-function LifeBar({ score, max = 2, side }: { score: number; max?: number; side: 'left' | 'right' }) {
-  const filled = Math.min(max, Math.max(0, score));
-  const segments = Array.from({ length: max }, (_, i) => i < filled);
-  return (
-    <div
-      className={`flex-1 h-4 md:h-5 rounded-sm border-2 border-white/90 overflow-hidden flex bg-red-700/90 ${
-        side === 'right' ? 'flex-row-reverse' : ''
-      }`}
-    >
-      {segments.map((on, i) => (
-        <div
-          key={i}
-          className={`flex-1 h-full border-white/30 ${on ? 'bg-lime-400' : 'bg-transparent'} ${
-            side === 'left' ? 'border-r' : 'border-l'
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
-
 function Fighter({
   src,
-  flip,
-  shake,
-  highlight,
-  idle = true,
-  compact = false,
+  flip = false,
+  highlight = null,
+  pose = 'idle',
 }: {
   src: string;
   flip?: boolean;
-  shake?: boolean;
   highlight?: 'gold' | 'red' | null;
-  idle?: boolean;
-  compact?: boolean;
+  pose?: FighterPose;
 }) {
   const reduceMotion = gameSettings.options.performanceMode === 'low';
+  const motionKey = poseToMotionKey(pose);
+
+  const bodyAnim =
+    motionKey === 'hit'
+      ? { x: flip ? [8, -10, 6, -4, 0] : [-8, 10, -6, 4, 0], rotate: flip ? [3, -4, 2, 0] : [-3, 4, -2, 0], y: [0, 6, 0], scale: 1 }
+      : motionKey === 'win' && !reduceMotion
+        ? { y: [0, -12, 0], rotate: flip ? [2, -2, 2] : [-2, 2, -2], scale: [1, 1.08, 1] }
+        : motionKey === 'attack' && !reduceMotion
+          ? { y: [0, -4, 0], x: flip ? [0, -6, 0] : [0, 6, 0], rotate: flip ? [3, -1, 3] : [-3, 1, -3], scale: [1, 1.06, 1] }
+          : motionKey === 'ready' && !reduceMotion
+            ? { y: [0, -8, 0], rotate: flip ? [2, -1, 2] : [-2, 1, -2], scale: [1, 1.04, 1] }
+            : !reduceMotion
+              ? { y: [0, -6, 0], rotate: flip ? [1.5, -1.5, 1.5] : [-1.5, 1.5, -1.5], scale: [1, 1.02, 1] }
+              : { x: 0, rotate: 0, y: 0, scale: 1 };
+
+  const loopDuration =
+    motionKey === 'hit' ? 0.4 : motionKey === 'attack' ? 1.1 : motionKey === 'ready' || motionKey === 'win' ? 1.6 : 3.2;
+
   return (
     <motion.div
-      animate={
-        shake
-          ? { x: [-6, 6, -4, 4, 0], rotate: [-2, 2, 0] }
-          : idle && !reduceMotion
-            ? { y: [0, -5, 0], scale: [1, 1.015, 1] }
-            : { x: 0, rotate: 0, y: 0 }
-      }
+      animate={bodyAnim}
       transition={
-        shake
-          ? { duration: 0.35 }
-          : idle && !reduceMotion
-            ? { duration: 2.8, repeat: Infinity, ease: 'easeInOut' }
-            : { duration: 0.2 }
+        motionKey === 'hit'
+          ? { duration: 0.4 }
+          : { duration: loopDuration, repeat: Infinity, ease: 'easeInOut' }
       }
-      className={`relative ${
-        compact
-          ? 'w-14 sm:w-16 md:w-24 aspect-[3/4] opacity-80'
-          : 'w-[38%] max-w-[160px] md:max-w-[200px] aspect-[3/4]'
-      } ${
+      className={`relative w-[5.5rem] sm:w-28 md:w-36 lg:w-40 aspect-[3/4] shrink-0 ${
         highlight === 'gold'
-          ? 'drop-shadow-[0_0_18px_rgba(245,158,11,0.7)]'
+          ? 'drop-shadow-[0_0_20px_rgba(245,158,11,0.75)]'
           : highlight === 'red'
-            ? 'drop-shadow-[0_0_18px_rgba(239,68,68,0.7)]'
-            : ''
+            ? 'drop-shadow-[0_0_20px_rgba(239,68,68,0.75)]'
+            : pose === 'win'
+              ? 'drop-shadow-[0_0_22px_rgba(163,230,53,0.55)]'
+              : 'drop-shadow-[0_8px_16px_rgba(0,0,0,0.55)]'
       }`}
     >
       {highlight && (
         <motion.div
-          className={`absolute -inset-2 rounded-[2.2rem] pointer-events-none ${
-            highlight === 'gold' ? 'bg-arena-gold/25' : 'bg-rose-500/25'
+          className={`absolute -inset-2 rounded-[1.6rem] pointer-events-none ${
+            highlight === 'gold' ? 'bg-arena-gold/30' : 'bg-rose-500/30'
           } blur-md`}
-          animate={{ opacity: [0.35, 0.85, 0.35] }}
+          animate={{ opacity: [0.35, 0.9, 0.35] }}
           transition={{ duration: 1.1, repeat: Infinity }}
         />
       )}
-      <div className="absolute inset-0 rounded-[2rem] overflow-hidden border-[3px] border-black bg-gradient-to-b from-[#1a1420] to-[#0a0c12] shadow-[4px_6px_0_#000]">
-        <img
+      <div className="absolute inset-0 rounded-2xl overflow-hidden border-[3px] border-black bg-gradient-to-b from-[#1a1420] to-[#0a0c12] shadow-[4px_6px_0_#000]">
+        <motion.img
+          key={src}
           src={src}
           alt=""
-          className={`w-full h-full object-cover object-[center_12%] ${flip ? 'scale-x-[-1]' : ''}`}
+          className={`absolute inset-[-8%] w-[116%] h-[116%] object-cover object-[center_10%] ${
+            flip ? 'scale-x-[-1]' : ''
+          }`}
+          initial={{ opacity: 0.7, scale: 1.04 }}
+          animate={
+            reduceMotion
+              ? { opacity: 1, scale: 1 }
+              : motionKey === 'attack'
+                ? { opacity: 1, y: [0, -8, 0], x: flip ? [0, 5, 0] : [0, -5, 0], scale: 1 }
+                : motionKey === 'ready' || motionKey === 'win'
+                  ? { opacity: 1, y: [0, -10, 0], x: flip ? [0, 4, 0] : [0, -4, 0], scale: 1 }
+                  : { opacity: 1, y: [0, -6, 0], x: flip ? [0, 3, 0] : [0, -3, 0], scale: 1 }
+          }
+          transition={
+            motionKey === 'hit'
+              ? { duration: 0.25 }
+              : { duration: motionKey === 'attack' ? 1.4 : motionKey === 'ready' || motionKey === 'win' ? 2.2 : 3.6, repeat: Infinity, ease: 'easeInOut' }
+          }
           draggable={false}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/15 pointer-events-none" />
+        {!reduceMotion && (
+          <motion.div
+            className="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-arena-gold/15 to-transparent pointer-events-none"
+            animate={{ opacity: [0.15, 0.4, 0.15] }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
       </div>
       {highlight === 'gold' && (
-        <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-black bg-arena-gold text-black px-1.5 py-0.5 rounded-full border border-black whitespace-nowrap">
+        <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-black bg-arena-gold text-black px-1.5 py-0.5 rounded-full border border-black whitespace-nowrap z-10">
           공격!
         </span>
       )}
       {highlight === 'red' && (
-        <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded-full border border-black whitespace-nowrap">
+        <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded-full border border-black whitespace-nowrap z-10">
           공격!
+        </span>
+      )}
+      {pose === 'win' && !highlight && (
+        <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-black bg-lime-400 text-black px-1.5 py-0.5 rounded-full border border-black whitespace-nowrap z-10">
+          WIN
         </span>
       )}
     </motion.div>
@@ -200,28 +218,7 @@ function StageHandDuel({
   };
 
   return (
-    <div className="relative w-full max-w-3xl mx-auto grid grid-cols-[minmax(0,1fr)_3.5rem_minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_5rem_minmax(0,1fr)] items-center px-1 sm:px-3 min-h-[180px] md:min-h-[220px]">
-      {/* Countdown ring behind hands when picking */}
-      {canPickNow && (
-        <svg className="absolute left-1/2 -translate-x-1/2 w-20 h-20 md:w-28 md:h-28 z-0 opacity-90" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
-          <motion.circle
-            cx="50"
-            cy="50"
-            r="44"
-            fill="none"
-            stroke={ringColor}
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeDasharray={2 * Math.PI * 44}
-            animate={{ strokeDashoffset: 2 * Math.PI * 44 * (1 - timerPct) }}
-            transition={{ duration: 0.35 }}
-            transform="rotate(-90 50 50)"
-            style={{ filter: `drop-shadow(0 0 8px ${ringColor})` }}
-          />
-        </svg>
-      )}
-
+    <div className="relative w-full mx-auto grid grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_7.5rem_minmax(0,1fr)] items-center gap-x-1 sm:gap-x-3 md:gap-x-5 px-0 min-h-[170px] md:min-h-[210px]">
       {/* Clash flash */}
       <AnimatePresence>
         {clash && isSpinning === false && phase === 'REVEAL' && (
@@ -242,7 +239,7 @@ function StageHandDuel({
       {/* My giant hand */}
       <motion.div
         key={`my-${String(myDisplay)}-${phase}`}
-        className="relative z-10 flex w-full flex-col items-end pr-2 sm:pr-4 md:pr-8"
+        className="relative z-10 flex w-full flex-col items-end pr-1 sm:pr-3 md:pr-6"
         initial={reduceMotion ? false : { scale: 0.7, opacity: 0.5 }}
         animate={
           typeof myDisplay === 'string' && myDisplay !== '?' && myDisplay !== 'lock'
@@ -263,13 +260,22 @@ function StageHandDuel({
             filter:
               myHand
                 ? 'drop-shadow(0 0 24px rgba(56,189,248,0.55))'
-                : 'drop-shadow(0 0 12px rgba(255,255,255,0.15))',
+                : 'drop-shadow(0 3px 0 rgba(0,0,0,0.55))',
           }}
         >
           {myDisplay === '?' ? (
-            <span className="text-[6.75rem] sm:text-[6rem] md:text-[8rem]">❔</span>
+            <span
+              className="inline-flex items-center justify-center w-[5.5rem] h-[5.5rem] md:w-[7rem] md:h-[7rem] rounded-2xl border-2 border-amber-300/40 bg-black/40 font-display text-5xl md:text-6xl font-black text-amber-300"
+              style={{ textShadow: '0 3px 0 #000, 0 0 18px rgba(251,191,36,0.45)' }}
+            >
+              ?
+            </span>
           ) : myDisplay === 'lock' ? (
-            <span className="text-[6.75rem] sm:text-[6rem] md:text-[8rem]">🔒</span>
+            <span
+              className="inline-flex items-center justify-center w-[5.5rem] h-[5.5rem] md:w-[7rem] md:h-[7rem] rounded-2xl border-2 border-white/20 bg-black/45 text-4xl md:text-5xl"
+            >
+              🔒
+            </span>
           ) : (
             <HandGlyph
               hand={myDisplay}
@@ -285,18 +291,48 @@ function StageHandDuel({
         </span>
       </motion.div>
 
-      <motion.div
-        className="relative z-10 justify-self-center flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-full border border-white/20 bg-black/70 font-display text-sm md:text-lg font-black text-white/65 shadow-[0_0_24px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-sm"
-        animate={clash && !reduceMotion ? { scale: [1, 1.6, 1], opacity: [0.4, 1, 0.5] } : {}}
-        transition={{ duration: 0.4 }}
-      >
-        VS
-      </motion.div>
+      {/* VS + optional timer under it (링이 VS를 감싸지 않음) */}
+      <div className="relative z-10 justify-self-center flex flex-col items-center gap-2">
+        <motion.div
+          className="flex h-11 min-w-[3.25rem] md:h-14 md:min-w-[4rem] items-center justify-center rounded-xl border border-arena-gold/35 bg-gradient-to-b from-zinc-800/95 to-black px-3 font-display text-base md:text-xl font-black tracking-[0.12em] text-arena-gold shadow-[0_4px_0_#000,inset_0_1px_0_rgba(255,255,255,0.12)]"
+          animate={clash && !reduceMotion ? { scale: [1, 1.2, 1], opacity: [0.7, 1, 0.85] } : {}}
+          transition={{ duration: 0.4 }}
+        >
+          VS
+        </motion.div>
+        {canPickNow && (
+          <div className="relative w-11 h-11 md:w-12 md:h-12">
+            <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 44 44">
+              <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
+              <motion.circle
+                cx="22"
+                cy="22"
+                r="18"
+                fill="none"
+                stroke={ringColor}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 18}
+                animate={{ strokeDashoffset: 2 * Math.PI * 18 * (1 - timerPct) }}
+                transition={{ duration: 0.35 }}
+                style={{ filter: `drop-shadow(0 0 6px ${ringColor})` }}
+              />
+            </svg>
+            <span
+              className={`absolute inset-0 flex items-center justify-center text-sm md:text-base font-black tabular-nums ${
+                timeLeft <= 3 ? 'text-arena-error' : 'text-white'
+              }`}
+            >
+              {timeLeft}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Opponent giant hand */}
       <motion.div
         key={`opp-${String(oppDisplay)}-${phase}`}
-        className="relative z-10 flex w-full flex-col items-start pl-2 sm:pl-4 md:pl-8"
+        className="relative z-10 flex w-full flex-col items-start pl-1 sm:pl-3 md:pl-6"
         initial={reduceMotion ? false : { scale: 0.7, opacity: 0.5 }}
         animate={
           typeof oppDisplay === 'string' && oppDisplay !== '?' && oppDisplay !== 'lock'
@@ -318,13 +354,22 @@ function StageHandDuel({
           style={{
             filter: showOpp
               ? 'drop-shadow(0 0 24px rgba(244,63,94,0.5))'
-              : 'drop-shadow(0 0 12px rgba(255,255,255,0.15))',
+              : 'drop-shadow(0 3px 0 rgba(0,0,0,0.55))',
           }}
         >
           {oppDisplay === '?' ? (
-            <span className="text-[6.75rem] sm:text-[6rem] md:text-[8rem]">❔</span>
+            <span
+              className="inline-flex items-center justify-center w-[5.5rem] h-[5.5rem] md:w-[7rem] md:h-[7rem] rounded-2xl border-2 border-rose-300/35 bg-black/40 font-display text-5xl md:text-6xl font-black text-rose-200"
+              style={{ textShadow: '0 3px 0 #000, 0 0 18px rgba(251,113,133,0.35)' }}
+            >
+              ?
+            </span>
           ) : oppDisplay === 'lock' ? (
-            <span className="text-[6.75rem] sm:text-[6rem] md:text-[8rem]">🔒</span>
+            <span
+              className="inline-flex items-center justify-center w-[5.5rem] h-[5.5rem] md:w-[7rem] md:h-[7rem] rounded-2xl border-2 border-white/20 bg-black/45 text-4xl md:text-5xl"
+            >
+              🔒
+            </span>
           ) : (
             <HandGlyph
               hand={oppDisplay}
@@ -379,6 +424,9 @@ export function BattleDuelStage({
   tier = 'normal',
   comboHits = 0,
   handSkinId,
+  onFire = false,
+  jackpot = false,
+  winner = null,
 }: {
   myName: string;
   myGrade: string;
@@ -414,6 +462,9 @@ export function BattleDuelStage({
   tier?: AmbienceTier;
   comboHits?: number;
   handSkinId?: string;
+  onFire?: boolean;
+  jackpot?: boolean;
+  winner?: PlayerId | null;
 }) {
   const skinId = handSkinId || gameSettings.options.handSkinId || 'classic';
   const [showKeyGuide, setShowKeyGuide] = useState<boolean>(
@@ -468,7 +519,25 @@ export function BattleDuelStage({
           : null;
 
   const theme = getTierTheme(tier);
-  const stageZoom = phase === 'REVEAL' && !gameSettings.options.reduceAnimations;
+  const stageZoom = phase === 'REVEAL' && !isSpinning && !gameSettings.options.reduceAnimations;
+  const myPose = resolveFighterPose({
+    side: 'me',
+    phase,
+    attacker,
+    myHand,
+    canPickNow,
+    roundMessage,
+    winner,
+  });
+  const oppPose = resolveFighterPose({
+    side: 'opp',
+    phase,
+    attacker,
+    myHand: opponentHand,
+    canPickNow: false,
+    roundMessage,
+    winner,
+  });
 
   return (
     <div className="relative z-10 flex-1 flex flex-col min-h-0 overflow-hidden select-none">
@@ -511,103 +580,29 @@ export function BattleDuelStage({
         <div className="absolute bottom-0 inset-x-0 h-6 bg-[#03050a]" />
       </div>
 
-      {/* Top HUD */}
-      <div className="relative z-20 px-3 pt-3 md:px-6 flex items-start gap-2">
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={onExit}
-            className="w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 flex items-center justify-center text-white/80"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onToggleMute}
-            className="w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 flex items-center justify-center text-white/80"
-          >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </button>
-        </div>
-
-        <div className="flex-1 flex items-center gap-2 md:gap-3 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-md bg-red-600 border-2 border-black flex items-center justify-center font-black text-white text-lg shadow-[2px_2px_0_#000]">
-              1
-            </div>
-            <div className="hidden sm:block min-w-0">
-              <div className="text-[10px] font-black text-amber-300 leading-none">1P</div>
-              <div className="text-xs font-black text-white truncate max-w-[72px]">{myName}</div>
-            </div>
-          </div>
-          <LifeBar score={myScore} side="left" />
-
-          <div className="flex flex-col items-center shrink-0 px-1">
-            <ConnectionBadge status={connStatus} />
-            <div className="mt-0.5 flex flex-col items-center rounded-xl bg-black/75 border border-white/15 px-2.5 py-1 shadow-[0_0_20px_rgba(0,0,0,0.55)] backdrop-blur-sm">
-              <div
-                className={`font-display text-[9px] md:text-[10px] font-bold tracking-[0.2em] px-2 py-0.5 rounded-full border ${
-                  isLastRound
-                    ? 'bg-red-500/25 border-red-400/50 text-red-200'
-                    : theme.badge
-                }`}
-              >
-                {isLastRound ? 'FINAL' : theme.label}
-              </div>
-              <div
-                className={`text-xl md:text-2xl font-black tabular-nums leading-none mt-0.5 ${
-                  timeLeft <= 3 ? 'text-arena-error' : 'text-arena-gold'
-                }`}
-                style={{ textShadow: '0 1px 0 #000, 0 0 12px rgba(0,0,0,0.8)' }}
-              >
-                {timeLeft}
-              </div>
-            </div>
-          </div>
-
-          <LifeBar score={opponentScore} side="right" />
-          <div className="flex items-center gap-1.5 min-w-0 flex-row-reverse">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-md bg-red-600 border-2 border-black flex items-center justify-center font-black text-white text-lg shadow-[2px_2px_0_#000]">
-              2
-            </div>
-            <div className="hidden sm:block min-w-0 text-right">
-              <div className="text-[10px] font-black text-amber-300 leading-none">2P</div>
-              <div className="text-xs font-black text-white truncate max-w-[72px]">{oppName}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-1.5">
-          {hasKeyboard && (
-            <button
-              type="button"
-              onClick={toggleKeyGuide}
-              title="단축키 가이드 (H)"
-              className={`w-9 h-9 rounded-lg border-2 flex items-center justify-center transition-colors ${
-                showKeyGuide
-                  ? 'bg-amber-400/90 border-black text-black shadow-[2px_2px_0_#000]'
-                  : 'bg-black/50 border-white/20 text-white/80'
-              }`}
-            >
-              <Keyboard className="w-4 h-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onInfo}
-            className="w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 flex items-center justify-center text-white/80"
-          >
-            <Info className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onToggleLayout}
-            className="px-2 h-9 rounded-lg bg-amber-400/90 border-2 border-black text-[10px] font-black text-black shadow-[2px_2px_0_#000]"
-          >
-            심플
-          </button>
-        </div>
-      </div>
+      {/* Top HUD — 점수·타이머·공격권·연승 통합 */}
+      <DuelHud
+        myName={myName}
+        oppName={oppName}
+        myScore={myScore}
+        opponentScore={opponentScore}
+        timeLeft={timeLeft}
+        attacker={attacker}
+        connStatus={connStatus}
+        tier={tier}
+        isLastRound={isLastRound}
+        soundEnabled={soundEnabled}
+        hasKeyboard={hasKeyboard}
+        showKeyGuide={showKeyGuide}
+        comboHits={comboHits}
+        onFire={onFire}
+        jackpot={jackpot}
+        onExit={onExit}
+        onToggleMute={onToggleMute}
+        onInfo={onInfo}
+        onToggleLayout={onToggleLayout}
+        toggleKeyGuide={toggleKeyGuide}
+      />
 
       {/* Grades row (mobile) */}
       <div className="relative z-20 px-4 mt-1 flex justify-between text-[10px] font-bold text-white/70 sm:hidden">
@@ -625,15 +620,10 @@ export function BattleDuelStage({
         animate={stageZoom ? { scale: [1, 1.06, 1] } : { scale: 1 }}
         transition={{ duration: 0.45 }}
       >
-        <div className="absolute top-1 inset-x-0 text-center px-4 z-20 pointer-events-none">
+        <div className="absolute top-0 inset-x-0 text-center px-4 z-20 pointer-events-none">
           <p className="text-sm md:text-base font-black text-white/90 drop-shadow-[0_2px_0_#000]">
             {actionText}
           </p>
-          {attacker && (
-            <p className="text-[11px] font-bold text-amber-300 mt-0.5">
-              {attacker === 'ME' ? '내 공격권' : '상대 공격권'}
-            </p>
-          )}
         </div>
 
         {habitHint && canPickNow && (
@@ -670,21 +660,20 @@ export function BattleDuelStage({
           )}
         </AnimatePresence>
 
-        {/* Fighters stay on the outer wings; hands get the full center width. */}
-        <div className="relative w-full max-w-5xl flex items-center justify-center mt-5 sm:mt-7 md:mt-10">
-          <div className="absolute left-0 sm:left-2 md:left-5 bottom-2 z-0 opacity-45 md:opacity-70">
+        {/* 캐릭터 · 손 · 캐릭터 — 한 줄 정렬, 카드 크기·간격 맞춤 */}
+        <div className="relative w-full max-w-5xl mx-auto flex items-end justify-center gap-2 sm:gap-4 md:gap-6 mt-5 sm:mt-7 md:mt-8 px-2 sm:px-4">
+          <div className="relative shrink-0 mb-1">
             <Fighter
-              compact
-              src={myHand ? hostessForHand(myHand) : HOSTESS.play}
-              shake={tableShake && phase === 'ROUND_RESULT' && roundMessage.includes('아쉬')}
+              src={hostessForPose('me', myPose, myHand)}
               highlight={attacker === 'ME' ? 'gold' : null}
+              pose={myPose}
             />
             <AnimatePresence>
               {myReaction && <ReactionBubble key={myReaction} reactionId={myReaction} isMe />}
             </AnimatePresence>
           </div>
 
-          <div className="relative z-10 w-full px-5 sm:px-12 md:px-24">
+          <div className="relative z-10 flex-1 min-w-0 max-w-xl md:max-w-2xl">
             <StageHandDuel
               myHand={myHand}
               opponentHand={opponentHand}
@@ -698,19 +687,12 @@ export function BattleDuelStage({
             />
           </div>
 
-          <div className="absolute right-0 sm:right-2 md:right-5 bottom-2 z-0 opacity-45 md:opacity-70">
+          <div className="relative shrink-0 mb-1">
             <Fighter
-              compact
-              src={
-                phase === 'REVEAL' || phase === 'ROUND_RESULT'
-                  ? opponentHand
-                    ? hostessForHand(opponentHand)
-                    : HOSTESS.spectate
-                  : HOSTESS.spectate
-              }
+              src={hostessForPose('opp', oppPose, opponentHand)}
               flip
-              shake={tableShake && phase === 'ROUND_RESULT' && (roundMessage.includes('이겼') || roundMessage === 'WIN')}
               highlight={attacker === 'OPPONENT' ? 'red' : null}
+              pose={oppPose}
             />
             <AnimatePresence>
               {opponentReaction && (

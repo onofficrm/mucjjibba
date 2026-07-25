@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Gamepad2, Trophy, User, MoreVertical, Menu, X, Swords, Zap, Users, Play, ChevronDown, Bell, Settings, History, CreditCard, Shield, HelpCircle, FileText, LogOut, Sparkles } from 'lucide-react';
+import { Home, Gamepad2, Trophy, User, MoreVertical, Menu, X, Swords, Zap, Users, Play, ChevronDown, Bell, Settings, History, CreditCard, Shield, HelpCircle, FileText, LogOut, Sparkles, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { triggerHaptic } from '@/utils/haptics';
 import { HostessAvatar } from '@/components/casino/HostessAvatar';
@@ -10,6 +10,7 @@ import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { DEMO_USER } from '@/data/demoData';
 import { SidebarAnchor } from '@/components/layouts/SidebarAnchor';
 import { MissionFanfareToast, useMissionFanfare } from '@/components/casino/DopamineFX';
+import { useSoundMuted } from '@/hooks/useSoundMuted';
 
 const navItems = [
   { name: '로비', path: '/lobby', icon: Home },
@@ -26,6 +27,7 @@ export function Layout() {
   const [isGameSelectOpen, setIsGameSelectOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const { fanfare, clear: clearFanfare } = useMissionFanfare();
+  const { soundEnabled, toggleMuted } = useSoundMuted();
 
   // 게임 플레이 화면에서 하단 내비 자동 숨김 (위로 스와이프하면 다시 표시)
   const isGamePlayScreen = /^\/game\/[^/]+$/.test(location.pathname);
@@ -441,6 +443,13 @@ export function Layout() {
               
               <div className="max-h-[60vh] overflow-y-auto pb-safe">
                 <div className="p-2 space-y-1">
+                  <MenuButton
+                    icon={soundEnabled ? Volume2 : VolumeX}
+                    label={`게임 소리 ${soundEnabled ? 'ON' : 'OFF'}`}
+                    className={soundEnabled ? '' : 'text-arena-error hover:bg-arena-error/10'}
+                    onClick={toggleMuted}
+                  />
+                  <div className="h-px bg-white/10 my-2 mx-4" />
                   <MenuButton icon={CreditCard} label="포인트 이용 내역" onClick={() => { setIsMoreMenuOpen(false); navigate('/point-history'); }} />
                   <MenuButton icon={History} label="플레이 분석" onClick={() => { setIsMoreMenuOpen(false); navigate('/analysis'); }} />
                   <MenuButton icon={Users} label="친구 관리" onClick={() => { setIsMoreMenuOpen(false); navigate('/friends'); }} />

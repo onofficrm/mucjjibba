@@ -12,6 +12,7 @@ import { audioManager } from '@/utils/audio';
 import { DEMO_USER } from '@/data/demoData';
 import { trackMission } from '@/services/mission';
 import { HostessAvatar, HostessBackdrop } from '@/components/casino/HostessAvatar';
+import { useSoundMuted } from '@/hooks/useSoundMuted';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type GamePhase = 'INIT' | 'SELECTING' | 'REVEAL' | 'END';
@@ -26,7 +27,7 @@ export function SpectatePage() {
   const gameType = (location.state as { gameType?: string } | null)?.gameType ?? '';
   const kindTrackedRef = useRef(false);
 
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const { soundEnabled, toggleMuted: toggleMute } = useSoundMuted();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   
@@ -184,12 +185,6 @@ export function SpectatePage() {
     
     // Randomly change spectator count
     setSpectators(prev => prev + Math.floor(Math.random() * 10) - 4);
-  };
-
-  const toggleMute = () => {
-    triggerHaptic('light');
-    audioManager.updateSetting('mute', !soundEnabled);
-    setSoundEnabled(!soundEnabled);
   };
 
   const handleCheer = (emote: string) => {

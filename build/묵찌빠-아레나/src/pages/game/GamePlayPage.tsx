@@ -51,8 +51,12 @@ import {
   MiniClashReplay,
 } from '@/components/casino/DopamineFX';
 import { HandGlyph } from '@/components/game/HandGlyph';
+import { HandVictoryClash } from '@/components/game/HandVictoryClash';
 import { rollJackpotRound } from '@/utils/jackpotRound';
 import { analyzeOpponentPatterns, pickLiveHabitHint } from '@/game/patternStats';
+import { getRevealSchedule, getResultReadMs } from '@/game/combatTiming';
+import { getWinningHand } from '@/game/rpsMatchup';
+import { useSoundMuted } from '@/hooks/useSoundMuted';
 import {
   saveLastPlayPath,
   bumpGamesPlayed,
@@ -184,7 +188,7 @@ export function GamePlayPage() {
   const opponentHandEmojis = getHandSkinEmojis('classic');
   const myCharacterEmoji = getCharacterEmoji(gameSettings.options.characterId);
   
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const { soundEnabled, toggleMuted: toggleMute } = useSoundMuted();
   const [showExitModal, setShowExitModal] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showBeginnerHelp, setShowBeginnerHelp] = useState(false);
@@ -309,6 +313,12 @@ export function GamePlayPage() {
   const [pickBurstKey, setPickBurstKey] = useState(0);
   const [miniReplayKey, setMiniReplayKey] = useState(0);
   const [jackpotActive, setJackpotActive] = useState(false);
+  const [victoryClash, setVictoryClash] = useState<{
+    key: number;
+    left: Hand;
+    right: Hand;
+    winnerSide: 'left' | 'right';
+  } | null>(null);
 
   useEffect(() => {
     setJackpotActive(rollJackpotRound());
@@ -495,39 +505,72 @@ export function GamePlayPage() {
     }
 
     if (gameState.phase === 'REVEAL') {
+      // 선택 잠금 → 긴장 → 스핀 → 스냅 → 충돌 홀드 → 판정 (순차)
+      const schedule = getRevealSchedule(isBeginnerMode);
       audioManager.playSFX('tension_before_reveal');
-      audioManager.playSFX('slot_spin');
       setIsSpinning(true);
       setShowImpact(false);
       setTableShake(false);
       setRevealSnap(false);
       triggerHaptic('heartbeat');
 
-      const spinMs = isBeginnerMode ? 1400 : 1200;
-      const stopSpinTimer = setTimeout(() => {
-        setIsSpinning(false);
-        setRevealSnap(true);
-        setShowImpact(true);
-        setMiniReplayKey((k) => k + 1);
-        window.setTimeout(() => setRevealSnap(false), 200);
-        if (gameState.myHand === 'ROCK' || gameState.opponentHand === 'ROCK') {
-          setTableShake(true);
-          setTimeout(() => setTableShake(false), 300);
-          audioManager.playSFX('rock_btn');
-        } else if (gameState.myHand === 'SCISSORS' || gameState.opponentHand === 'SCISSORS') {
-          audioManager.playSFX('scissors_btn');
-        } else {
-          audioManager.playSFX('paper_btn');
-        }
-        triggerHaptic('heavy');
-      }, spinMs);
+      const timers: number[] = [];
 
-      const timer = setTimeout(() => {
-        handleRoundLogic();
-      }, isBeginnerMode ? 3200 : 2800);
+      timers.push(
+        window.setTimeout(() => {
+          audioManager.playSFX('slot_spin');
+        }, schedule.tensionMs),
+      );
+
+      timers.push(
+        window.setTimeout(() => {
+          setIsSpinning(false);
+          setRevealSnap(true);
+          setShowImpact(true);
+          if (gameState.myHand === 'ROCK' || gameState.opponentHand === 'ROCK') {
+            setTableShake(true);
+            timers.push(window.setTimeout(() => setTableShake(false), 300));
+            audioManager.playSFX('rock_btn');
+          } else if (gameState.myHand === 'SCISSORS' || gameState.opponentHand === 'SCISSORS') {
+            audioManager.playSFX('scissors_btn');
+          } else {
+            audioManager.playSFX('paper_btn');
+          }
+          triggerHaptic('heavy');
+        }, schedule.snapAtMs),
+      );
+
+      timers.push(
+        window.setTimeout(() => setRevealSnap(false), schedule.snapClearMs),
+      );
+
+      timers.push(
+        window.setTimeout(() => {
+          const left = gameState.myHand;
+          const right = gameState.opponentHand;
+          if (left && right) {
+            const winHand = getWinningHand(left, right);
+            if (winHand) {
+              setVictoryClash({
+                key: Date.now(),
+                left,
+                right,
+                winnerSide: winHand === left ? 'left' : 'right',
+              });
+            }
+          }
+          setMiniReplayKey((k) => k + 1);
+        }, schedule.replayAtMs),
+      );
+
+      timers.push(
+        window.setTimeout(() => {
+          handleRoundLogic();
+        }, schedule.logicAtMs),
+      );
+
       return () => {
-        clearTimeout(stopSpinTimer);
-        clearTimeout(timer);
+        timers.forEach((id) => clearTimeout(id));
       };
     }
 
@@ -561,7 +604,10 @@ export function GamePlayPage() {
             updateDealer('ask_select', '아래에서 하나를 눌러주세요.');
           }
         }
-      }, isBeginnerMode ? 2500 : 1000); // 2.5 sec for beginners to read result
+      }, getResultReadMs(
+        isBeginnerMode,
+        !!(gameState.myHand && gameState.opponentHand && getWinningHand(gameState.myHand, gameState.opponentHand)),
+      ));
       return () => clearTimeout(timer);
     }
   }, [gameState.phase, isBeginnerMode]);
@@ -636,12 +682,6 @@ export function GamePlayPage() {
         }, 1500);
       }, 1000 + Math.random() * 1000);
     }
-  };
-
-  const toggleMute = () => {
-    triggerHaptic('light');
-    audioManager.updateSetting('mute', !soundEnabled);
-    setSoundEnabled(!soundEnabled);
   };
 
   const handleHandSelect = (hand: Hand, auto = false) => {
@@ -953,6 +993,9 @@ export function GamePlayPage() {
           tier={getTableTier(matchTable)}
           comboHits={comboHits}
           handSkinId={gameSettings.options.handSkinId}
+          onFire={DEMO_USER.streak + gameState.myScore >= 3}
+          jackpot={jackpotActive && gameState.phase !== 'GAME_OVER' && gameState.phase !== 'VS_INTRO'}
+          winner={gameState.winner}
         />
       ) : (
       <>
@@ -1669,18 +1712,25 @@ export function GamePlayPage() {
         )}
       </AnimatePresence>
       <HostessCutIn cut={cutIn} />
+      {victoryClash && (
+        <HandVictoryClash
+          playKey={victoryClash.key}
+          leftHand={victoryClash.left}
+          rightHand={victoryClash.right}
+          winnerSide={victoryClash.winnerSide}
+          skinId={gameSettings.options.handSkinId}
+        />
+      )}
       {/* Duel layout also needs global dopamine overlays (mounted above for both) */}
       {isDuelLayout && (
         <>
           <SlowMoReveal active={isSpinning || gameState.phase === 'REVEAL'} snap={revealSnap} />
           <NearMissFlash open={nearMissFlash} />
-          <ComboHitCounter hits={comboHits} />
           <ScreenCrack active={screenCrack} />
-          <OnFireBadge streak={DEMO_USER.streak + gameState.myScore} show={DEMO_USER.streak + gameState.myScore >= 3} />
           <StreakFlameGrowth streak={DEMO_USER.streak + gameState.myScore} />
-          <JackpotRoundBanner active={jackpotActive && gameState.phase !== 'GAME_OVER' && gameState.phase !== 'VS_INTRO'} />
           <CountdownUrgency timeLeft={gameState.timeLeft} active={canPickNow} />
           <PickBurst burstKey={pickBurstKey} />
+          {/* 배지는 DuelHud 상태 스트립으로 통합 — 중앙 손 위 오버레이 제거 */}
           <MiniClashReplay
             playKey={miniReplayKey}
             myHand={gameState.myHand}

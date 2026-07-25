@@ -32,6 +32,9 @@ const defaultSettings: VolumeSettings = {
   vibration: true,
 };
 
+/** 오디오 설정 변경 브로드캐스트 — 여러 화면의 음소거 상태 동기화 */
+export const AUDIO_SETTINGS_EVENT = 'arena:audio-settings';
+
 class AudioManager {
   private ctx: AudioContext | null = null;
   private currentBgm: BgmType | null = null;
@@ -84,6 +87,11 @@ class AudioManager {
   public updateSetting<K extends keyof VolumeSettings>(key: K, value: VolumeSettings[K]) {
     this.settings[key] = value;
     this.saveSettings();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent(AUDIO_SETTINGS_EVENT, { detail: { ...this.settings } }),
+      );
+    }
   }
 
   /** 테이블 등급별 앰비언스 톤 설정 (무료=담백 / 일반=기본 / VIP=풍성) */

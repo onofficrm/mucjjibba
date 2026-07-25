@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Crown, Target, Swords } from 'lucide-react';
+import { Crown, Target, Swords, Volume2, VolumeX } from 'lucide-react';
 import {
   getSeasonTier,
   loadSeasonPass,
@@ -8,12 +8,14 @@ import {
   type SeasonPassState,
 } from '@/utils/seasonPass';
 import { useDailyMissions } from '@/hooks/useDailyMissions';
+import { useSoundMuted } from '@/hooks/useSoundMuted';
 import { triggerHaptic } from '@/utils/haptics';
 
 /** PC 사이드바 하단 앵커 — 시즌 패스 · 미션 · 퀵 대전 */
 export function SidebarAnchor({ expanded }: { expanded: boolean }) {
   const [season, setSeason] = useState<SeasonPassState>(() => loadSeasonPass());
   const { summary, missions } = useDailyMissions();
+  const { soundEnabled, toggleMuted } = useSoundMuted();
   const tier = getSeasonTier(season.xp);
   const completed = summary?.completedCount ?? 0;
   const total = summary?.totalCount ?? missions.length;
@@ -71,6 +73,37 @@ export function SidebarAnchor({ expanded }: { expanded: boolean }) {
           <Crown className="w-4 h-4 text-arena-gold/70" />
         </div>
       )}
+
+      {/* Sound toggle */}
+      <button
+        type="button"
+        onClick={toggleMuted}
+        aria-pressed={!soundEnabled}
+        title={soundEnabled ? '게임 소리 끄기' : '게임 소리 켜기'}
+        className={`w-full flex items-center gap-2 rounded-xl border px-2.5 py-2 transition-colors ${
+          soundEnabled
+            ? 'border-white/10 bg-white/[0.03] text-gray-300 hover:text-white hover:border-white/20'
+            : 'border-arena-error/35 bg-arena-error/10 text-arena-error hover:bg-arena-error/15'
+        } ${expanded ? 'justify-between' : 'justify-center lg:justify-between'}`}
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          {soundEnabled ? (
+            <Volume2 className="w-4 h-4 shrink-0" />
+          ) : (
+            <VolumeX className="w-4 h-4 shrink-0" />
+          )}
+          <span className={`text-[11px] font-bold ${expanded ? 'inline' : 'hidden lg:inline'}`}>
+            게임 소리
+          </span>
+        </span>
+        <span
+          className={`text-[9px] font-black tracking-[0.12em] px-1.5 py-0.5 rounded ${
+            soundEnabled ? 'bg-arena-cyan/15 text-arena-cyan' : 'bg-arena-error/20 text-arena-error'
+          } ${expanded ? 'inline' : 'hidden lg:inline'}`}
+        >
+          {soundEnabled ? 'ON' : 'OFF'}
+        </span>
+      </button>
 
       {/* Quick play CTA */}
       <button

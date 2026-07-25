@@ -5,6 +5,7 @@ import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings } from '@/utils/gameSettings';
 import { missionEventHandler } from '@/services/mission';
 import { HandGlyph } from '@/components/game/HandGlyph';
+import { getWinningHand } from '@/game/rpsMatchup';
 
 const reduce = () =>
   gameSettings.options.reduceAnimations || gameSettings.options.performanceMode === 'low';
@@ -104,14 +105,18 @@ export function NearMissFlash({
 }
 
 /** Step2 — 콤보 히트 카운터 */
-export function ComboHitCounter({ hits }: { hits: number }) {
+export function ComboHitCounter({ hits, inline = false }: { hits: number; inline?: boolean }) {
   if (hits < 2 || reduce()) return null;
   const rainbow = hits >= 4;
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={hits}
-        className="pointer-events-none absolute top-[13%] inset-x-0 z-[46] flex justify-center px-4"
+        className={
+          inline
+            ? 'pointer-events-none flex justify-center'
+            : 'pointer-events-none absolute top-[13%] inset-x-0 z-[46] flex justify-center px-4'
+        }
         initial={{ scale: 0.4, y: -14, opacity: 0 }}
         animate={{ scale: [0.4, 1.15, 1], y: 0, opacity: 1 }}
         exit={{ scale: 1.25, opacity: 0, y: -12 }}
@@ -306,6 +311,8 @@ export function MiniClashReplay({
 
   useEffect(() => {
     if (!playKey || !myHand || !opponentHand || reduce()) return;
+    // 매치업 전용 연출(HandVictoryClash)이 있을 때는 코너 리플레이 생략
+    if (getWinningHand(myHand, opponentHand)) return;
     setOpen(true);
     audioManager.playSFX('tension_before_reveal');
     triggerHaptic('medium');
