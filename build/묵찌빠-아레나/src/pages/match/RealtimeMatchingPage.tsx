@@ -90,7 +90,10 @@ export function RealtimeMatchingPage() {
     }
 
     return () => {
-      // 페이지 이탈 시 큐만 정리하지 않음 — countdown 중 유지. 언마운트+미진입이면 leave는 cancel에서.
+      // 게임 진입 전에 페이지를 떠나면 큐에서 이탈
+      if (!navigatedRef.current) {
+        void matchmakingService.leaveQueue();
+      }
     };
   }, [table]);
 

@@ -1,4 +1,5 @@
 import type { MatchSession, MatchTable, MatchOpponent } from '@/types/match';
+import { depositMatchPoints, getDemoPoints } from '@/utils/demoWallet';
 
 const SESSION_KEY = 'arena_match_session_v1';
 const EVENT = 'arena-match-session';
@@ -103,4 +104,49 @@ export function markSettledGame(gameId: string) {
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * 재대결용 새 세션 — 이전 gameId를 절대 재사용하지 않음 (정산 스킵 버그 방지)
+ */
+export function startRematchSession(opts: {
+  table?: MatchTable | null;
+  opponent?: MatchOpponent | null;
+  ruleId?: MatchSession['ruleId'];
+  isPractice?: boolean;
+}): { ok: true; gameId: string; path: string } | { ok: false; reason: string } {
+  const practice = !!opts.isPractice || !!opts.table?.isFree;
+
+  // 이전 세션 정리 (settled 플래그·옛 gameId 잔존 방지)
+  clearMatchSession();
+
+  if (practice) {
+    return { ok: true, gameId: 'beginner-ai', path: '/game/beginner-ai' };
+  }
+
+  if (!opts.table) {
+    return { ok: false, reason: '테이블 정보가 없습니다. 매칭 테이블에서 다시 참가해 주세요.' };
+  }
+
+  const pointsBefore = getDemoPoints();
+  if (opts.table.entryPoint > 0) {
+    const deposited = depositMatchPoints(opts.table.entryPoint);
+    if (!deposited) {
+      return {
+        ok: false,
+        reason: `포인트가 부족합니다 (필요 ${opts.table.entryPoint.toLocaleString()} P)`,
+      };
+    }
+  }
+
+  const session = createMatchSession(opts.table, pointsBefore);
+  updateMatchSession({
+    opponent: opts.opponent ?? null,
+    deposited: opts.table.entryPoint > 0,
+    settled: false,
+    status: 'ready',
+    ruleId: opts.ruleId ?? opts.table.ruleId,
+  });
+
+  return { ok: true, gameId: session.gameId, path: `/game/${session.gameId}` };
 }

@@ -17,7 +17,9 @@
     "test:step36": "tsx src/game/verification.test.ts",
     "test:invite": "tsx src/utils/inviteLink.test.ts",
     "test:ranking": "tsx src/services/ranking/weekId.test.ts",
-    "test:steps": "npm run test:missions && npm run test:step33 && npm run test:step34 && npm run test:step35 && npm run test:step36 && npm run test:invite && npm run test:ranking"
+    "test:match-rules": "tsx src/game/matchRules.test.ts",
+    "test:house-fee": "tsx src/game/houseFee.test.ts",
+    "test:steps": "npm run test:missions && npm run test:step33 && npm run test:step34 && npm run test:step35 && npm run test:step36 && npm run test:invite && npm run test:ranking && npm run test:match-rules && npm run test:house-fee"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

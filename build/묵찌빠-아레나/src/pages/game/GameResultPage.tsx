@@ -30,9 +30,9 @@ import { MatchRoadmapPanel } from '@/components/stats/RoadmapPanel';
 import { analyzeMatchRoadmap } from '@/game/roadmap';
 import { useDemoWallet } from '@/hooks/useDemoWallet';
 import { settleMatchPoints, getDemoPoints } from '@/utils/demoWallet';
-import { loadMatchSession, updateMatchSession, clearMatchSession, hasSettledGame, markSettledGame } from '@/services/match/matchSession';
-import type { MatchTable } from '@/types/match';
-import { getTableTier } from '@/types/match';
+import { loadMatchSession, updateMatchSession, clearMatchSession, hasSettledGame, markSettledGame, startRematchSession } from '@/services/match/matchSession';
+import type { MatchOpponent, MatchTable } from '@/types/match';
+import { getTableTier, MATCH_TABLES } from '@/types/match';
 import { gameSettings } from '@/utils/gameSettings';
 import { isJackpotRoundActive, clearJackpotRound, jackpotPointMultiplier } from '@/utils/jackpotRound';
 import { computeHouseSettlement, type HouseSettlementBreakdown } from '@/game/houseFee';
@@ -245,9 +245,48 @@ export function GameResultPage() {
     }, 2000);
   };
 
-  const handleStartRematch = () => {
+  const resolveRematchTable = (): MatchTable | null => {
+    if (tableFromState) return tableFromState;
+    if (tableInfo.isFree || tableInfo.entryPoint <= 0) return null;
+    return MATCH_TABLES.find((t) => t.id === tableInfo.id) ?? null;
+  };
+
+  const goRematch = () => {
     triggerHaptic('heavy');
-    navigate(`/game/${id || 'demo-1234'}`, { replace: true });
+    const table = resolveRematchTable();
+    const opponent =
+      (location.state?.opponent as MatchOpponent | undefined) ??
+      matchSession?.opponent ??
+      null;
+    const result = startRematchSession({
+      table,
+      opponent,
+      ruleId: matchSession?.ruleId ?? table?.ruleId,
+      isPractice: isBeginnerMode || !!table?.isFree || tableInfo.isFree,
+    });
+    if (result.ok === false) {
+      audioManager.playSFX('error');
+      triggerHaptic('error');
+      const { reason } = result;
+      window.alert(reason);
+      if (reason.includes('테이블')) {
+        navigate('/match/tables', { replace: true });
+      }
+      return;
+    }
+    navigate(result.path, {
+      replace: true,
+      state: {
+        table: table ?? undefined,
+        opponent: opponent ?? undefined,
+        rematch: true,
+      },
+    });
+  };
+
+  const handleStartRematch = () => {
+    setShowConfirmModal(false);
+    goRematch();
   };
 
   return (
@@ -678,14 +717,7 @@ export function GameResultPage() {
             <div className="flex gap-3">
               <PrimaryButton
                 hostessIndex={11}
-                onClick={() => {
-                  triggerHaptic('heavy');
-                  if (isBeginnerMode) {
-                    navigate('/game/beginner-ai', { replace: true });
-                  } else {
-                    navigate(`/game/${id || 'quick-start'}`, { replace: true });
-                  }
-                }}
+                onClick={goRematch}
                 className={`flex-1 py-4 text-base tracking-wide min-w-0 ${
                   isWin
                     ? 'bg-gradient-to-r from-amber-300 via-arena-gold to-amber-500 text-black border border-amber-200/40 shadow-[0_0_28px_rgba(245,158,11,0.35)]'

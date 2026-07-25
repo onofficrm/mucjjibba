@@ -44,6 +44,7 @@ import {
 } from '@/components/casino/DopamineFX';
 import { HandGlyph } from '@/components/game/HandGlyph';
 import { HandVictoryClash } from '@/components/game/HandVictoryClash';
+import { InGameSettingsModal } from '@/components/game/InGameSettingsModal';
 import { rollJackpotRound } from '@/utils/jackpotRound';
 import { analyzeOpponentPatterns, pickLiveHabitHint } from '@/game/patternStats';
 import { getRevealSchedule, getResultReadMs } from '@/game/combatTiming';
@@ -215,6 +216,7 @@ export function GamePlayPage() {
   const { soundEnabled, toggleMuted: toggleMute } = useSoundMuted();
   const [showExitModal, setShowExitModal] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showBeginnerHelp, setShowBeginnerHelp] = useState(false);
   const practiceTrackedRef = useRef(false);
   const resultNavigatedRef = useRef(false);
@@ -1098,7 +1100,7 @@ export function GamePlayPage() {
           onExit={() => setShowExitModal(true)}
           onToggleMute={toggleMute}
           onInfo={() => { triggerHaptic('light'); setShowInfo(true); }}
-          onSettings={() => { triggerHaptic('light'); navigate('/settings'); }}
+          onSettings={() => { triggerHaptic('light'); setShowSettings(true); }}
           onSelectHand={(hand) => handleHandSelect(hand)}
           onToggleLayout={toggleBattleLayout}
           habitHint={habitHint}
@@ -1844,6 +1846,12 @@ export function GamePlayPage() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSettings && (
+          <InGameSettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
         )}
       </AnimatePresence>
       {/* 승부 영상 중에는 컷인을 숨겨 심플·듀얼 모두 영상이 가려지지 않게 */}
