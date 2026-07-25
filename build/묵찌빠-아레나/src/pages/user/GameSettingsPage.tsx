@@ -4,6 +4,7 @@ import { ChevronLeft, Volume2, Vibrate, Zap, MessageSquare, Users, Trophy, Globe
 import { audioManager, VolumeSettings } from '@/utils/audio';
 import { triggerHaptic } from '@/utils/haptics';
 import { gameSettings, GameOptions } from '@/utils/gameSettings';
+import { trackMission } from '@/services/mission';
 
 export function GameSettingsPage() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export function GameSettingsPage() {
 
   useEffect(() => {
     setSettings(audioManager.settings);
+    void trackMission('SETTINGS_VIEWED');
   }, []);
 
   const updateAudioSetting = <K extends keyof VolumeSettings>(key: K, value: VolumeSettings[K]) => {

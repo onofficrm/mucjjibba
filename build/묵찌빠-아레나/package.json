@@ -8,7 +8,16 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:missions": "tsx src/services/mission/missionService.test.ts",
+    "test:highlights": "tsx src/game/highlights.test.ts",
+    "test:step33": "tsx src/game/highlights.test.ts",
+    "test:step34": "tsx src/game/broadcastDto.test.ts",
+    "test:step35": "tsx src/realtime/reconnect.test.ts",
+    "test:step36": "tsx src/game/verification.test.ts",
+    "test:invite": "tsx src/utils/inviteLink.test.ts",
+    "test:ranking": "tsx src/services/ranking/weekId.test.ts",
+    "test:steps": "npm run test:missions && npm run test:step33 && npm run test:step34 && npm run test:step35 && npm run test:step36 && npm run test:invite && npm run test:ranking"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

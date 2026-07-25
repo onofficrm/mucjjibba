@@ -9,6 +9,7 @@ import { audioManager } from '@/utils/audio';
 import { gameSettings } from '@/utils/gameSettings';
 
 import { DailyMissions } from '@/components/lobby/DailyMissions';
+import { DEMO_USER } from '@/data/demoData';
 
 type GameType = 'LIVE' | 'TOURNAMENT' | 'ARENA' | 'REPLAY' | 'AI DEMO' | 'PRACTICE';
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
@@ -141,11 +142,10 @@ export function LobbyPage() {
     return () => clearInterval(handTimer);
   }, []);
 
-  const handleSpectate = (gameId: string) => {
+  const handleSpectate = (gameId: string, gameType?: GameType) => {
     triggerHaptic('light');
     audioManager.playSFX('game_start');
-    // For demo purposes, we'll navigate to game play with that ID
-    navigate(`/spectate/${gameId}`);
+    navigate(`/spectate/${gameId}`, { state: { gameType: gameType ?? 'LIVE' } });
   };
 
   const circumference = 2 * Math.PI * 14; // r=14
@@ -155,13 +155,21 @@ export function LobbyPage() {
       <div className="flex-1 overflow-y-auto pb-24">
         
         {/* Title Area */}
-        <div className="px-5 pt-6 pb-2 flex items-start justify-between">
-          <div>
+        <div className="px-5 pt-6 pb-2 flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-              라이브 게임 월
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              묵찌빠 아레나
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
             </h1>
-            <p className="text-xs text-gray-400 mt-1">지금 진행 중인 흥미진진한 경기들을 관전하세요</p>
+            <p className="text-xs text-gray-400 mt-1">대표 경기 · 미리보기 · 초보 시작</p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <span className="text-[10px] font-black px-2 py-1 rounded-full bg-arena-gold/15 text-arena-gold border border-arena-gold/30">
+                {DEMO_USER.grade}
+              </span>
+              <span className="text-[10px] font-black px-2 py-1 rounded-full bg-white/5 text-white border border-white/10">
+                {DEMO_USER.points.toLocaleString()} P
+              </span>
+            </div>
           </div>
           <DailyMissions />
         </div>
@@ -169,7 +177,7 @@ export function LobbyPage() {
         {/* 1. Featured Game */}
         <div className="px-4 py-2">
           <div 
-            onClick={() => handleSpectate(FEATURED_GAME.id)}
+            onClick={() => handleSpectate(FEATURED_GAME.id, FEATURED_GAME.type)}
             className="w-full bg-gray-900 border border-gray-800 rounded-3xl p-4 relative overflow-hidden shadow-2xl cursor-pointer group hover:border-gray-700 transition-colors"
           >
             {/* Background Glow */}
@@ -269,7 +277,7 @@ export function LobbyPage() {
             {OTHER_GAMES.map((game) => (
               <div 
                 key={game.id}
-                onClick={() => handleSpectate(game.id)}
+                onClick={() => handleSpectate(game.id, game.type)}
                 className="min-w-[280px] md:min-w-0 bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-2xl p-4 snap-start cursor-pointer transition-colors"
               >
                 <div className="flex justify-between items-center mb-3">

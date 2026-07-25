@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Volume2, VolumeX, Heart, MoreVertical, Search, Zap, 
@@ -10,6 +10,7 @@ import { PrimaryButton, SecondaryButton } from '@/components/common/Buttons';
 import { triggerHaptic } from '@/utils/haptics';
 import { audioManager } from '@/utils/audio';
 import { DEMO_USER } from '@/data/demoData';
+import { trackMission } from '@/services/mission';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type GamePhase = 'INIT' | 'SELECTING' | 'REVEAL' | 'END';
@@ -20,6 +21,9 @@ const ALL_HANDS: Hand[] = ['ROCK', 'SCISSORS', 'PAPER'];
 export function SpectatePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const gameType = (location.state as { gameType?: string } | null)?.gameType ?? '';
+  const kindTrackedRef = useRef(false);
 
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -71,6 +75,24 @@ export function SpectatePage() {
     return () => {
       audioManager.stopBGM();
     };
+  }, []);
+
+  useEffect(() => {
+    if (kindTrackedRef.current) return;
+    kindTrackedRef.current = true;
+    if (gameType === 'AI DEMO' || id?.includes('ai') || id === 'game-004') {
+      void trackMission('AI_DEMO_WATCHED', { spectateKind: 'ai_demo' });
+    }
+    if (gameType === 'TOURNAMENT' || id?.includes('tournament') || id === 'game-003') {
+      void trackMission('TOURNAMENT_WATCHED', { spectateKind: 'tournament' });
+    }
+  }, [gameType, id]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void trackMission('SPECTATE_DURATION_UPDATED', { seconds: 1 });
+    }, 1000);
+    return () => window.clearInterval(timer);
   }, []);
 
   // Simulation Logic

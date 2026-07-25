@@ -1,20 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ChevronLeft, Plus, Key, Users, History, Settings, 
   Share2, Copy, MessageCircle, Send, CheckCircle2,
-  Swords, Clock, Lock, Globe, UserPlus, Play
+  Swords, Clock, Lock, Globe, UserPlus, Play, Eye
 } from 'lucide-react';
 import { PrimaryButton, SecondaryButton } from '@/components/common/Buttons';
 import { triggerHaptic } from '@/utils/haptics';
 import { DEMO_USER } from '@/data/demoData';
+import { trackMission } from '@/services/mission';
+import { copyText } from '@/game/shareCard';
+import {
+  buildInviteLink,
+  buildInviteShareText,
+  buildSpectateInviteLink,
+  generateRoomCode,
+  isValidRoomCode,
+  normalizeRoomCode,
+  parseInviteCodeFromSearch,
+} from '@/utils/inviteLink';
 
 type ViewState = 'menu' | 'create' | 'room';
 
+const RECENT_ROOMS_KEY = 'arena_recent_friend_rooms';
+
+function loadRecentRooms(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_ROOMS_KEY);
+    const parsed = raw ? (JSON.parse(raw) as string[]) : [];
+    return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
+  } catch {
+    return [];
+  }
+}
+
+function pushRecentRoom(code: string) {
+  const next = [code, ...loadRecentRooms().filter((c) => c !== code)].slice(0, 5);
+  localStorage.setItem(RECENT_ROOMS_KEY, JSON.stringify(next));
+}
+
 export function FriendMatchPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [viewState, setViewState] = useState<ViewState>('menu');
+  const [toast, setToast] = useState('');
 
   // Room settings state
   const [isPrivate, setIsPrivate] = useState(true);
@@ -33,27 +63,60 @@ export function FriendMatchPage() {
   const [opponentJoined, setOpponentJoined] = useState(false);
   const [myReady, setMyReady] = useState(false);
   const [opponentReady, setOpponentReady] = useState(false);
+  const [recentRooms, setRecentRooms] = useState<string[]>(() => loadRecentRooms());
+  const [joinedViaInvite, setJoinedViaInvite] = useState(false);
 
-  // Simulate opponent joining and readying
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(''), 1800);
+  }, []);
+
+  const enterRoom = useCallback((code: string, asJoiner = false) => {
+    const normalized = normalizeRoomCode(code);
+    if (!isValidRoomCode(normalized)) {
+      showToast('올바른 방 코드가 아닙니다.');
+      return;
+    }
+    setRoomCode(normalized);
+    setJoinedViaInvite(asJoiner);
+    setOpponentJoined(asJoiner);
+    setMyReady(false);
+    setOpponentReady(false);
+    setViewState('room');
+    pushRecentRoom(normalized);
+    setRecentRooms(loadRecentRooms());
+    setSearchParams({ code: normalized }, { replace: true });
+  }, [setSearchParams, showToast]);
+
+  // Deep link: #/match/friend?code=XXXXXX (최초 1회)
   useEffect(() => {
-    if (viewState === 'room' && !opponentJoined) {
+    const fromQuery = parseInviteCodeFromSearch(searchParams.toString());
+    if (fromQuery) {
+      enterRoom(fromQuery, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only deep link
+  }, []);
+
+  // Simulate opponent joining and readying (host waiting)
+  useEffect(() => {
+    if (viewState === 'room' && !opponentJoined && !joinedViaInvite) {
       const timer = setTimeout(() => {
         setOpponentJoined(true);
         triggerHaptic('success');
-      }, 5000); // Opponent joins after 5 seconds
+      }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [viewState, opponentJoined]);
+  }, [viewState, opponentJoined, joinedViaInvite]);
 
   useEffect(() => {
     if (viewState === 'room' && opponentJoined && !opponentReady) {
       const timer = setTimeout(() => {
         setOpponentReady(true);
         triggerHaptic('light');
-      }, 3000); // Opponent readies after 3 seconds of joining
+      }, joinedViaInvite ? 1500 : 3000);
       return () => clearTimeout(timer);
     }
-  }, [viewState, opponentJoined, opponentReady]);
+  }, [viewState, opponentJoined, opponentReady, joinedViaInvite]);
 
   // Handle Game Start
   useEffect(() => {
@@ -68,21 +131,73 @@ export function FriendMatchPage() {
 
   const handleCreateRoom = () => {
     triggerHaptic('medium');
-    setRoomCode(Math.random().toString(36).substring(2, 8).toUpperCase());
+    const code = generateRoomCode(6);
+    setJoinedViaInvite(false);
+    setOpponentJoined(false);
+    setMyReady(false);
+    setOpponentReady(false);
+    setRoomCode(code);
     setViewState('room');
+    pushRecentRoom(code);
+    setRecentRooms(loadRecentRooms());
+    setSearchParams({ code }, { replace: true });
+    void trackMission('FRIEND_ROOM_CREATED');
   };
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(roomCode);
+  const handleCopyCode = async () => {
+    const ok = await copyText(roomCode);
     triggerHaptic('light');
-    // Ideally show a toast
-    alert('방 코드가 복사되었습니다.');
+    showToast(ok ? '방 코드가 복사되었습니다.' : '복사에 실패했습니다.');
   };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(`https://game.com/join/${roomCode}`);
+  const handleCopyLink = async () => {
+    const ok = await copyText(buildInviteLink(roomCode));
     triggerHaptic('light');
-    alert('초대 링크가 복사되었습니다.');
+    showToast(ok ? '초대 링크가 복사되었습니다.' : '복사에 실패했습니다.');
+  };
+
+  const handleCopySpectate = async () => {
+    const ok = await copyText(buildSpectateInviteLink(roomCode));
+    triggerHaptic('light');
+    showToast(ok ? '관전 링크가 복사되었습니다.' : '복사에 실패했습니다.');
+  };
+
+  const handleShareNative = async () => {
+    const text = buildInviteShareText(roomCode, roomTitle);
+    triggerHaptic('light');
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: '묵찌빠 아레나 초대', text, url: buildInviteLink(roomCode) });
+        return;
+      }
+    } catch {
+      /* cancelled */
+    }
+    const ok = await copyText(text);
+    showToast(ok ? '초대 문구가 복사되었습니다.' : '공유에 실패했습니다.');
+  };
+
+  const handleShareKakao = async () => {
+    const text = buildInviteShareText(roomCode, roomTitle);
+    const ok = await copyText(text);
+    triggerHaptic('light');
+    showToast(ok ? '카카오톡에 붙여넣을 초대 문구를 복사했습니다.' : '복사에 실패했습니다.');
+  };
+
+  const handleShareTelegram = async () => {
+    const text = encodeURIComponent(buildInviteShareText(roomCode, roomTitle));
+    triggerHaptic('light');
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(buildInviteLink(roomCode))}&text=${text}`, '_blank');
+  };
+
+  const handleInviteFriend = () => {
+    triggerHaptic('medium');
+    if (!roomCode) {
+      handleCreateRoom();
+      showToast('방을 만들고 초대 코드를 준비했습니다.');
+      return;
+    }
+    void handleCopyLink();
   };
 
   return (
@@ -131,12 +246,12 @@ export function FriendMatchPage() {
                       className="bg-transparent border-none outline-none text-sm text-white w-full uppercase placeholder:normal-case"
                       value={joinCode}
                       onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                      maxLength={6}
+                      maxLength={8}
                     />
                   </div>
                   <PrimaryButton 
-                    disabled={joinCode.length < 6}
-                    onClick={() => { triggerHaptic('medium'); setRoomCode(joinCode); setViewState('room'); }}
+                    disabled={joinCode.length < 4}
+                    onClick={() => { triggerHaptic('medium'); enterRoom(joinCode, true); }}
                     className="w-full py-2.5 text-sm"
                   >
                     입장하기
@@ -163,7 +278,7 @@ export function FriendMatchPage() {
                       </div>
                     </div>
                   </div>
-                  <SecondaryButton onClick={() => { setRoomCode('TIGER'); setViewState('room'); }} className="px-4 py-2 text-xs">
+                  <SecondaryButton onClick={() => enterRoom('TIGER8', true)} className="px-4 py-2 text-xs">
                     입장
                   </SecondaryButton>
                 </div>
@@ -173,9 +288,28 @@ export function FriendMatchPage() {
                 <h3 className="font-bold text-sm text-arena-text-muted flex items-center">
                   <History className="w-4 h-4 mr-2" /> 최근 이용한 방
                 </h3>
-                <div className="bg-arena-card border border-white/10 rounded-2xl p-4 text-center text-sm text-arena-text-muted">
-                  최근 이용한 방이 없습니다.
-                </div>
+                {recentRooms.length === 0 ? (
+                  <div className="bg-arena-card border border-white/10 rounded-2xl p-4 text-center text-sm text-arena-text-muted">
+                    최근 이용한 방이 없습니다.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {recentRooms.map((code) => (
+                      <div
+                        key={code}
+                        className="bg-arena-card border border-white/10 rounded-2xl p-4 flex items-center justify-between"
+                      >
+                        <div>
+                          <div className="text-sm font-bold font-mono tracking-wider">{code}</div>
+                          <div className="text-[10px] text-arena-text-muted">초대 코드로 재입장</div>
+                        </div>
+                        <SecondaryButton onClick={() => enterRoom(code, true)} className="px-4 py-2 text-xs">
+                          입장
+                        </SecondaryButton>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
@@ -192,7 +326,10 @@ export function FriendMatchPage() {
                       <div className="text-xs text-arena-success">접속 중</div>
                     </div>
                   </div>
-                  <SecondaryButton className="px-4 py-2 text-xs bg-arena-cyan/10 text-arena-cyan border-none hover:bg-arena-cyan/20">
+                  <SecondaryButton
+                    onClick={handleInviteFriend}
+                    className="px-4 py-2 text-xs bg-arena-cyan/10 text-arena-cyan border-none hover:bg-arena-cyan/20"
+                  >
                     초대
                   </SecondaryButton>
                 </div>
@@ -477,33 +614,51 @@ export function FriendMatchPage() {
                     
                     <div className="flex gap-2">
                       <div className="flex-1 bg-black/40 rounded-xl px-4 py-3 flex justify-between items-center border border-white/10">
-                        <div className="flex flex-col">
+                        <div className="flex flex-col min-w-0">
                           <span className="text-[10px] text-arena-text-muted">방 코드</span>
                           <span className="font-mono font-bold text-white tracking-wider">{roomCode}</span>
                         </div>
-                        <button onClick={handleCopyCode} className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
+                        <button onClick={() => void handleCopyCode()} className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
                           <Copy className="w-4 h-4" />
                         </button>
                       </div>
                       <div className="flex-1 bg-black/40 rounded-xl px-4 py-3 flex justify-between items-center border border-white/10">
-                        <div className="flex flex-col">
+                        <div className="flex flex-col min-w-0">
                           <span className="text-[10px] text-arena-text-muted">초대 링크</span>
-                          <span className="text-sm font-bold text-white truncate max-w-[80px]">game.com/j...</span>
+                          <span className="text-xs font-bold text-white truncate">#/match/friend?code=…</span>
                         </div>
-                        <button onClick={handleCopyLink} className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
+                        <button onClick={() => void handleCopyLink()} className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
                           <Copy className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
 
+                    {allowSpectator && (
+                      <button
+                        onClick={() => void handleCopySpectate()}
+                        className="w-full bg-white/5 hover:bg-white/10 text-white py-2.5 rounded-xl flex items-center justify-center font-bold text-xs transition-colors"
+                      >
+                        <Eye className="w-4 h-4 mr-1.5" /> 관전 링크 복사
+                      </button>
+                    )}
+
                     <div className="flex gap-3">
-                      <button className="flex-1 bg-[#FEE500] hover:bg-[#FEE500]/90 text-black py-3 rounded-xl flex items-center justify-center font-bold text-sm transition-colors">
+                      <button
+                        onClick={() => void handleShareKakao()}
+                        className="flex-1 bg-[#FEE500] hover:bg-[#FEE500]/90 text-black py-3 rounded-xl flex items-center justify-center font-bold text-sm transition-colors"
+                      >
                         <MessageCircle className="w-4 h-4 mr-1.5" /> 카카오톡
                       </button>
-                      <button className="flex-1 bg-[#229ED9] hover:bg-[#229ED9]/90 text-white py-3 rounded-xl flex items-center justify-center font-bold text-sm transition-colors">
+                      <button
+                        onClick={() => void handleShareTelegram()}
+                        className="flex-1 bg-[#229ED9] hover:bg-[#229ED9]/90 text-white py-3 rounded-xl flex items-center justify-center font-bold text-sm transition-colors"
+                      >
                         <Send className="w-4 h-4 mr-1.5" /> 텔레그램
                       </button>
-                      <button className="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl flex items-center justify-center font-bold text-sm transition-colors">
+                      <button
+                        onClick={() => void handleShareNative()}
+                        className="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl flex items-center justify-center font-bold text-sm transition-colors"
+                      >
                         <Share2 className="w-4 h-4 mr-1.5" /> 기타
                       </button>
                     </div>
@@ -529,6 +684,19 @@ export function FriendMatchPage() {
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-white text-black text-sm font-bold px-4 py-2.5 rounded-full shadow-lg"
+          >
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

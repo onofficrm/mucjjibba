@@ -1,14 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   RotateCcw, Search, Share2, Home, ChevronDown, ChevronUp, Clock, 
-  XCircle, ShieldAlert, CheckCircle2, ChevronRight, Activity, Zap
+  XCircle, ShieldAlert, CheckCircle2, ChevronRight, Activity, Zap, Play
 } from 'lucide-react';
 import { PrimaryButton, SecondaryButton } from '@/components/common/Buttons';
 import { triggerHaptic } from '@/utils/haptics';
 import { audioManager } from '@/utils/audio';
 import { DEMO_USER } from '@/data/demoData';
+import { analyzeHighlights, pickPrimaryHighlight } from '@/game/highlights';
+import { createSampleGameLog } from '@/game/sampleGameLog';
+import { buildPublicVerification } from '@/game/verification';
+import { ShareCardModal } from '@/components/share/ShareCardModal';
+import type { GameLog } from '@/types/gameLog';
+import { getRankingService } from '@/services/ranking';
+import { saveMatchLog } from '@/services/history/matchHistoryStore';
 
 type RematchState = 'idle' | 'requesting' | 'accepted' | 'declined' | 'timeout' | 'disconnected';
 
@@ -21,14 +28,44 @@ export function GameResultPage() {
   const winner = location.state?.winner || 'ME';
   const myScore = location.state?.myScore || 2;
   const opponentScore = location.state?.opponentScore || 0;
+  const gameLog: GameLog = useMemo(() => {
+    const fromState = location.state?.gameLog as GameLog | undefined;
+    if (fromState) return fromState;
+    if (location.state?.winner) {
+      return createSampleGameLog({
+        gameId: id || 'demo-result',
+        myScore,
+        opponentScore,
+        winner: winner === 'ME' ? 'ME' : 'OPPONENT',
+        mode: isBeginnerMode ? 'PRACTICE' : 'LIVE',
+      });
+    }
+    return createSampleGameLog({ gameId: id || 'demo-result' });
+  }, [location.state, id, myScore, opponentScore, winner, isBeginnerMode]);
   
   const isWin = winner === 'ME';
+  const highlights = analyzeHighlights(gameLog);
+  const primaryHighlight = pickPrimaryHighlight(gameLog);
 
   const [rematchState, setRematchState] = useState<RematchState>('idle');
   const [rematchTimeLeft, setRematchTimeLeft] = useState(10);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [showSettlement, setShowSettlement] = useState(false);
-  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [moreTab, setMoreTab] = useState<
+    'settlement' | 'analysis' | 'verify' | 'report' | 'share' | 'tech' | null
+  >(null);
+  const [showShare, setShowShare] = useState(false);
+  const [rankLabel, setRankLabel] = useState('랭킹 반영 중…');
+  const verification = buildPublicVerification(gameLog);
+
+  useEffect(() => {
+    saveMatchLog(gameLog);
+    void getRankingService().getLeaderboard().then((board) => {
+      const d = board.me.deltaRank;
+      const arrow = d > 0 ? `▲ ${d}` : d < 0 ? `▼ ${Math.abs(d)}` : '—';
+      setRankLabel(`${board.me.entry.rank}위 (${arrow}) · 주간 ${board.me.entry.weeklyPoints.toLocaleString()} WP`);
+    });
+  }, [gameLog.gameId]);
 
   const tableInfo = {
     name: isBeginnerMode ? '초보자 연습장' : '골드 테이블',
@@ -114,10 +151,10 @@ export function GameResultPage() {
                 <span className="text-gray-400 font-bold">현재 연승</span>
                 <span className="text-white font-black text-2xl tracking-tighter">{DEMO_USER.streak + 1} 연승 🔥</span>
               </div>
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-full flex justify-between items-center mt-3 shadow-lg">
-                <span className="text-gray-400 font-bold">랭킹 변화</span>
-                <span className="text-arena-success font-black text-xl flex items-center">
-                  <ChevronUp className="w-5 h-5 mr-1" /> 124위 (▲ 12)
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-full flex justify-between items-center mt-3 shadow-lg gap-3">
+                <span className="text-gray-400 font-bold shrink-0">주간 리그</span>
+                <span className="text-arena-success font-black text-sm text-right flex items-center justify-end">
+                  <ChevronUp className="w-4 h-4 mr-1 shrink-0" /> {rankLabel}
                 </span>
               </div>
             </>
@@ -141,85 +178,127 @@ export function GameResultPage() {
           )}
         </motion.div>
 
-        {/* Expandable Sections */}
-        <div className="w-full max-w-sm space-y-3 mb-24">
-          
-          {/* Settlement Details */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-            <button 
-              onClick={() => { triggerHaptic('light'); setShowSettlement(!showSettlement); }}
-              className="w-full p-4 flex justify-between items-center text-sm font-bold text-gray-300 hover:text-white transition-colors"
-            >
-              <span className="flex items-center gap-2"><Zap className="w-4 h-4 text-gray-400" /> 정산 내역</span>
-              {showSettlement ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-            <AnimatePresence>
-              {showSettlement && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden bg-black/50"
-                >
-                  <div className="p-4 space-y-3 text-sm border-t border-gray-800">
-                    <div className="flex justify-between text-gray-400">
-                      <span>게임 전 포인트</span>
-                      <span>{pointsBefore.toLocaleString()} P</span>
-                    </div>
-                    <div className="flex justify-between text-gray-400">
-                      <span>운영 수수료</span>
-                      <span className="text-arena-error">-{tableInfo.fee.toLocaleString()} P</span>
-                    </div>
-                    <div className="flex justify-between text-white font-bold pt-2 border-t border-gray-800">
-                      <span>게임 후 포인트</span>
-                      <span className={isWin ? 'text-arena-gold' : 'text-white'}>{pointsAfter.toLocaleString()} P</span>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+        {/* Highlight strip — only when log exists */}
+        {primaryHighlight && (
+          <div className="w-full max-w-sm mb-4 rounded-2xl border border-arena-gold/40 bg-arena-gold/10 px-4 py-3">
+            <p className="text-[10px] font-black text-arena-gold uppercase tracking-wider mb-1">하이라이트</p>
+            <p className="text-base font-black text-white">{primaryHighlight.title}</p>
+            <p className="text-xs text-gray-400 mt-1">{primaryHighlight.description}</p>
+            {highlights.length > 1 && (
+              <p className="text-[10px] text-gray-500 mt-2 font-bold">
+                외 {highlights.length - 1}개 · {highlights.slice(1).map((h) => h.title).join(' · ')}
+              </p>
+            )}
           </div>
+        )}
 
-          {/* Match Analysis */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-            <button 
-              onClick={() => { triggerHaptic('light'); setShowAnalysis(!showAnalysis); }}
-              className="w-full p-4 flex justify-between items-center text-sm font-bold text-gray-300 hover:text-white transition-colors"
-            >
-              <span className="flex items-center gap-2"><Activity className="w-4 h-4 text-gray-400" /> 이번 경기 분석</span>
-              {showAnalysis ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-            <AnimatePresence>
-              {showAnalysis && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden bg-black/50"
-                >
-                  <div className="p-4 space-y-3 text-sm border-t border-gray-800">
-                    <div className="flex justify-between text-gray-400">
-                      <span>최종 스코어</span>
-                      <span className="text-white font-bold">{myScore} : {opponentScore}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-400">
-                      <span>선택 (묵/찌/빠)</span>
-                      <span className="text-white">1 / 2 / 0</span>
-                    </div>
-                    <div className="flex justify-between text-gray-400">
-                      <span>평균 선택 시간</span>
-                      <span className="text-white">1.8초</span>
-                    </div>
-                    <div className="flex justify-between text-gray-400">
-                      <span>공격 성공률</span>
-                      <span className="text-white">{(myScore / (myScore + opponentScore) * 100).toFixed(0)}%</span>
-                    </div>
+        {/* Score summary — always visible */}
+        <div className="w-full max-w-sm mb-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex justify-between items-center">
+          <span className="text-xs text-gray-400 font-bold">최종 스코어</span>
+          <span className="text-xl font-black text-white">
+            {myScore} : {opponentScore}
+          </span>
+        </div>
+
+        {/* More menu (정산/분석/검증/신고/공유설정/기술정보) */}
+        <div className="w-full max-w-sm mb-28">
+          <button
+            onClick={() => {
+              triggerHaptic('light');
+              setShowMore((v) => !v);
+            }}
+            className="w-full p-4 rounded-2xl bg-gray-900 border border-gray-800 flex justify-between items-center text-sm font-bold text-gray-300"
+          >
+            <span>더보기 · 상세 정보</span>
+            {showMore ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          <AnimatePresence>
+            {showMore && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ['settlement', '정산 내역', Zap],
+                      ['analysis', '경기 분석', Activity],
+                      ['verify', '경기 검증', ShieldAlert],
+                      ['report', '신고', XCircle],
+                      ['share', '공유 설정', Share2],
+                      ['tech', '기술 연결', Clock],
+                    ] as const
+                  ).map(([key, label, Icon]) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        triggerHaptic('light');
+                        if (key === 'share') {
+                          setShowShare(true);
+                          return;
+                        }
+                        setMoreTab(key);
+                      }}
+                      className="flex items-center gap-2 p-3 rounded-xl bg-black/50 border border-white/5 text-xs font-bold text-gray-300 hover:text-white"
+                    >
+                      <Icon className="w-3.5 h-3.5 text-gray-500" /> {label}
+                    </button>
+                  ))}
+                </div>
+
+                {moreTab === 'settlement' && (
+                  <div className="mt-3 p-4 rounded-xl bg-black/50 border border-white/5 text-sm space-y-2">
+                    <div className="flex justify-between text-gray-400"><span>게임 전</span><span>{pointsBefore.toLocaleString()} P</span></div>
+                    <div className="flex justify-between text-gray-400"><span>수수료</span><span className="text-arena-error">-{tableInfo.fee.toLocaleString()} P</span></div>
+                    <div className="flex justify-between text-white font-bold"><span>게임 후</span><span>{pointsAfter.toLocaleString()} P</span></div>
+                    <p className="text-[10px] text-gray-500">데모 가상 포인트 · 결제/출금/환전 없음</p>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
+                )}
+                {moreTab === 'analysis' && (
+                  <div className="mt-3 p-4 rounded-xl bg-black/50 border border-white/5 text-sm space-y-2">
+                    <div className="flex justify-between text-gray-400"><span>스코어</span><span className="text-white font-bold">{myScore}:{opponentScore}</span></div>
+                    <div className="flex justify-between text-gray-400"><span>라운드 수</span><span className="text-white">{gameLog?.rounds.length ?? 0}</span></div>
+                    <div className="flex justify-between text-gray-400"><span>공격권 탈환</span><span className="text-white">{gameLog?.attackSteals ?? 0}</span></div>
+                  </div>
+                )}
+                {moreTab === 'verify' && verification && (
+                  <div className="mt-3 p-4 rounded-xl bg-black/50 border border-white/5 text-xs space-y-2 max-h-64 overflow-y-auto">
+                    <div className="flex justify-between"><span className="text-gray-500">게임 고유번호</span><span className="font-mono text-gray-200">{verification.gameId}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">시작</span><span className="text-gray-300">{new Date(verification.startedAt).toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">종료</span><span className="text-gray-300">{new Date(verification.endedAt).toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">검증 상태</span><span className="text-arena-cyan font-bold">{verification.statusLabel}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">예치</span><span>{verification.points.depositStatus}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">지급/반환</span><span>{verification.points.settleStatus}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">거래번호</span><span className="font-mono">{verification.points.transactionId ?? '-'}</span></div>
+                    <div className="h-px bg-white/10 my-2" />
+                    {verification.rounds.map((r) => (
+                      <div key={r.round} className="border border-white/5 rounded-lg p-2 mb-1">
+                        <p className="font-bold text-white mb-1">R{r.round} · {r.result}</p>
+                        <p className="text-gray-400">선택 {r.myHand}/{r.opponentHand} · 공격권 {r.attacker}</p>
+                        <p className="text-gray-500">접수 {new Date(r.serverReceivedAt).toLocaleTimeString()} · 잠금 {new Date(r.lockedAt).toLocaleTimeString()} · 공개 {new Date(r.revealedAt).toLocaleTimeString()}</p>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-gray-500 pt-1">{verification.note}</p>
+                  </div>
+                )}
+                {moreTab === 'report' && (
+                  <div className="mt-3 p-4 rounded-xl bg-black/50 border border-white/5 text-xs text-gray-400">
+                    신고는 운영 정책에 따라 검토됩니다. (데모: UI만)
+                  </div>
+                )}
+                {moreTab === 'tech' && (
+                  <div className="mt-3 p-4 rounded-xl bg-black/50 border border-white/5 text-xs space-y-2 text-gray-400">
+                    <div className="flex justify-between"><span>로그 소스</span><span className="text-white">{gameLog?.source}</span></div>
+                    <div className="flex justify-between"><span>모드</span><span className="text-white">{gameLog?.mode}</span></div>
+                    <div className="flex justify-between"><span>라우트</span><span className="text-white">HashRouter</span></div>
+                    <p className="text-[10px] text-gray-500">IP·기기·관리자 세션은 노출하지 않습니다.</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -305,19 +384,45 @@ export function GameResultPage() {
             </div>
           )}
 
-          {/* Secondary Icons */}
-          <div className="flex justify-center gap-6 mt-2 pt-4 border-t border-gray-900">
-            <button className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors" onClick={() => triggerHaptic('light')}>
+          {/* Secondary — 리플레이 / 공유 / 더보기 / 로비 */}
+          <div className="flex justify-center gap-5 mt-2 pt-4 border-t border-gray-900">
+            <button
+              className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors"
+              onClick={() => {
+                triggerHaptic('light');
+                if (gameLog) {
+                  navigate(`/replay/${gameLog.gameId}`, { state: { gameLog } });
+                }
+              }}
+            >
               <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center border border-gray-800">
-                <Activity className="w-5 h-5" />
+                <Play className="w-5 h-5" />
               </div>
-              <span className="text-[10px] font-bold">기록</span>
+              <span className="text-[10px] font-bold">리플레이</span>
             </button>
-            <button className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors" onClick={() => triggerHaptic('light')}>
+            <button
+              className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors"
+              onClick={() => {
+                triggerHaptic('light');
+                setShowShare(true);
+              }}
+            >
               <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center border border-gray-800">
                 <Share2 className="w-5 h-5" />
               </div>
               <span className="text-[10px] font-bold">공유</span>
+            </button>
+            <button
+              className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors"
+              onClick={() => {
+                triggerHaptic('light');
+                setShowMore(true);
+              }}
+            >
+              <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center border border-gray-800">
+                <ChevronDown className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold">더보기</span>
             </button>
             <button onClick={() => { triggerHaptic('light'); navigate('/lobby'); }} className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-white transition-colors">
               <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center border border-gray-800">
@@ -328,6 +433,8 @@ export function GameResultPage() {
           </div>
         </div>
       </div>
+
+      <ShareCardModal open={showShare} log={gameLog} onClose={() => setShowShare(false)} />
 
       {/* Rematch Confirm Modal */}
       <AnimatePresence>

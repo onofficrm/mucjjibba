@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, Zap, Target, Swords, Play } from 'lucide-react';
 import { triggerHaptic } from '@/utils/haptics';
 import { PrimaryButton, SecondaryButton } from '@/components/common/Buttons';
+import { trackMission } from '@/services/mission';
 
 const SLIDES = [
   {
@@ -119,6 +120,7 @@ export function TutorialPage() {
     if (currentSlide < SLIDES.length - 1) {
       setCurrentSlide(prev => prev + 1);
     } else {
+      void trackMission('TUTORIAL_COMPLETED');
       handleStartPractice();
     }
   };

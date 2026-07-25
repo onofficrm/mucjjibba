@@ -29,6 +29,7 @@ import { TournamentListPage } from './pages/tournament/TournamentListPage';
 import { TournamentBracketPage } from './pages/tournament/TournamentBracketPage';
 import { GamePlayPage } from './pages/game/GamePlayPage';
 import { GameResultPage } from './pages/game/GameResultPage';
+import { ReplayPage } from './pages/game/ReplayPage';
 import { MatchHistoryPage } from './pages/user/MatchHistoryPage';
 import { PlayPatternAnalysisPage } from './pages/user/PlayPatternAnalysisPage';
 import { MyPage } from './pages/user/MyPage';
@@ -36,6 +37,7 @@ import { PointHistoryPage } from './pages/user/PointHistoryPage';
 import { CompetitionPage } from './pages/competition/CompetitionPage';
 import { TutorialPage } from './pages/tutorial/TutorialPage';
 import { SpectatePage } from './pages/spectate/SpectatePage';
+import { BroadcastPage } from './pages/broadcast/BroadcastPage';
 
 // Admin Pages
 import {
@@ -59,6 +61,9 @@ export default function App() {
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/terms" element={<TermsPage />} />
 
+        {/* Broadcast — layout 없음, 읽기 전용 */}
+        <Route path="/broadcast/game/:gameId" element={<BroadcastPage />} />
+
         {/* User App (With Mobile/Desktop Layout) */}
         <Route element={<Layout />}>
           <Route path="/lobby" element={<LobbyPage />} />
@@ -75,6 +80,7 @@ export default function App() {
           <Route path="/game/:id" element={<GamePlayPage />} />
           <Route path="/game/:id/result" element={<GameResultPage />} />
           <Route path="/game/:id/rematch" element={<RematchPage />} />
+          <Route path="/replay/:id" element={<ReplayPage />} />
           
           <Route path="/arena" element={<ArenaPage />} />
           

@@ -32,12 +32,7 @@ export const TermsPage = () => <PageTemplate title="이용 안내" description="
 
 export const QuickMatchPage = () => <PageTemplate title="빠른 대전" description="최적의 상대를 찾고 있습니다..." />;
 export const RematchPage = () => <PageTemplate title="재대결 제안" description="같은 상대와 다시 한번 승부합니다." />;
-export const RankingPage = ({ hideHeader }: { hideHeader?: boolean }) => (
-  <PageTemplate 
-    title={hideHeader ? "" : "시즌 랭킹"} 
-    description={hideHeader ? "" : "최고의 플레이어들을 확인하세요."} 
-  />
-);
+export { RankingPage } from './ranking/RankingPage';
 export const NotificationsPage = () => <PageTemplate title="알림" description="시스템 안내 및 게임 초대" />;
 export const CustomerSupportPage = () => <PageTemplate title="고객센터" description="도움말 및 문의하기" />;
 

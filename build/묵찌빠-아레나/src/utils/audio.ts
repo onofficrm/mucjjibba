@@ -30,9 +30,10 @@ const defaultSettings: VolumeSettings = {
 
 class AudioManager {
   private ctx: AudioContext | null = null;
-  private bgmOscillators: Map<BgmType, any> = new Map();
   private currentBgm: BgmType | null = null;
   private currentBgmGainNode: GainNode | null = null;
+  private bgmLoopTimer: ReturnType<typeof setInterval> | null = null;
+  private bgmActiveOscillators: OscillatorNode[] = [];
   private speechSynthesis: SpeechSynthesis | null = null;
   private voiceInstance: SpeechSynthesisUtterance | null = null;
   
@@ -231,87 +232,156 @@ class AudioManager {
     }
   }
 
-  // --- Background Music ---
+  // --- Background Music (경쾌한 아르페지오 루프, 지속 드론 없음) ---
+
+  private getBgmPattern(type: BgmType): { notes: number[]; stepMs: number; wave: OscillatorType } {
+    // C major / bright pentatonic-ish patterns
+    switch (type) {
+      case 'lobby':
+        return {
+          notes: [523.25, 659.25, 783.99, 1046.5, 783.99, 659.25], // C5 E5 G5 C6 …
+          stepMs: 220,
+          wave: 'triangle',
+        };
+      case 'normal_game':
+        return {
+          notes: [392.0, 493.88, 587.33, 659.25, 587.33, 493.88, 523.25, 659.25], // G4 B4 D5 E5 …
+          stepMs: 180,
+          wave: 'triangle',
+        };
+      case 'attack_game':
+        return {
+          notes: [440.0, 554.37, 659.25, 880.0, 659.25, 554.37], // A4 C#5 E5 A5
+          stepMs: 150,
+          wave: 'square',
+        };
+      case 'last_round':
+        return {
+          notes: [523.25, 622.25, 783.99, 932.33, 783.99, 622.25], // 긴박하지만 밝게
+          stepMs: 130,
+          wave: 'square',
+        };
+      case 'tournament_final':
+        return {
+          notes: [523.25, 659.25, 783.99, 987.77, 783.99, 659.25, 523.25, 783.99],
+          stepMs: 160,
+          wave: 'triangle',
+        };
+      case 'win_result':
+        return {
+          notes: [523.25, 659.25, 783.99, 1046.5, 1174.66, 1046.5, 783.99, 659.25],
+          stepMs: 200,
+          wave: 'sine',
+        };
+      default:
+        return {
+          notes: [523.25, 659.25, 783.99, 659.25],
+          stepMs: 200,
+          wave: 'triangle',
+        };
+    }
+  }
+
+  private stopBgmLoop(fadeMs = 400) {
+    if (this.bgmLoopTimer != null) {
+      clearInterval(this.bgmLoopTimer);
+      this.bgmLoopTimer = null;
+    }
+    if (this.currentBgmGainNode && this.ctx) {
+      const t = this.ctx.currentTime;
+      const fade = Math.max(0.05, fadeMs / 1000);
+      try {
+        this.currentBgmGainNode.gain.cancelScheduledValues(t);
+        this.currentBgmGainNode.gain.setValueAtTime(this.currentBgmGainNode.gain.value, t);
+        this.currentBgmGainNode.gain.linearRampToValueAtTime(0, t + fade);
+      } catch {
+        /* ignore */
+      }
+    }
+    const oscs = this.bgmActiveOscillators.splice(0);
+    window.setTimeout(() => {
+      oscs.forEach((osc) => {
+        try {
+          osc.stop();
+          osc.disconnect();
+        } catch {
+          /* ignore */
+        }
+      });
+    }, fadeMs + 50);
+    this.currentBgmGainNode = null;
+  }
+
+  private playBgmPluck(
+    freq: number,
+    wave: OscillatorType,
+    gainBus: GainNode,
+    peak: number,
+  ) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const noteGain = this.ctx.createGain();
+    osc.type = wave;
+    osc.frequency.setValueAtTime(freq, t);
+    // 짧은 스타카토 — 웅~ 지속음 방지
+    noteGain.gain.setValueAtTime(0.0001, t);
+    noteGain.gain.exponentialRampToValueAtTime(Math.max(0.0001, peak), t + 0.02);
+    noteGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    osc.connect(noteGain);
+    noteGain.connect(gainBus);
+    osc.start(t);
+    osc.stop(t + 0.18);
+    this.bgmActiveOscillators.push(osc);
+    osc.onended = () => {
+      const idx = this.bgmActiveOscillators.indexOf(osc);
+      if (idx >= 0) this.bgmActiveOscillators.splice(idx, 1);
+      try {
+        osc.disconnect();
+        noteGain.disconnect();
+      } catch {
+        /* ignore */
+      }
+    };
+  }
 
   public playBGM(type: BgmType) {
     if (this.currentBgm === type) return;
     this.initContext();
     if (!this.ctx) return;
 
-    // Fade out current BGM
-    if (this.currentBgmGainNode) {
-      const t = this.ctx.currentTime;
-      this.currentBgmGainNode.gain.linearRampToValueAtTime(0, t + 1.0); // 1 sec fade out
-      // In a real app we'd stop the audio element here after fade out
-    }
-
+    this.stopBgmLoop(350);
     this.currentBgm = type;
-    
-    // Create new synthetic BGM (a soft droning chord) for demonstration
-    // Real implementation would use HTMLAudioElement or buffer source
+
     const vol = this.getEffectiveVolume('bgm');
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0, this.ctx.currentTime);
     if (vol > 0) {
-      gain.gain.linearRampToValueAtTime(vol * 0.1, this.ctx.currentTime + 1.0); // 1 sec fade in
+      gain.gain.linearRampToValueAtTime(vol * 0.22, this.ctx.currentTime + 0.25);
     }
     gain.connect(this.ctx.destination);
-    
-    const osc1 = this.ctx.createOscillator();
-    const osc2 = this.ctx.createOscillator();
-    osc1.type = 'sine';
-    osc2.type = 'sine';
-    
-    switch (type) {
-      case 'lobby':
-        osc1.frequency.value = 261.63; // C4
-        osc2.frequency.value = 329.63; // E4
-        break;
-      case 'normal_game':
-        osc1.frequency.value = 196.00; // G3
-        osc2.frequency.value = 246.94; // B3
-        break;
-      case 'attack_game':
-        osc1.type = 'triangle';
-        osc1.frequency.value = 293.66; // D4
-        osc2.frequency.value = 349.23; // F4
-        break;
-      case 'last_round':
-        osc1.type = 'sawtooth';
-        osc1.frequency.value = 130.81; // C3
-        osc2.frequency.value = 196.00; // G3
-        break;
-      case 'win_result':
-        osc1.frequency.value = 523.25; // C5
-        osc2.frequency.value = 659.25; // E5
-        break;
-      default:
-        osc1.frequency.value = 440;
-        osc2.frequency.value = 554;
-    }
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    osc1.start();
-    osc2.start();
-
-    // Store references to clean up later (synthetic demo cleanup)
-    if (this.currentBgmGainNode) {
-        setTimeout(() => {
-           // We just let the old one fade out then we would stop it in a real implementation
-           // With synth we can just leave it or manage oscillators array
-        }, 1000);
-    }
-    
     this.currentBgmGainNode = gain;
+
+    const pattern = this.getBgmPattern(type);
+    let step = 0;
+    const tick = () => {
+      if (!this.ctx || this.currentBgm !== type || !this.currentBgmGainNode) return;
+      const peak = this.getEffectiveVolume('bgm') * 0.28;
+      if (peak <= 0) return;
+      const freq = pattern.notes[step % pattern.notes.length];
+      this.playBgmPluck(freq, pattern.wave, this.currentBgmGainNode, peak);
+      // 가벼운 하모닉 (5도) — 경쾌한 층
+      if (step % 2 === 0) {
+        this.playBgmPluck(freq * 1.5, 'sine', this.currentBgmGainNode, peak * 0.35);
+      }
+      step += 1;
+    };
+    tick();
+    this.bgmLoopTimer = setInterval(tick, pattern.stepMs);
   }
 
   public stopBGM() {
-    if (this.currentBgmGainNode && this.ctx) {
-      const t = this.ctx.currentTime;
-      this.currentBgmGainNode.gain.linearRampToValueAtTime(0, t + 1.0);
-      this.currentBgmGainNode = null;
-    }
+    this.stopBgmLoop(500);
     this.currentBgm = null;
   }
 
@@ -319,7 +389,8 @@ class AudioManager {
     if (this.currentBgmGainNode && this.ctx) {
       const vol = this.getEffectiveVolume('bgm');
       const t = this.ctx.currentTime;
-      this.currentBgmGainNode.gain.linearRampToValueAtTime(vol * 0.1, t + 0.1);
+      this.currentBgmGainNode.gain.cancelScheduledValues(t);
+      this.currentBgmGainNode.gain.linearRampToValueAtTime(vol * 0.22, t + 0.1);
     }
   }
 

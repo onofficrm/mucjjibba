@@ -15,6 +15,15 @@ import { VsIntro } from '@/components/game/VsIntro';
 import { ReactionButton, ReactionBubble, ReactionType } from '@/components/game/GameReactions';
 import { gameSettings } from '@/utils/gameSettings';
 import { getHandSkinEmojis, getCharacterEmoji } from '@/data/decorations';
+import { trackMission } from '@/services/mission';
+import { GameSessionLogBuilder } from '@/game/GameSessionLogBuilder';
+import { createSampleGameLog } from '@/game/sampleGameLog';
+import type { GameModeTag, Hand as LogHand, PlayerSide } from '@/types/gameLog';
+import { createGameSocketAdapter } from '@/realtime/createGameSocket';
+import type { ConnectionStatus, GameSnapshot } from '@/realtime/types';
+import { ConnectionBadge, ReconnectOverlay } from '@/components/game/ReconnectOverlay';
+import { saveMatchLog } from '@/services/history/matchHistoryStore';
+import { getRankingService } from '@/services/ranking';
 
 type Hand = 'ROCK' | 'SCISSORS' | 'PAPER';
 type PlayerId = 'ME' | 'OPPONENT';
@@ -131,6 +140,44 @@ export function GamePlayPage() {
   const [showExitModal, setShowExitModal] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showBeginnerHelp, setShowBeginnerHelp] = useState(false);
+  const practiceTrackedRef = useRef(false);
+  const resultNavigatedRef = useRef(false);
+  const pendingSelectMeta = useRef<{
+    selectedAt: string;
+    selectDurationMs: number;
+    timeLeftOnSelect: number;
+    timerLimit: number;
+  } | null>(null);
+  const logBuilderRef = useRef<GameSessionLogBuilder | null>(null);
+  const socketRef = useRef(createGameSocketAdapter());
+  const [connStatus, setConnStatus] = useState<ConnectionStatus>('connected');
+
+  if (!logBuilderRef.current) {
+    const mode: GameModeTag = isBeginnerMode
+      ? 'PRACTICE'
+      : isTournament
+        ? 'TOURNAMENT'
+        : id?.includes('friend')
+          ? 'FRIEND'
+          : 'LIVE';
+    logBuilderRef.current = new GameSessionLogBuilder({
+      gameId: id || 'demo-session',
+      mode,
+      previousBestStreak: DEMO_USER.today.maxStreak,
+      isTournamentFinal: isTournament && id?.includes('final'),
+      me: {
+        nickname: DEMO_USER.nickname,
+        grade: DEMO_USER.grade,
+        avatar: DEMO_USER.avatar,
+        characterId: gameSettings.options.characterId,
+      },
+      opponent: {
+        nickname: DEMO_OPPONENT.nickname,
+        grade: DEMO_OPPONENT.grade,
+        avatar: '👻',
+      },
+    });
+  }
   
   const [gameState, setGameState] = useState<GameState>(() => {
     let initialPhase: GamePhase = 'VS_INTRO';
@@ -210,12 +257,88 @@ export function GamePlayPage() {
   };
 
   useEffect(() => {
+    const socket = socketRef.current;
+    const onStatus = (s: ConnectionStatus) => setConnStatus(s);
+    const onSnapshot = (snap: GameSnapshot) => {
+      setGameState((prev) => ({
+        ...prev,
+        phase: (snap.phase as GamePhase) || prev.phase,
+        round: snap.round,
+        myScore: snap.myScore,
+        opponentScore: snap.opponentScore,
+        attacker: snap.attacker,
+        myHand: snap.myHand,
+        opponentHand: snap.opponentHand,
+        timeLeft: snap.timeLeft,
+        winner: snap.winner,
+      }));
+    };
+    socket.on('status', onStatus);
+    socket.on('snapshot', onSnapshot);
+    void socket.connect(id || 'demo-session');
+    return () => {
+      socket.off('status', onStatus);
+      socket.off('snapshot', onSnapshot);
+      socket.disconnect();
+    };
+  }, [id]);
+
+  useEffect(() => {
     // Determine BGM
     if (gameState.phase === 'GAME_OVER') {
       if (gameState.winner === 'ME') {
         audioManager.playBGM('win_result');
       } else {
         audioManager.stopBGM();
+      }
+      if (isBeginnerMode && !practiceTrackedRef.current) {
+        practiceTrackedRef.current = true;
+        void trackMission('PRACTICE_COMPLETED');
+      }
+      if (!resultNavigatedRef.current) {
+        resultNavigatedRef.current = true;
+        const winner = gameState.winner as PlayerSide | null;
+        const built =
+          logBuilderRef.current?.finalize({
+            myScore: gameState.myScore,
+            opponentScore: gameState.opponentScore,
+            winner,
+            currentStreakAfter:
+              winner === 'ME' ? DEMO_USER.streak + 1 : 0,
+            source: 'demo_session',
+          }) ??
+          createSampleGameLog({
+            gameId: id || 'demo-session',
+            myScore: gameState.myScore,
+            opponentScore: gameState.opponentScore,
+            winner,
+          });
+        // 로그가 비어 있으면 샘플로 보강 (하이라이트는 로그 있을 때만)
+        const gameLog =
+          built.rounds.length > 0
+            ? built
+            : createSampleGameLog({
+                gameId: id || 'demo-session',
+                myScore: gameState.myScore,
+                opponentScore: gameState.opponentScore,
+                winner,
+                mode: isBeginnerMode ? 'PRACTICE' : 'LIVE',
+              });
+        saveMatchLog(gameLog);
+        if (!isBeginnerMode) {
+          getRankingService().recordMatchResult(winner === 'ME', winner === 'ME' ? 120 : 40);
+        }
+        window.setTimeout(() => {
+          navigate(`/game/${id || 'demo-session'}/result`, {
+            replace: true,
+            state: {
+              winner: gameState.winner,
+              myScore: gameState.myScore,
+              opponentScore: gameState.opponentScore,
+              gameLog,
+            },
+          });
+        }, 1600);
       }
     } else if (gameState.myScore === 1 && gameState.opponentScore === 1) {
       audioManager.playBGM('last_round');
@@ -224,7 +347,7 @@ export function GamePlayPage() {
     } else {
       audioManager.playBGM('normal_game');
     }
-  }, [gameState.phase, gameState.attacker, gameState.myScore, gameState.opponentScore, gameState.winner]);
+  }, [gameState.phase, gameState.attacker, gameState.myScore, gameState.opponentScore, gameState.winner, isBeginnerMode]);
 
   useEffect(() => {
     if (gameState.phase === 'INIT') {
@@ -355,7 +478,8 @@ export function GamePlayPage() {
   const handleSendReaction = (id: ReactionType) => {
     setMyReaction(id);
     setReactionCooldown(3000); // 3 seconds cooldown
-    
+    void trackMission('REACTION_SENT');
+
     // Simulate opponent sending a reaction back sometimes
     if (Math.random() > 0.5) {
       setTimeout(() => {
@@ -381,6 +505,14 @@ export function GamePlayPage() {
       if (hand === 'ROCK') audioManager.playSFX('rock_btn');
       else if (hand === 'SCISSORS') audioManager.playSFX('scissors_btn');
       else if (hand === 'PAPER') audioManager.playSFX('paper_btn');
+
+      if (hand === 'ROCK') void trackMission('ROCK_SELECTED');
+      else if (hand === 'SCISSORS') void trackMission('SCISSORS_SELECTED');
+      else void trackMission('PAPER_SELECTED');
+
+      const limit = isBeginnerMode ? 10 : 5;
+      logBuilderRef.current?.markSelectStart(gameState.timeLeft, limit);
+      pendingSelectMeta.current = logBuilderRef.current?.recordSelect(hand as LogHand) ?? null;
     }
     
     updateState({ myHand: hand });
@@ -402,6 +534,30 @@ export function GamePlayPage() {
     }
   };
 
+  const appendRoundLog = (
+    result: 'POINT_ME' | 'POINT_OPPONENT' | 'ATTACK_CHANGE' | 'DRAW_RPS' | 'ATTACK_GAIN',
+    attackerBefore: PlayerSide | null,
+    attackerAfter: PlayerSide | null,
+  ) => {
+    const meta = pendingSelectMeta.current;
+    const now = new Date().toISOString();
+    logBuilderRef.current?.pushRound({
+      myHand: gameState.myHand as LogHand,
+      opponentHand: gameState.opponentHand as LogHand,
+      attackerBefore,
+      attackerAfter,
+      result,
+      timeLeftOnSelect: meta?.timeLeftOnSelect ?? gameState.timeLeft,
+      timerLimit: meta?.timerLimit ?? (isBeginnerMode ? 10 : 5),
+      selectDurationMs: meta?.selectDurationMs ?? 0,
+      selectedAt: meta?.selectedAt ?? now,
+      lockedAt: now,
+      revealedAt: now,
+      serverReceivedAt: now,
+    });
+    pendingSelectMeta.current = null;
+  };
+
   const handleRoundLogic = () => {
     const { myHand, opponentHand, attacker } = gameState;
     if (!myHand || !opponentHand) return;
@@ -410,6 +566,7 @@ export function GamePlayPage() {
       const rpsWinner = getRpsWinner(myHand, opponentHand);
       if (rpsWinner === null) {
         audioManager.playSFX('game_void');
+        appendRoundLog('DRAW_RPS', null, null);
         updateState({ 
           phase: 'ATTACK_DECISION', 
           myHand: null, 
@@ -433,6 +590,7 @@ export function GamePlayPage() {
         }
         
         updateDealer('ask_select', message, true);
+        appendRoundLog('ATTACK_GAIN', null, rpsWinner);
 
         updateState({ 
           attacker: rpsWinner,
@@ -449,6 +607,7 @@ export function GamePlayPage() {
     if (myHand === opponentHand) {
       if (attacker === 'ME') {
         audioManager.playSFX('round_win');
+        appendRoundLog('POINT_ME', attacker, attacker);
         updateState({
           myScore: gameState.myScore + 1,
           phase: 'ROUND_RESULT',
@@ -458,6 +617,7 @@ export function GamePlayPage() {
         updateDealer('congrats', '라운드 승리!', true);
       } else {
         audioManager.playSFX('round_lose');
+        appendRoundLog('POINT_OPPONENT', attacker, attacker);
         updateState({
           opponentScore: gameState.opponentScore + 1,
           phase: 'ROUND_RESULT',
@@ -475,6 +635,7 @@ export function GamePlayPage() {
         audioManager.playSFX('attack_move', { pan: 1 });
         updateDealer('ask_select', '공격권이 상대에게 넘어갑니다.', true);
       }
+      appendRoundLog('ATTACK_CHANGE', attacker, rpsWinner);
       updateState({
         attacker: rpsWinner,
         phase: 'ROUND_RESULT',
@@ -553,21 +714,24 @@ export function GamePlayPage() {
         </div>
       )}
       
+      <ReconnectOverlay
+        status={connStatus}
+        onRetry={() => void socketRef.current.connect(id || 'demo-session')}
+      />
+
       {/* Top Bar */}
       <header className="relative z-20 flex justify-between items-start p-4 w-full">
         <div className="flex gap-2">
           <button onClick={() => setShowExitModal(true)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
             <LogOut className="w-5 h-5 -ml-1" />
           </button>
-          <button onClick={() => setShowBeginnerHelp(true)} className="w-10 h-10 rounded-full bg-arena-gold/20 border border-arena-gold/30 flex items-center justify-center text-arena-gold hover:bg-arena-gold/30 transition-colors shadow-[0_0_10px_rgba(245,158,11,0.2)]">
-            <span className="font-black text-lg">?</span>
-          </button>
           <button onClick={toggleMute} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
             {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </button>
         </div>
         
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center gap-1">
+          <ConnectionBadge status={connStatus} />
           <button 
             onClick={() => { triggerHaptic('light'); setShowInfo(true); }}
             className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-full text-xs font-bold text-gray-400 hover:text-white transition-colors"
@@ -879,25 +1043,22 @@ export function GamePlayPage() {
               )}
               
               <div className="w-full space-y-3">
-                {gameState.winner === 'ME' ? (
-                  <>
-                    <PrimaryButton onClick={() => navigate('/match/tables')} className="w-full py-4 text-lg bg-arena-gold hover:bg-yellow-500 text-black border-none shadow-[0_0_20px_rgba(245,158,11,0.4)]">
-                      연승 도전 계속
-                    </PrimaryButton>
-                    <SecondaryButton onClick={() => navigate('/lobby')} className="w-full py-4">
-                      로비로 나가기
-                    </SecondaryButton>
-                  </>
-                ) : (
-                  <>
-                    <PrimaryButton onClick={() => navigate('/match/tables')} className="w-full py-4 text-lg">
-                      다시 하기
-                    </PrimaryButton>
-                    <button onClick={() => navigate('/lobby')} className="w-full py-4 text-gray-500 font-bold hover:text-white transition-colors">
-                      로비로 이동
-                    </button>
-                  </>
-                )}
+                <p className="text-xs text-gray-500 font-bold mb-2">결과 화면으로 이동 중…</p>
+                <PrimaryButton
+                  onClick={() =>
+                    navigate(`/game/${id || 'demo-session'}/result`, {
+                      replace: true,
+                      state: {
+                        winner: gameState.winner,
+                        myScore: gameState.myScore,
+                        opponentScore: gameState.opponentScore,
+                      },
+                    })
+                  }
+                  className="w-full py-4 text-lg"
+                >
+                  결과 바로 보기
+                </PrimaryButton>
               </div>
             </motion.div>
           </motion.div>
@@ -928,10 +1089,31 @@ export function GamePlayPage() {
                   <span>게임 ID</span>
                   <span className="font-mono text-gray-300">{id || 'demo-1234'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>네트워크</span>
-                  <span className="text-arena-success">Ping 24ms (안정)</span>
+                <div className="flex justify-between items-center">
+                  <span>연결 상태</span>
+                  <ConnectionBadge status={connStatus} />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('medium');
+                    socketRef.current.simulateDisconnect?.();
+                    setShowInfo(false);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-gray-300 hover:text-white"
+                >
+                  연결 끊김 시뮬레이션 (Mock)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBeginnerHelp(true);
+                    setShowInfo(false);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-arena-gold/10 border border-arena-gold/30 text-xs font-bold text-arena-gold"
+                >
+                  초보자 도움말
+                </button>
                 <div className="h-px bg-gray-800 my-2" />
                 <div className="flex justify-between">
                   <span>참가 포인트</span>
