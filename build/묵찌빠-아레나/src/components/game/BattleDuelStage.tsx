@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogOut, Volume2, VolumeX, Info, Lock, Keyboard } from 'lucide-react';
+import { LogOut, Volume2, VolumeX, Info, Keyboard } from 'lucide-react';
 import { HOSTESS, hostessForHand } from '@/data/hostessAssets';
 import { ConnectionBadge } from '@/components/game/ReconnectOverlay';
 import type { ConnectionStatus } from '@/realtime/types';
@@ -72,12 +72,14 @@ function Fighter({
   shake,
   highlight,
   idle = true,
+  compact = false,
 }: {
   src: string;
   flip?: boolean;
   shake?: boolean;
   highlight?: 'gold' | 'red' | null;
   idle?: boolean;
+  compact?: boolean;
 }) {
   const reduceMotion = gameSettings.options.performanceMode === 'low';
   return (
@@ -96,7 +98,11 @@ function Fighter({
             ? { duration: 2.8, repeat: Infinity, ease: 'easeInOut' }
             : { duration: 0.2 }
       }
-      className={`relative w-[38%] max-w-[160px] md:max-w-[200px] aspect-[3/4] ${
+      className={`relative ${
+        compact
+          ? 'w-[22%] max-w-[88px] md:max-w-[110px] aspect-[3/4] opacity-80'
+          : 'w-[38%] max-w-[160px] md:max-w-[200px] aspect-[3/4]'
+      } ${
         highlight === 'gold'
           ? 'drop-shadow-[0_0_18px_rgba(245,158,11,0.7)]'
           : highlight === 'red'
@@ -104,6 +110,15 @@ function Fighter({
             : ''
       }`}
     >
+      {highlight && (
+        <motion.div
+          className={`absolute -inset-2 rounded-[2.2rem] pointer-events-none ${
+            highlight === 'gold' ? 'bg-arena-gold/25' : 'bg-rose-500/25'
+          } blur-md`}
+          animate={{ opacity: [0.35, 0.85, 0.35] }}
+          transition={{ duration: 1.1, repeat: Infinity }}
+        />
+      )}
       <div className="absolute inset-0 rounded-[2rem] overflow-hidden border-[3px] border-black bg-gradient-to-b from-[#1a1420] to-[#0a0c12] shadow-[4px_6px_0_#000]">
         <img
           src={src}
@@ -113,7 +128,199 @@ function Fighter({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
       </div>
+      {highlight === 'gold' && (
+        <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-black bg-arena-gold text-black px-1.5 py-0.5 rounded-full border border-black whitespace-nowrap">
+          공격!
+        </span>
+      )}
+      {highlight === 'red' && (
+        <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded-full border border-black whitespace-nowrap">
+          공격!
+        </span>
+      )}
     </motion.div>
+  );
+}
+
+/** 중앙 초대형 손 — 대기/? / 선택 / 공개 충돌 */
+function StageHandDuel({
+  myHand,
+  opponentHand,
+  phase,
+  isSpinning,
+  canPickNow,
+  timeLeft,
+  flyHand,
+}: {
+  myHand: Hand | null;
+  opponentHand: Hand | null;
+  phase: GamePhase;
+  isSpinning: boolean;
+  canPickNow: boolean;
+  timeLeft: number;
+  flyHand: Hand | null;
+}) {
+  const reduceMotion = gameSettings.options.performanceMode === 'low';
+  const reveal = phase === 'REVEAL' || phase === 'ROUND_RESULT';
+  const showOpp = reveal && !!opponentHand;
+  const myDisplay: Hand | '?' | 'lock' = myHand ?? (flyHand ? flyHand : '?');
+  const oppDisplay: Hand | '?' | 'lock' =
+    showOpp && opponentHand
+      ? opponentHand
+      : phase === 'WAITING_OPPONENT' || (opponentHand && !reveal)
+        ? 'lock'
+        : '?';
+
+  const clash = reveal && !!myHand && !!opponentHand;
+  const timerPct = Math.max(0, Math.min(1, timeLeft / 5));
+  const ringColor = timeLeft <= 3 ? '#ef4444' : '#f59e0b';
+
+  const handMotion = (hand: Hand, side: 'me' | 'opp') => {
+    if (reduceMotion) return {};
+    if (clash) {
+      if (hand === 'ROCK') {
+        return side === 'me'
+          ? { scale: [0.6, 1.35, 1.1], y: [40, -8, 0], rotate: [-20, 8, 0] }
+          : { scale: [0.6, 1.35, 1.1], y: [40, -8, 0], rotate: [20, -8, 0] };
+      }
+      if (hand === 'SCISSORS') {
+        return side === 'me'
+          ? { scale: [0.5, 1.4, 1.1], x: [30, -10, 0], rotate: [-40, 15, -5] }
+          : { scale: [0.5, 1.4, 1.1], x: [-30, 10, 0], rotate: [40, -15, 5] };
+      }
+      return side === 'me'
+        ? { scale: [0.4, 1.45, 1.15], rotate: [-30, 0] }
+        : { scale: [0.4, 1.45, 1.15], rotate: [30, 0] };
+    }
+    if (side === 'me' && flyHand && myHand === flyHand) {
+      return { scale: [0.3, 1.25, 1], y: [80, -10, 0], opacity: [0, 1, 1] };
+    }
+    return canPickNow && !myHand
+      ? { y: [0, -6, 0], scale: [1, 1.03, 1] }
+      : { scale: 1 };
+  };
+
+  return (
+    <div className="relative w-full max-w-xl mx-auto flex items-center justify-center gap-2 md:gap-6 px-2 min-h-[140px] md:min-h-[180px]">
+      {/* Countdown ring behind hands when picking */}
+      {canPickNow && (
+        <svg className="absolute w-36 h-36 md:w-44 md:h-44 -z-0 opacity-90" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+          <motion.circle
+            cx="50"
+            cy="50"
+            r="44"
+            fill="none"
+            stroke={ringColor}
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray={2 * Math.PI * 44}
+            animate={{ strokeDashoffset: 2 * Math.PI * 44 * (1 - timerPct) }}
+            transition={{ duration: 0.35 }}
+            transform="rotate(-90 50 50)"
+            style={{ filter: `drop-shadow(0 0 8px ${ringColor})` }}
+          />
+        </svg>
+      )}
+
+      {/* Clash flash */}
+      <AnimatePresence>
+        {clash && isSpinning === false && phase === 'REVEAL' && (
+          <motion.div
+            key="clash-flash"
+            className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: [0, 1, 0], scale: [0.5, 1.4, 1.8] }}
+            transition={{ duration: 0.45 }}
+          >
+            <span className="text-5xl md:text-7xl font-black text-white" style={{ textShadow: '0 0 30px #fff' }}>
+              💥
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* My giant hand */}
+      <motion.div
+        key={`my-${String(myDisplay)}-${phase}`}
+        className="relative z-10 flex flex-col items-center"
+        initial={reduceMotion ? false : { scale: 0.7, opacity: 0.5 }}
+        animate={
+          typeof myDisplay === 'string' && myDisplay !== '?' && myDisplay !== 'lock'
+            ? handMotion(myDisplay, 'me')
+            : { scale: 1, opacity: 0.85, y: canPickNow ? [0, -4, 0] : 0 }
+        }
+        transition={
+          clash
+            ? { duration: 0.55, type: 'spring', bounce: 0.45 }
+            : flyHand
+              ? { duration: 0.45, type: 'spring', bounce: 0.5 }
+              : { duration: 2.2, repeat: canPickNow && !myHand ? Infinity : 0, ease: 'easeInOut' }
+        }
+      >
+        <span
+          className="text-[5.5rem] md:text-[7.5rem] leading-none select-none drop-shadow-[0_8px_0_rgba(0,0,0,0.85)]"
+          style={{
+            filter:
+              myHand
+                ? 'drop-shadow(0 0 24px rgba(56,189,248,0.55))'
+                : 'drop-shadow(0 0 12px rgba(255,255,255,0.15))',
+          }}
+        >
+          {myDisplay === '?' ? '❔' : myDisplay === 'lock' ? '🔒' : HAND_EMOJI[myDisplay]}
+        </span>
+        {myHand && (
+          <span className="mt-1 text-xs md:text-sm font-black text-sky-300 drop-shadow-[0_1px_0_#000]">
+            {HAND_KO[myHand]}
+          </span>
+        )}
+      </motion.div>
+
+      <motion.div
+        className="relative z-10 font-display text-xl md:text-2xl font-black text-white/40 px-1"
+        animate={clash && !reduceMotion ? { scale: [1, 1.6, 1], opacity: [0.4, 1, 0.5] } : {}}
+        transition={{ duration: 0.4 }}
+      >
+        VS
+      </motion.div>
+
+      {/* Opponent giant hand */}
+      <motion.div
+        key={`opp-${String(oppDisplay)}-${phase}`}
+        className="relative z-10 flex flex-col items-center"
+        initial={reduceMotion ? false : { scale: 0.7, opacity: 0.5 }}
+        animate={
+          typeof oppDisplay === 'string' && oppDisplay !== '?' && oppDisplay !== 'lock'
+            ? handMotion(oppDisplay, 'opp')
+            : isSpinning && !reduceMotion
+              ? { rotate: [0, 8, -8, 0], scale: [1, 1.05, 1] }
+              : { scale: 1, opacity: 0.85 }
+        }
+        transition={
+          clash
+            ? { delay: 0.18, duration: 0.55, type: 'spring', bounce: 0.45 }
+            : isSpinning
+              ? { duration: 0.35, repeat: Infinity }
+              : { duration: 0.4 }
+        }
+      >
+        <span
+          className="text-[5.5rem] md:text-[7.5rem] leading-none select-none drop-shadow-[0_8px_0_rgba(0,0,0,0.85)]"
+          style={{
+            filter: showOpp
+              ? 'drop-shadow(0 0 24px rgba(244,63,94,0.5))'
+              : 'drop-shadow(0 0 12px rgba(255,255,255,0.15))',
+          }}
+        >
+          {oppDisplay === '?' ? '❔' : oppDisplay === 'lock' ? '🔒' : HAND_EMOJI[oppDisplay]}
+        </span>
+        {showOpp && opponentHand && (
+          <span className="mt-1 text-xs md:text-sm font-black text-rose-300 drop-shadow-[0_1px_0_#000]">
+            {HAND_KO[opponentHand]}
+          </span>
+        )}
+      </motion.div>
+    </div>
   );
 }
 
@@ -189,12 +396,23 @@ export function BattleDuelStage({
   );
   // 물리 키보드(=PC) 환경에서만 단축키 가이드를 노출
   const [hasKeyboard, setHasKeyboard] = useState(false);
+  const [flyHand, setFlyHand] = useState<Hand | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const fine = window.matchMedia?.('(pointer: fine)').matches;
     setHasKeyboard(!!fine);
   }, []);
+
+  useEffect(() => {
+    if (!myHand) {
+      setFlyHand(null);
+      return;
+    }
+    setFlyHand(myHand);
+    const t = window.setTimeout(() => setFlyHand(null), 500);
+    return () => clearTimeout(t);
+  }, [myHand]);
 
   const toggleKeyGuide = () => {
     setShowKeyGuide((prev) => {
@@ -215,15 +433,6 @@ export function BattleDuelStage({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const centerHand: Hand | null =
-    phase === 'REVEAL' || phase === 'ROUND_RESULT'
-      ? myHand
-      : myHand && phase === 'WAITING_OPPONENT'
-        ? myHand
-        : isSpinning
-          ? recommendHand
-          : null;
-
   const resultBanner =
     roundMessage.includes('이겼') || roundMessage === 'WIN'
       ? 'YOU WIN!'
@@ -233,8 +442,8 @@ export function BattleDuelStage({
           ? 'DRAW'
           : null;
 
-  const showLock = phase !== 'REVEAL' && phase !== 'ROUND_RESULT' && phase !== 'GAME_OVER' && !!opponentHand;
   const theme = getTierTheme(tier);
+  const stageZoom = phase === 'REVEAL' && !gameSettings.options.reduceAnimations;
 
   return (
     <div className="relative z-10 flex-1 flex flex-col min-h-0 overflow-hidden select-none">
@@ -385,75 +594,62 @@ export function BattleDuelStage({
         </span>
       </div>
 
-      {/* Stage */}
-      <div className="relative flex-1 flex flex-col items-center justify-end pb-2 min-h-0">
-        <div className="absolute top-[8%] inset-x-0 text-center px-4 z-20">
+      {/* Stage — 중앙 초대형 손이 주인공, 파이터는 측면 윙 */}
+      <motion.div
+        className="relative flex-1 flex flex-col items-center justify-center min-h-0 px-2"
+        animate={stageZoom ? { scale: [1, 1.06, 1] } : { scale: 1 }}
+        transition={{ duration: 0.45 }}
+      >
+        <div className="absolute top-1 inset-x-0 text-center px-4 z-20 pointer-events-none">
           <p className="text-sm md:text-base font-black text-white/90 drop-shadow-[0_2px_0_#000]">
             {actionText}
           </p>
           {attacker && (
-            <p className="text-[11px] font-bold text-amber-300 mt-1">
+            <p className="text-[11px] font-bold text-amber-300 mt-0.5">
               {attacker === 'ME' ? '내 공격권' : '상대 공격권'}
             </p>
           )}
-          {habitHint && canPickNow && (
-            <p className="mt-2 inline-flex max-w-[90%] mx-auto text-[10px] md:text-[11px] font-bold text-arena-cyan/95 bg-black/55 border border-arena-cyan/25 rounded-full px-3 py-1">
-              힌트 · {habitHint}
-            </p>
-          )}
         </div>
+
+        {habitHint && canPickNow && (
+          <p className="absolute top-12 right-3 z-20 max-w-[42%] text-[10px] font-bold text-arena-cyan/95 bg-black/55 border border-arena-cyan/25 rounded-full px-2.5 py-1 pointer-events-none">
+            힌트 · {habitHint}
+          </p>
+        )}
 
         <FloatingEmotesLayer emotes={floatingEmotes} />
 
-        {/* Big move glyph */}
-        <div className="absolute top-[22%] left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-          <AnimatePresence mode="wait">
-            {resultBanner ? (
-              <motion.div
-                key={resultBanner}
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ delay: 0.4, type: 'spring', bounce: 0.45 }}
-                className={`font-display text-4xl md:text-6xl font-black tracking-tight ${
-                  resultBanner.includes('WIN')
-                    ? 'text-lime-300'
-                    : resultBanner.includes('LOSE')
-                      ? 'text-red-400'
-                      : 'text-amber-300'
-                }`}
-                style={{
-                  WebkitTextStroke: '3px #000',
-                  textShadow: '0 4px 0 #000, 0 0 20px rgba(0,0,0,0.5)',
-                }}
-              >
-                {resultBanner}
-              </motion.div>
-            ) : centerHand ? (
-              <motion.div
-                key={centerHand}
-                initial={{ scale: 0.6, y: 20, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ opacity: 0, scale: 1.2 }}
-                className="text-6xl md:text-8xl font-black text-sky-300"
-                style={{
-                  WebkitTextStroke: '4px #0b1220',
-                  textShadow: '0 6px 0 #000, 0 0 24px rgba(56,189,248,0.45)',
-                }}
-              >
-                {HAND_KO[centerHand]}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
+        {/* Result banner overlay */}
+        <AnimatePresence>
+          {resultBanner && (
+            <motion.div
+              key={resultBanner}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ delay: 0.35, type: 'spring', bounce: 0.45 }}
+              className={`absolute top-[12%] z-40 font-display text-4xl md:text-6xl font-black tracking-tight pointer-events-none ${
+                resultBanner.includes('WIN')
+                  ? 'text-lime-300'
+                  : resultBanner.includes('LOSE')
+                    ? 'text-red-400'
+                    : 'text-amber-300'
+              }`}
+              style={{
+                WebkitTextStroke: '3px #000',
+                textShadow: '0 4px 0 #000, 0 0 20px rgba(0,0,0,0.5)',
+              }}
+            >
+              {resultBanner}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        <div
-          className={`relative z-10 w-full max-w-lg flex items-end justify-center gap-3 md:gap-8 px-4 ${
-            tableShake ? '' : ''
-          }`}
-        >
-          <div className="relative">
+        {/* Side fighters (compact) + center giant hands */}
+        <div className="relative w-full max-w-2xl flex items-center justify-between gap-1 md:gap-2 mt-6 md:mt-8">
+          <div className="relative shrink-0">
             <Fighter
+              compact
               src={myHand ? hostessForHand(myHand) : HOSTESS.play}
               shake={tableShake && phase === 'ROUND_RESULT' && roundMessage.includes('아쉬')}
               highlight={attacker === 'ME' ? 'gold' : null}
@@ -463,16 +659,21 @@ export function BattleDuelStage({
             </AnimatePresence>
           </div>
 
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-[42%] z-20">
-            {showLock && (
-              <div className="w-12 h-12 rounded-xl bg-black/70 border-2 border-white/30 flex items-center justify-center">
-                <Lock className="w-6 h-6 text-white/70" />
-              </div>
-            )}
+          <div className="flex-1 min-w-0">
+            <StageHandDuel
+              myHand={myHand}
+              opponentHand={opponentHand}
+              phase={phase}
+              isSpinning={isSpinning}
+              canPickNow={canPickNow}
+              timeLeft={timeLeft}
+              flyHand={flyHand}
+            />
           </div>
 
-          <div className="relative">
+          <div className="relative shrink-0">
             <Fighter
+              compact
               src={
                 phase === 'REVEAL' || phase === 'ROUND_RESULT'
                   ? opponentHand
@@ -491,33 +692,7 @@ export function BattleDuelStage({
             </AnimatePresence>
           </div>
         </div>
-
-        {/* Hand reveal chips under fighters — 내 손 먼저, 상대 손은 한 박자 늦게 공개 */}
-        <div className="relative z-20 w-full max-w-lg flex justify-between px-10 md:px-16 -mt-2 mb-2">
-          <div className="text-3xl drop-shadow">{myHand ? HAND_EMOJI[myHand] : '❔'}</div>
-          <div className="text-3xl drop-shadow">
-            {phase === 'REVEAL' || phase === 'ROUND_RESULT' ? (
-              opponentHand ? (
-                <motion.span
-                  key={`opp-${opponentHand}-${phase === 'REVEAL' ? 'r' : 'rr'}`}
-                  initial={phase === 'REVEAL' ? { opacity: 0, scale: 0.4, rotate: -12 } : false}
-                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                  transition={{ delay: 0.22, type: 'spring', bounce: 0.5 }}
-                  className="inline-block"
-                >
-                  {HAND_EMOJI[opponentHand]}
-                </motion.span>
-              ) : (
-                '❔'
-              )
-            ) : showLock ? (
-              '🔒'
-            ) : (
-              '❔'
-            )}
-          </div>
-        </div>
-      </div>
+      </motion.div>
 
       {/* Controls — arcade style */}
       <div className="relative z-30 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
@@ -531,51 +706,52 @@ export function BattleDuelStage({
             const selected = myHand === hand;
             const recommend = canPickNow && hand === recommendHand;
             const reduceMotion = gameSettings.options.performanceMode === 'low';
+            const dimmed = !!myHand && !selected;
             return (
               <motion.button
                 key={hand}
                 type="button"
                 disabled={!canPickNow}
                 onClick={() => onSelectHand(hand)}
-                whileTap={canPickNow && !reduceMotion ? { scale: 0.94, y: 2 } : undefined}
+                whileTap={canPickNow && !reduceMotion ? { scale: 0.92, y: 4 } : undefined}
                 animate={
                   !reduceMotion && canPickNow
                     ? selected
-                      ? { scale: [1, 1.04, 1], y: [0, -2, 0] }
+                      ? { scale: [1, 1.05, 1], y: [0, -4, 0] }
                       : recommend
-                        ? { scale: [1, 1.03, 1] }
+                        ? { scale: [1, 1.04, 1] }
                         : { y: [0, -2, 0] }
-                    : undefined
+                    : dimmed
+                      ? { opacity: 0.4, scale: 0.96 }
+                      : undefined
                 }
                 transition={
                   selected || recommend
-                    ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' }
-                    : { duration: 2.6, repeat: Infinity, ease: 'easeInOut', delay: hand === 'SCISSORS' ? 0.2 : hand === 'PAPER' ? 0.4 : 0 }
+                    ? { duration: 0.85, repeat: Infinity, ease: 'easeInOut' }
+                    : { duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: hand === 'SCISSORS' ? 0.15 : hand === 'PAPER' ? 0.3 : 0 }
                 }
-                className={`relative rounded-2xl border-[3px] border-black px-2 py-3 md:py-4 flex flex-col items-center gap-1 shadow-[3px_4px_0_#000] transition-colors overflow-hidden ${
-                  !canPickNow
-                    ? 'bg-slate-700/80 opacity-50'
+                className={`relative rounded-2xl border-[3px] border-black min-h-[7.5rem] md:min-h-[8.5rem] px-1.5 pt-2 pb-2 flex flex-col items-center justify-end shadow-[3px_4px_0_#000] transition-colors overflow-hidden ${
+                  !canPickNow && !selected
+                    ? 'bg-slate-700/80 opacity-45'
                     : selected
-                      ? 'bg-sky-400'
+                      ? 'bg-sky-400 ring-2 ring-white'
                       : recommend
                         ? 'bg-amber-400 ring-2 ring-white'
                         : 'bg-red-500 hover:bg-red-400'
                 }`}
               >
-                {/* 1) Hostess idle breath */}
-                <motion.img
+                {/* Hostess — bottom silhouette only */}
+                <img
                   src={hostessForHand(hand)}
                   alt=""
-                  className="absolute inset-0 w-full h-full object-cover object-[center_12%] pointer-events-none"
-                  animate={
-                    !reduceMotion && canPickNow
-                      ? { scale: [1.05, 1.1, 1.05], opacity: selected ? [0.45, 0.55, 0.45] : [0.32, 0.4, 0.32] }
-                      : { opacity: canPickNow ? 0.35 : 0.15 }
-                  }
-                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                  className="absolute inset-x-0 bottom-0 h-[42%] w-full object-cover object-top pointer-events-none opacity-40"
+                  style={{
+                    maskImage: 'linear-gradient(to top, black 20%, transparent 100%)',
+                    WebkitMaskImage: 'linear-gradient(to top, black 20%, transparent 100%)',
+                  }}
                   draggable={false}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
                 {recommend && !reduceMotion && (
                   <motion.span
                     className="absolute inset-0 rounded-[0.9rem] ring-2 ring-white/80 pointer-events-none"
@@ -583,32 +759,41 @@ export function BattleDuelStage({
                     transition={{ duration: 1.1, repeat: Infinity }}
                   />
                 )}
-                <span className="relative z-10 text-[10px] font-black bg-black/50 text-white px-1.5 py-0.5 rounded">
+                <span className="absolute top-1.5 left-1.5 z-10 text-[10px] font-black bg-black/55 text-white px-1.5 py-0.5 rounded">
                   {KEY_HINT[hand]}
                 </span>
-                {/* 2) Hand emoji pop / 3) recommend shake */}
+                {selected && (
+                  <motion.span
+                    initial={{ scale: 1.6, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="absolute top-1.5 right-1.5 z-20 text-[9px] font-black bg-black text-sky-300 px-1.5 py-0.5 rounded border border-sky-300/50"
+                  >
+                    LOCK
+                  </motion.span>
+                )}
+                {/* Giant hand — card hero */}
                 <motion.span
                   key={`${hand}-${selected ? 'on' : 'off'}-${recommend ? 'rec' : ''}`}
-                  initial={reduceMotion ? false : { scale: 0.55, opacity: 0.4 }}
+                  initial={reduceMotion ? false : { scale: 0.5, y: 16, opacity: 0.4 }}
                   animate={
                     reduceMotion
                       ? { scale: 1 }
                       : selected
-                        ? { scale: [1, 1.18, 1], rotate: [0, -6, 6, 0] }
+                        ? { scale: [1, 1.14, 1], rotate: [0, -8, 8, 0], y: [0, -6, 0] }
                         : recommend
-                          ? { scale: [1, 1.12, 1], rotate: [0, -8, 8, 0] }
-                          : { scale: 1, rotate: 0, opacity: 1 }
+                          ? { scale: [1, 1.1, 1], rotate: [0, -10, 10, 0] }
+                          : { scale: 1, rotate: 0, opacity: 1, y: 0 }
                   }
                   transition={
                     selected || recommend
-                      ? { duration: 0.85, repeat: Infinity, ease: 'easeInOut' }
-                      : { type: 'spring', bounce: 0.55, duration: 0.45 }
+                      ? { duration: 0.8, repeat: Infinity, ease: 'easeInOut' }
+                      : { type: 'spring', bounce: 0.55, duration: 0.4 }
                   }
-                  className="relative z-10 text-2xl md:text-3xl drop-shadow"
+                  className="relative z-10 text-5xl md:text-6xl leading-none drop-shadow-[0_4px_0_rgba(0,0,0,0.75)]"
                 >
                   {HAND_EMOJI[hand]}
                 </motion.span>
-                <span className="relative z-10 text-sm md:text-base font-black text-white drop-shadow-[0_1px_0_#000]">
+                <span className="relative z-10 text-sm md:text-base font-black text-white drop-shadow-[0_1px_0_#000] mt-0.5">
                   {HAND_KO[hand]}
                 </span>
               </motion.button>

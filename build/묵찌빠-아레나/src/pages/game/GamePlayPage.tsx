@@ -1154,7 +1154,8 @@ export function GamePlayPage() {
                  animate={{ y: 0, opacity: 1 }}
                  exit={{ y: isSpinning ? 120 : 0, opacity: isSpinning ? 0.3 : 0 }}
                  transition={{ duration: isSpinning ? 0.08 : 0.2 }}
-                 className={`text-7xl z-10 relative ${showImpact ? 'scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]' : ''} transition-all`}
+                 className={`text-8xl md:text-9xl z-10 relative leading-none ${showImpact ? 'scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]' : ''} transition-all`}
+                 style={{ filter: showImpact ? undefined : 'drop-shadow(0 6px 0 rgba(0,0,0,0.6))' }}
                >
                  {myHandEmojis[isSpinning ? myReelIcon : (gameState.myHand || myReelIcon)]}
                </motion.div>
@@ -1194,7 +1195,7 @@ export function GamePlayPage() {
                    animate={{ y: 0, opacity: 1 }}
                    exit={{ y: isSpinning ? 120 : 0, opacity: isSpinning ? 0.3 : 0 }}
                    transition={{ duration: isSpinning ? 0.08 : 0.2 }}
-                   className={`text-7xl z-10 relative ${showImpact ? 'scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]' : ''} transition-all`}
+                   className={`text-8xl md:text-9xl z-10 relative leading-none ${showImpact ? 'scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]' : ''} transition-all`}
                  >
                    {opponentHandEmojis[isSpinning ? opponentReelIcon : (gameState.opponentHand as Hand)]}
                  </motion.div>
@@ -1210,7 +1211,7 @@ export function GamePlayPage() {
                    animate={{ y: 0, opacity: 1 }}
                    exit={{ y: 120, opacity: 0 }}
                    transition={{ duration: 0.1 }}
-                   className="text-7xl opacity-40 z-10 relative blur-[2px]"
+                   className="text-8xl opacity-40 z-10 relative blur-[2px] leading-none"
                  >
                    {opponentHandEmojis[opponentReelIcon]}
                  </motion.div>
@@ -1337,7 +1338,7 @@ export function GamePlayPage() {
                       ? { duration: 0.85, repeat: Infinity, ease: 'easeInOut' }
                       : { type: 'spring', bounce: 0.55, duration: 0.45 }
                   }
-                  className={`relative z-10 text-4xl drop-shadow-lg mb-1 ${!canSelect && !isSelected ? 'opacity-40' : ''}`}
+                  className={`relative z-10 text-5xl md:text-6xl drop-shadow-lg mb-1 leading-none ${!canSelect && !isSelected ? 'opacity-40' : ''}`}
                 >
                   {myHandEmojis[hand]}
                 </motion.span>
