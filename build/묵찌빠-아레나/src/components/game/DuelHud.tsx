@@ -1,4 +1,4 @@
-import { LogOut, Volume2, VolumeX, Info, Keyboard } from 'lucide-react';
+import { LogOut, Volume2, VolumeX, Info, Keyboard, Settings } from 'lucide-react';
 import { ConnectionBadge } from '@/components/game/ReconnectOverlay';
 import type { ConnectionStatus } from '@/realtime/types';
 import { getTierTheme } from '@/utils/tierTheme';
@@ -47,6 +47,7 @@ export function DuelHud({
   onExit,
   onToggleMute,
   onInfo,
+  onSettings,
   onToggleLayout,
   toggleKeyGuide,
 }: {
@@ -68,6 +69,7 @@ export function DuelHud({
   onExit: () => void;
   onToggleMute: () => void;
   onInfo: () => void;
+  onSettings?: () => void;
   onToggleLayout: () => void;
   toggleKeyGuide: () => void;
 }) {
@@ -174,6 +176,16 @@ export function DuelHud({
           >
             <Info className="w-4 h-4" />
           </button>
+          {onSettings && (
+            <button
+              type="button"
+              onClick={onSettings}
+              title="게임 설정"
+              className="w-9 h-9 rounded-lg bg-black/50 border-2 border-white/20 flex items-center justify-center text-white/80"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onToggleLayout}

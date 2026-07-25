@@ -982,6 +982,7 @@ export function GamePlayPage() {
           onExit={() => setShowExitModal(true)}
           onToggleMute={toggleMute}
           onInfo={() => { triggerHaptic('light'); setShowInfo(true); }}
+          onSettings={() => { triggerHaptic('light'); navigate('/settings'); }}
           onSelectHand={(hand) => handleHandSelect(hand)}
           onToggleLayout={toggleBattleLayout}
           onSendEmote={handleSendReaction}

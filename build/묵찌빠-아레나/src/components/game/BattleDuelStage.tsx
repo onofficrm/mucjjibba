@@ -413,6 +413,7 @@ export function BattleDuelStage({
   onExit,
   onToggleMute,
   onInfo,
+  onSettings,
   onSelectHand,
   onToggleLayout,
   onSendEmote,
@@ -451,6 +452,7 @@ export function BattleDuelStage({
   onExit: () => void;
   onToggleMute: () => void;
   onInfo: () => void;
+  onSettings?: () => void;
   onSelectHand: (hand: Hand) => void;
   onToggleLayout: () => void;
   onSendEmote?: (id: ReactionType) => void;
@@ -600,6 +602,7 @@ export function BattleDuelStage({
         onExit={onExit}
         onToggleMute={onToggleMute}
         onInfo={onInfo}
+        onSettings={onSettings}
         onToggleLayout={onToggleLayout}
         toggleKeyGuide={toggleKeyGuide}
       />

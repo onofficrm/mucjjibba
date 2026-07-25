@@ -50,6 +50,32 @@ function clearTimers(job: InternalJob) {
   job.timers = [];
 }
 
+function isJobAlive(job: InternalJob | null): boolean {
+  return !!(job && !job.cancelled);
+}
+
+/** 완료·이탈 후 남은 잡이 다음 매칭을 막는 경우 정리 */
+function clearStaleJob() {
+  if (!activeJob) return;
+  if (activeJob.cancelled) {
+    activeJob = null;
+    return;
+  }
+  const session = loadMatchSession();
+  // 세션 없음 / 이미 준비·실패·취소 → 더 이상 매칭 중이 아님
+  if (
+    !session ||
+    session.status === 'ready' ||
+    session.status === 'failed' ||
+    session.status === 'cancelled' ||
+    session.settled
+  ) {
+    clearTimers(activeJob);
+    activeJob.cancelled = true;
+    activeJob = null;
+  }
+}
+
 export const matchmakingService = {
   getSteps() {
     return MATCHING_STEPS;
@@ -59,8 +85,17 @@ export const matchmakingService = {
     return loadMatchSession();
   },
 
+  /** 실제로 검색 타이머가 돌고 있는지 */
+  isSearching() {
+    clearStaleJob();
+    return isJobAlive(activeJob);
+  },
+
   async joinQueue(table: MatchTable): Promise<{ ok: boolean; gameId?: string; error?: string }> {
-    if (activeJob && !activeJob.cancelled) {
+    clearStaleJob();
+
+    // 진짜로 검색 중일 때만 거부. 완료된 잡이 남아 있으면 위에서 이미 정리됨.
+    if (isJobAlive(activeJob)) {
       return { ok: false, error: '이미 매칭 중입니다.' };
     }
 
@@ -90,6 +125,7 @@ export const matchmakingService = {
     if (activeJob) {
       activeJob.cancelled = true;
       clearTimers(activeJob);
+      activeJob = null;
     }
 
     const job: InternalJob = { timers: [], cancelled: false, listener };
@@ -97,6 +133,14 @@ export const matchmakingService = {
 
     updateMatchSession({ status: 'searching', stepIndex: 0, opponent: null });
     listener({ status: 'searching', stepIndex: 0, opponent: null });
+
+    const finishJob = () => {
+      if (activeJob === job) {
+        clearTimers(job);
+        job.cancelled = true;
+        activeJob = null;
+      }
+    };
 
     const schedule = (ms: number, fn: () => void) => {
       const id = window.setTimeout(() => {
@@ -136,6 +180,7 @@ export const matchmakingService = {
             opponent: null,
             error: '예치 중 포인트가 부족해졌습니다.',
           });
+          finishJob();
           return;
         }
         updateMatchSession({ deposited: true });
@@ -152,6 +197,8 @@ export const matchmakingService = {
     schedule(6200, () => {
       updateMatchSession({ status: 'ready', stepIndex: 5 });
       listener({ status: 'ready', stepIndex: 5, opponent: loadMatchSession()?.opponent ?? null });
+      // 매칭 성공 후 잡을 반드시 해제 — 다음 무료/유료 입장 차단 방지
+      finishJob();
     });
   },
 

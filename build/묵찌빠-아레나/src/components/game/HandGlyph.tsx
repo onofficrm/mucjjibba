@@ -3,14 +3,27 @@ import { useId, type CSSProperties } from 'react';
 export type GlyphHand = 'ROCK' | 'SCISSORS' | 'PAPER';
 export type GlyphTheme = 'classic' | 'gold' | 'neon' | 'fire' | 'ice' | 'comic' | string;
 
-const FALLBACK_EMOJI: Record<string, Record<GlyphHand, string>> = {
+/** 심플모드와 동일한 노란 손 이모지 */
+const YELLOW_EMOJI: Record<GlyphHand, string> = {
+  ROCK: '✊',
+  SCISSORS: '✌️',
+  PAPER: '🖐️',
+};
+
+const THEME_EMOJI: Record<string, Record<GlyphHand, string>> = {
+  classic: YELLOW_EMOJI,
+  gold: YELLOW_EMOJI,
+  neon: YELLOW_EMOJI,
+  fire: YELLOW_EMOJI,
+  ice: YELLOW_EMOJI,
+  comic: { ROCK: '🥊', SCISSORS: '✌️', PAPER: '🖐️' },
   robot: { ROCK: '🦾', SCISSORS: '🔧', PAPER: '⚙️' },
   dokkaebi: { ROCK: '✊', SCISSORS: '⚔️', PAPER: '🖐️' },
 };
 
-/** classic/gold = 노란 글러브 SVG. 특수 스킨만 테마 컬러. */
-const GLOVE_THEMES = new Set(['classic', 'gold']);
-const SPECIAL_SVG = new Set(['neon', 'fire', 'ice', 'comic']);
+/** 기본·골드·미지정 = 심플모드와 같은 이모지. 특수 스킨만 SVG. */
+const EMOJI_THEMES = new Set(['classic', 'gold']);
+const SVG_THEMES = new Set(['neon', 'fire', 'ice', 'comic']);
 
 function themePaint(theme: GlyphTheme, id: string) {
   switch (theme) {
@@ -42,20 +55,12 @@ function themePaint(theme: GlyphTheme, id: string) {
         edge: '#030712',
         glow: 'drop-shadow(0 5px 0 #000)',
       };
-    case 'gold':
+    default:
       return {
         fill: `url(#${id}-gold)`,
-        stroke: '#fde047',
-        edge: '#a16207',
-        glow: 'drop-shadow(0 4px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 10px rgba(250,204,21,0.4))',
-      };
-    default:
-      /* classic — 노란 글러브 */
-      return {
-        fill: `url(#${id}-yellow)`,
-        stroke: '#facc15',
-        edge: '#ca8a04',
-        glow: 'drop-shadow(0 4px 2px rgba(0,0,0,0.5)) drop-shadow(0 1px 0 rgba(255,255,255,0.35))',
+        stroke: '#fbbf24',
+        edge: '#92400e',
+        glow: 'drop-shadow(0 4px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 8px rgba(245,158,11,0.35))',
       };
   }
 }
@@ -87,12 +92,6 @@ function HandPaths({ hand }: { hand: GlyphHand }) {
 function Defs({ id }: { id: string }) {
   return (
     <defs>
-      <linearGradient id={`${id}-yellow`} x1="0" y1="0" x2="0.85" y2="1">
-        <stop offset="0%" stopColor="#fef9c3" />
-        <stop offset="35%" stopColor="#fde047" />
-        <stop offset="70%" stopColor="#facc15" />
-        <stop offset="100%" stopColor="#eab308" />
-      </linearGradient>
       <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="0.85" y2="1">
         <stop offset="0%" stopColor="#fef08a" />
         <stop offset="45%" stopColor="#fbbf24" />
@@ -132,7 +131,7 @@ export function resolveGlyphTheme(skinId?: string): GlyphTheme {
   return skinId;
 }
 
-/** 기본(classic/gold): 노란 글러브 SVG. 특수 스킨만 테마 컬러. */
+/** 기본은 심플모드와 같은 노란 이모지. 특수 스킨만 SVG. */
 export function HandGlyph({
   hand,
   theme = 'classic',
@@ -154,9 +153,9 @@ export function HandGlyph({
   const boost = Math.max(0, Math.min(comboBoost, 5));
   const scale = 1 + boost * 0.08;
 
-  // 알 수 없는 특수 스킨 → 이모지 폴백
-  if (!GLOVE_THEMES.has(t) && !SPECIAL_SVG.has(t) && FALLBACK_EMOJI[t]) {
-    const emoji = FALLBACK_EMOJI[t][hand];
+  // classic / gold / 미지정 스킨 → 심플모드와 동일 이모지
+  if (EMOJI_THEMES.has(t) || !SVG_THEMES.has(t)) {
+    const emoji = THEME_EMOJI[t]?.[hand] ?? YELLOW_EMOJI[hand];
     const { transform: styleTransform, filter: _f, ...restStyle } = style ?? {};
     return (
       <span
@@ -164,7 +163,10 @@ export function HandGlyph({
         style={{
           fontSize: size * 0.92,
           transform: [styleTransform, `scale(${scale})`].filter(Boolean).join(' '),
-          filter: 'drop-shadow(0 3px 0 rgba(0,0,0,0.45))',
+          filter:
+            boost >= 2
+              ? 'drop-shadow(0 3px 0 rgba(0,0,0,0.55)) drop-shadow(0 0 14px rgba(251,191,36,0.65))'
+              : 'drop-shadow(0 3px 0 rgba(0,0,0,0.45)) drop-shadow(0 1px 0 rgba(255,255,255,0.25))',
           ...restStyle,
         }}
         aria-hidden
@@ -174,7 +176,7 @@ export function HandGlyph({
     );
   }
 
-  const paint = themePaint(GLOVE_THEMES.has(t) || SPECIAL_SVG.has(t) ? t : 'classic', id);
+  const paint = themePaint(t, id);
   return (
     <span
       className={`inline-flex items-center justify-center leading-none select-none ${className}`}
