@@ -4,9 +4,11 @@ import { Home, Gamepad2, Trophy, User, MoreVertical, Menu, X, Swords, Zap, Users
 import { motion, AnimatePresence } from 'motion/react';
 import { triggerHaptic } from '@/utils/haptics';
 import { HostessAvatar } from '@/components/casino/HostessAvatar';
-import { hostessByIndex } from '@/data/hostessAssets';
+import { HOSTESS, hostessByIndex } from '@/data/hostessAssets';
 import { GameSelectCard } from '@/components/casino/GameSelectCard';
 import { useDemoWallet } from '@/hooks/useDemoWallet';
+import { DEMO_USER } from '@/data/demoData';
+import { SidebarAnchor } from '@/components/layouts/SidebarAnchor';
 
 const navItems = [
   { name: '로비', path: '/lobby', icon: Home },
@@ -104,26 +106,68 @@ export function Layout() {
 
   return (
     <div className="flex h-screen bg-arena-bg text-arena-text overflow-hidden font-sans">
-      {/* Desktop sidebar — PC(lg+)에서는 라벨 상시 표시 */}
+      {/* Desktop sidebar — 무대 사이드윙 + 하단 앵커 */}
       <aside
-        className={`hidden md:flex flex-col bg-arena-card border-r border-white/5 z-30 shadow-xl transition-all duration-300 ${
+        className={`hidden md:flex flex-col relative z-30 overflow-hidden transition-all duration-300 ${
           isSidebarExpanded ? 'w-64' : 'w-20 lg:w-56'
         }`}
         onMouseEnter={() => setIsSidebarExpanded(true)}
         onMouseLeave={() => setIsSidebarExpanded(false)}
       >
-        <div className="p-6 flex items-center justify-center h-20">
-          <Link
-            to="/lobby"
-            className="text-2xl font-black text-white tracking-tight flex items-center space-x-2 whitespace-nowrap overflow-hidden"
-          >
-            <span className="text-arena-gold shrink-0">✊</span>
-            <span className={`${isSidebarExpanded ? 'inline' : 'hidden lg:inline'} truncate`}>
-              묵찌빠 아레나
-            </span>
+        {/* Atmosphere */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#121826] via-[#0c111b] to-[#070a10]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.12)_0%,_transparent_55%)] pointer-events-none" />
+        <div className="absolute bottom-0 inset-x-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+        {/* Hostess wing — 하단 실루엣 */}
+        <img
+          src={HOSTESS.lobby}
+          alt=""
+          className="absolute -bottom-2 -right-4 h-[48%] w-auto max-w-none object-cover object-top opacity-[0.18] pointer-events-none select-none [mask-image:linear-gradient(to_top,black_20%,transparent_85%)]"
+          draggable={false}
+        />
+        {/* Gold hairline — 우측 엣지 */}
+        <div className="absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-arena-gold/50 via-arena-gold/20 to-transparent pointer-events-none" />
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-arena-gold/40 to-transparent pointer-events-none" />
+
+        {/* Brand monogram */}
+        <div className="relative z-10 px-4 pt-5 pb-3">
+          <Link to="/lobby" className="flex items-center gap-2.5 overflow-hidden group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-300/20 via-arena-gold/10 to-transparent border border-arena-gold/40 flex items-center justify-center shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] group-hover:border-arena-gold/70 transition-colors">
+              <span className="text-lg leading-none">✊</span>
+            </div>
+            <div className={`${isSidebarExpanded ? 'block' : 'hidden lg:block'} min-w-0`}>
+              <p className="font-display text-[10px] font-black text-arena-gold tracking-[0.28em] leading-none">
+                ARENA
+              </p>
+              <p className="text-sm font-black text-white tracking-tight truncate mt-1">묵찌빠 아레나</p>
+            </div>
           </Link>
         </div>
-        <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto mt-2">
+
+        {/* Mini profile */}
+        <div
+          className={`relative z-10 mx-3 mb-3 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-sm ${
+            isSidebarExpanded ? 'px-2.5 py-2' : 'p-2 lg:px-2.5 lg:py-2'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <HostessAvatar role="icon" size="sm" className="shrink-0" />
+            <div className={`min-w-0 flex-1 ${isSidebarExpanded ? '' : 'hidden lg:block'}`}>
+              <p className="text-[11px] font-black text-white truncate">{DEMO_USER.nickname}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[9px] font-black text-arena-gold px-1.5 py-0.5 rounded bg-arena-gold/10 border border-arena-gold/25">
+                  {DEMO_USER.grade}
+                </span>
+                <span className="text-[10px] font-bold text-gray-400 tabular-nums truncate">
+                  {wallet.points.toLocaleString()} P
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="relative z-10 flex-1 px-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = item.path !== '#game' && location.pathname.startsWith(item.path);
             const showLabel = isSidebarExpanded;
@@ -132,18 +176,18 @@ export function Layout() {
                 key={item.name}
                 to={item.path === '#game' ? '#' : item.path}
                 onClick={(e) => handleNavClick(item, e)}
-                className={`relative flex items-center gap-3 px-3 py-3.5 rounded-2xl transition-all font-bold overflow-hidden ${
+                className={`relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-bold overflow-hidden ${
                   isActive
-                    ? 'bg-white/10 text-white shadow-sm'
-                    : 'text-arena-text-muted hover:bg-white/5 hover:text-white'
+                    ? 'bg-gradient-to-r from-arena-gold/15 via-white/[0.06] to-transparent text-white border border-arena-gold/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                    : 'text-arena-text-muted border border-transparent hover:bg-white/[0.04] hover:text-white hover:border-white/5'
                 }`}
               >
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-arena-gold rounded-r-full" />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-7 rounded-r-full bg-gradient-to-b from-amber-300 via-arena-gold to-amber-600 shadow-[0_0_10px_rgba(245,158,11,0.7)]" />
                 )}
-                <item.icon className={`w-6 h-6 shrink-0 ${isActive ? 'text-arena-gold' : ''}`} />
+                <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-arena-gold' : ''}`} />
                 <span
-                  className={`whitespace-nowrap text-sm ${
+                  className={`whitespace-nowrap text-sm tracking-tight ${
                     showLabel ? 'inline' : 'hidden lg:inline'
                   }`}
                 >
@@ -153,6 +197,8 @@ export function Layout() {
             );
           })}
         </nav>
+
+        <SidebarAnchor expanded={isSidebarExpanded} />
       </aside>
 
       {/* Main Content */}
